@@ -39,9 +39,9 @@ class analysis:
                 ped = self.pedmap.GetBinContent(ix,iy)
                 noise = self.pedmap.GetBinError(ix,iy)
                 z = max(th2.GetBinContent(ix,iy)-ped,0)
-                if z>10*noise: th2_zs.SetBinContent(ix,iy,z)
+                if z>5*noise: th2_zs.SetBinContent(ix,iy,z)
                 #print "x,y,z=",ix," ",iy," ",z,"   3*noise = ",3*noise
-        th2_zs.GetZaxis().SetRangeUser(0,1000)
+        th2_zs.GetZaxis().SetRangeUser(0,1)
         return th2_zs
 
     def calcPedestal(self,maxImages=-1):
@@ -59,7 +59,7 @@ class analysis:
             obj.RebinX(self.rebin); obj.RebinY(self.rebin); 
             for ix in xrange(nx):
                 for iy in xrange(ny):
-                    pedmap.Fill(ix,iy,obj.GetBinContent(ix,iy)/float(math.pow(self.rebin,2)))
+                    pedmap.Fill(ix,iy,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
 
         tf.Close()
         pedfile.cd()
@@ -118,73 +118,6 @@ class analysis:
                 c1.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
      
      
-     
-            # import matplotlib.pyplot as plt
-            # from skimage import data, io, filters
-     
-            # fig, ax = plt.subplots()
-     
-            # image = bins
-            # edges = filters.sobel(image)
-
-            # low = 1
-     
-            # lowt = (edges > low).astype(int)
-     
-            # ax.imshow(lowt)
-            # ax.set_title('Low threshold')     
-            # plt.tight_layout()
-     
-            # plt.show()
-     
-     
-     
-                
-            # from skimage import feature
-     
-            # # Compute the Canny filter for two values of sigma
-            # edges1 = feature.canny(bins)
-            # edges2 = feature.canny(bins, sigma=5)
-     
-            # # display results
-            # fig, (ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=3, figsize=(8, 3),
-            #                                     sharex=True, sharey=True)
-     
-            # ax1.imshow(bins, cmap=plt.cm.gray)
-            # ax1.axis('off')
-            # ax1.set_title('noisy image', fontsize=20)
-     
-            # ax2.imshow(edges1, cmap=plt.cm.gray)
-            # ax2.axis('off')
-            # ax2.set_title('Canny filter, $\sigma=1$', fontsize=20)
-            
-            # ax3.imshow(edges2, cmap=plt.cm.gray)
-            # ax3.axis('off')
-            # ax3.set_title('Canny filter, $\sigma=3$', fontsize=20)
-            
-            # fig.tight_layout()
-            
-            # plt.show()
-                
-
-            # from math import sqrt
-            # from skimage.feature import blob_dog, blob_log, blob_doh
-            # import matplotlib.pyplot as plt
-     
-            # image_gray = bins
-            # blobs_doh = blob_doh(image_gray, min_sigma=2, max_sigma=100, threshold=.1,overlap=0.1)
-     
-            # fig, ax = plt.subplots()
-            # ax.imshow(image_gray, interpolation='nearest')
-            
-            # for blob in blobs_doh:
-            #     y, x, r = blob
-            #     c = plt.Circle((x, y), r, color='lime', linewidth=2, fill=False)
-            #     ax.add_patch(c)
-              
-            # plt.tight_layout()
-            # plt.show()
-
             from morphsnakes import(morphological_chan_vese,
                                     morphological_geodesic_active_contour,
                                     inverse_gaussian_gradient,
@@ -203,7 +136,7 @@ class analysis:
             # List with intermediate results for plotting the evolution
             evolution = []
             callback = self.store_evolution_in(evolution)
-            ls = morphological_geodesic_active_contour(gimage, 230, init_ls,
+            ls = morphological_geodesic_active_contour(gimage, 100, init_ls,
                                                        smoothing=1, balloon=-1,
                                                        threshold=0.69,
                                                        iter_callback=callback)
@@ -218,10 +151,10 @@ class analysis:
             ax[1].set_axis_off()
             contour = ax[1].contour(evolution[0], [0.5], colors='g')
             contour.collections[0].set_label("Iteration 0")
-            contour = ax[1].contour(evolution[100], [0.5], colors='y')
-            contour.collections[0].set_label("Iteration 100")
+            contour = ax[1].contour(evolution[50], [0.5], colors='y')
+            contour.collections[0].set_label("Iteration 50")
             contour = ax[1].contour(evolution[-1], [0.5], colors='r')
-            contour.collections[0].set_label("Iteration 230")
+            contour.collections[0].set_label("Iteration 100")
             ax[1].legend(loc="upper right")
             title = "Morphological GAC evolution"
             ax[1].set_title(title, fontsize=12)
