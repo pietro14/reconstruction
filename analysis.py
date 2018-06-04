@@ -103,6 +103,9 @@ class analysis:
             obj.RebinX(self.rebin); obj.RebinY(self.rebin)
             obj.Scale(1./float(math.pow(self.rebin,2)))
             h2zs = self.zs(obj)
+
+
+
             print "Analyzing its contours..."
             x_bins = h2zs.GetNbinsX()
             y_bins = h2zs.GetNbinsY()
@@ -113,18 +116,15 @@ class analysis:
                     if z>0:
                         bins[y_bin,x_bin] = h2zs.GetBinContent(x_bin + 1,y_bin + 1)
                     
-            h2zs.Draw('colz')
-            for ext in ['png']: #,'pdf']:
-                c1.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
-     
      
             from morphsnakes import(morphological_chan_vese,
                                     morphological_geodesic_active_contour,
                                     inverse_gaussian_gradient,
                                     checkerboard_level_set)
 
-            fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-            ax = axes.flatten()
+            #fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+            #ax = axes.flatten()
+            fig, ax = plt.subplots()
             
             # Morphological GAC
             image = img_as_float(bins)
@@ -142,25 +142,29 @@ class analysis:
                                                        iter_callback=callback)
 
 
-            ax[0].imshow(image, cmap="gray")
-            ax[0].set_axis_off()
-            ax[0].contour(ls, [0.5], colors='r')
-            ax[0].set_title("Morphological GAC segmentation", fontsize=12)
+            ax.imshow(image, cmap="gray")
+            ax.set_axis_off()
+            ax.contour(ls, [0.5], colors='r')
+            #ax.set_title("Morphological GAC segmentation", fontsize=12)
+            (run,event) = name.split('_')
+            ax.set_title('Run={run}, Event={event}'.format(run=run,event=event), fontsize=12)
             
-            ax[1].imshow(ls, cmap="gray")
-            ax[1].set_axis_off()
-            contour = ax[1].contour(evolution[0], [0.5], colors='g')
-            contour.collections[0].set_label("Iteration 0")
-            contour = ax[1].contour(evolution[50], [0.5], colors='y')
-            contour.collections[0].set_label("Iteration 50")
-            contour = ax[1].contour(evolution[-1], [0.5], colors='r')
-            contour.collections[0].set_label("Iteration 100")
-            ax[1].legend(loc="upper right")
-            title = "Morphological GAC evolution"
-            ax[1].set_title(title, fontsize=12)
+            # ax[1].imshow(ls, cmap="gray")
+            # ax[1].set_axis_off()
+            # contour = ax[1].contour(evolution[0], [0.5], colors='g')
+            # contour.collections[0].set_label("Iteration 0")
+            # contour = ax[1].contour(evolution[50], [0.5], colors='y')
+            # contour.collections[0].set_label("Iteration 50")
+            # contour = ax[1].contour(evolution[-1], [0.5], colors='r')
+            # contour.collections[0].set_label("Iteration 100")
+            # ax[1].legend(loc="upper right")
+            # title = "Morphological GAC evolution"
+            # ax[1].set_title(title, fontsize=12)
             
             fig.tight_layout()
-            plt.show()
+            #plt.show()
+            for ext in ['png','pdf']:
+                plt.savefig('{name}.{ext}'.format(name=name,ext=ext))
             
 if __name__ == '__main__':
 
