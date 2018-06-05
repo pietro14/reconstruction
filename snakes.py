@@ -15,10 +15,24 @@ from morphsnakes import(morphological_chan_vese,
 from skimage import measure
 import matplotlib.pyplot as plt
 
-class Snakes:
+class Pixel:
+    def __init__(self,x,y,z):
+        self.x=x
+        self.y=y
+        self.z=z
+
+class SnakeSpec:
+    def __init__(self,hits):
+        self.size = len(hits)
+        self.hist = hits
+    def integral(self):
+        pass
+        
+class SnakesFactory:
     def __init__(self,th2,name):
         self.data = self.getData(th2)
         self.contours = []
+        self.filledContours = []
         self.name = name
         
     def store_evolution_in(self,lst):
@@ -59,16 +73,17 @@ class Snakes:
                                                    smoothing=1, balloon=-1,
                                                    threshold=threshold,
                                                    iter_callback=callback)
+        # before returning the snakes, put them in the event
+        self.contours = ls
         return ls
-    
         
-    def plotContours(self,contours):
+    def plotContours(self,contours,fill=False):
 
         image = img_as_float(self.data)
         #fig, axes = plt.subplots(1, 2, figsize=(8, 4))
         #ax = axes.flatten()
         fig, ax = plt.subplots()
-
+        
         ax.imshow(image, cmap="gray")
         ax.set_axis_off()
         ax.contour(contours, [0.5], colors='r')
@@ -92,3 +107,21 @@ class Snakes:
         #plt.show()
         for ext in ['png','pdf']:
             plt.savefig('{name}.{ext}'.format(name=self.name,ext=ext))
+            
+    def filledSnakes(self,snakes,snakeMinSize=4,hitThr=0):
+        if len(self.contours)==0: self.getContours(iterations)
+
+        # fill the snakes so that the inside of the snake is all tagged as signal
+        from scipy import ndimage as ndi
+        tmpfilled = ndi.binary_fill_holes(self.contours)
+
+        # cleanup spurious small snakes
+        from skimage import morphology
+        self.filledContours = morphology.remove_small_objects(tmpfilled, snakeMinSize)
+        print "Len of filled contours = ",len(self.filledContours)
+        
+        print "Found ",len(self.contours)
+        # for cnt in self.contours:
+        #     if sum(cnt)>0:
+        #         print "contour = ",cnt
+        #         print "len = ",len(cnt)
