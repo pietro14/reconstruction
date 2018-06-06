@@ -31,6 +31,7 @@ class SnakeSpec:
 class SnakesFactory:
     def __init__(self,th2,name):
         self.data = self.getData(th2)
+        self.X = self.getActiveCoords(th2)
         self.contours = []
         self.filledContours = []
         self.name = name
@@ -56,6 +57,20 @@ class SnakesFactory:
                 if z>0:
                     bins[y_bin,x_bin] = th2.GetBinContent(x_bin + 1,y_bin + 1)
         return bins
+
+    def getActiveCoords(self,th2):
+        ret = []
+        if not th2.InheritsFrom("TH2"):
+            print "ERROR! The input object should be a TH2"
+            return ret
+        x_bins = th2.GetNbinsX()
+        y_bins = th2.GetNbinsY()
+        for y_bin in xrange(y_bins): 
+            for x_bin in xrange(x_bins): 
+                z = th2.GetBinContent(x_bin + 1,y_bin + 1)
+                if z>0:
+                    ret.append((x_bin,y_bin))
+        return np.array(ret)
     
     def getContours(self,iterations,threshold=0.69):
         
@@ -76,7 +91,53 @@ class SnakesFactory:
         # before returning the snakes, put them in the event
         self.contours = ls
         return ls
-        
+
+    def getClusters(self,maxDist=20,minPoints=4):
+        from sklearn.cluster import DBSCAN
+        from sklearn import metrics
+        from sklearn.datasets.samples_generator import make_blobs
+        from sklearn.preprocessing import StandardScaler
+        from scipy.spatial import distance
+        # make the clustering with DBSCAN algo
+
+        X = self.X
+        distance_matrix = distance.squareform(distance.pdist(X))
+        db = DBSCAN(eps=maxDist, min_samples=minPoints).fit(distance_matrix)
+        core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+        core_samples_mask[db.core_sample_indices_] = True
+        labels = db.labels_
+
+        # Number of clusters in labels, ignoring noise if present.
+        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+
+        print 'Estimated number of clusters: %d' % n_clusters_
+        print "Silhouette Coefficient: %0.3f" % metrics.silhouette_score(X, labels)
+
+        ##################### plot
+        import matplotlib.pyplot as plt
+
+        # Black removed and is used for noise instead.
+        unique_labels = set(labels)
+        colors = [plt.cm.Spectral(each)
+                  for each in np.linspace(0, 1, len(unique_labels))]
+        for k, col in zip(unique_labels, colors):
+            if k == -1:
+                # Black used for noise.
+                col = [0, 0, 0, 1]
+
+            class_member_mask = (labels == k)
+         
+            xy = X[class_member_mask & core_samples_mask]
+            plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
+                     markeredgecolor='k', markersize=14)
+         
+            xy = X[class_member_mask & ~core_samples_mask]
+            plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
+                     markeredgecolor='k', markersize=6)
+            
+        plt.title('Estimated number of clusters: %d' % n_clusters_)
+        plt.show()
+
     def plotContours(self,contours,fill=False):
 
         image = img_as_float(self.data)

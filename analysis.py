@@ -98,9 +98,11 @@ class analysis:
 
             print "Analyzing its contours..."
             snfac = SnakesFactory(h2zs,name)
-            snakes = snfac.getContours(iterations=100)
-            snfac.plotContours(snakes,fill=True)
-            snfac.filledSnakes(snakes)
+            snfac.getClusters()
+
+            #snakes = snfac.getContours(iterations=100)
+            #snfac.plotContours(snakes,fill=True)
+            #snfac.filledSnakes(snakes)
             
 if __name__ == '__main__':
 
