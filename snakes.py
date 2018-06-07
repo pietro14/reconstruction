@@ -2,35 +2,28 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import ROOT
+import ROOT,math
 
 from scipy.ndimage import gaussian_filter
 from skimage import img_as_float
 from skimage.morphology import reconstruction
+from skimage import measure
 
 from morphsnakes import(morphological_chan_vese,
                         morphological_geodesic_active_contour,
                         inverse_gaussian_gradient,
                         checkerboard_level_set)
-from skimage import measure
-import matplotlib.pyplot as plt
 
-class Cluster:
-    def __init__(self,hits):
-        self.hits = hits
-    def integral(self):
-        return sum([z for (x,y,z) in self.hits])
-    def size(self):
-        return len(self.hits)
-    def dump(self):
-        print self.hits
-    
+from clusterTools import Cluster
+
+
 class SnakesFactory:
-    def __init__(self,th2,name):
+    def __init__(self,th2,name,rebin=1):
         self.data = self.getData(th2)
         self.X = self.getActiveCoords(th2)
         self.contours = []
         self.name = name
+        self.rebin = rebin
         
     def store_evolution_in(self,lst):
         """Returns a callback function to store the evolution of the level sets in
@@ -88,16 +81,6 @@ class SnakesFactory:
         self.contours = ls
         return ls
 
-    def plot_axis(self,center, dir, num_steps=100, step_size=0.5):
-        line_x = []
-        line_y = []
-        for i in range(num_steps):
-            dist_from_center = step_size * (i - num_steps / 2)
-            point_on_line = center + dist_from_center * dir
-            line_x.append(point_on_line[0])
-            line_y.append(point_on_line[1])
-        return (line_x, line_y)
-
     def getClusters(self,maxDist=100,minPoints=10,minPointsCore=3,plot=True):
 
         from sklearn.cluster import DBSCAN
@@ -123,6 +106,7 @@ class SnakesFactory:
         unique_labels = set(labels)
         colors = [plt.cm.Spectral(each)
                   for each in np.linspace(0, 1, len(unique_labels))]
+        canv = ROOT.TCanvas('c1','',600,600)
         for k, col in zip(unique_labels, colors):
             if k == -1:
                 # Black used for noise.
@@ -136,26 +120,18 @@ class SnakesFactory:
                               markeredgecolor='k', markersize=14)
 
             # only add the cores to the clusters saved in the event
-            if len(xy)>minPointsCore:
-                cl = Cluster(xy)
+            if k>-1 and len(xy)>minPointsCore:
+                cl = Cluster(xy,self.rebin)
                 clusters.append(cl)
+                cl.plotAxes(plot=plt)
+                cl.calcProfiles(plot=plt)
+                for dir in ['long','lat']:
+                    prof = cl.getProfile(dir)
+                    if prof:
+                        prof.Draw()
+                        for ext in ['png','pdf']:
+                            canv.SaveAs('{name}_snake{iclu}_{dir}profile.{ext}'.format(name=self.name,iclu=k,dir=dir,ext=ext))
 
-                print "cluster size = ",len(xy)
-                covmat = np.cov([x,y])
-                print covmat
-
-                eig_values, eig_vecs = np.linalg.eig(covmat)
-                indexes = (np.argmax(eig_values),np.argmin(eig_values))
-                eig_vec_vals = (eig_vecs[:, indexes[0]], eig_vecs[:, indexes[-1]])
-                print "largest,smallest eignevalues = ",eig_vec_vals
-
-                if plot:
-                    mean_point=np.array([np.mean(x),np.mean(y)])
-                    lines = [self.plot_axis(mean_point, ev) for ev in eig_vec_vals] 
-                    for line in lines:
-                        plt.plot(line[0], line[1], c="r")
-
-                
             # plot also the non-core hits
             xy = X[class_member_mask & ~core_samples_mask]
             if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),

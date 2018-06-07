@@ -97,7 +97,7 @@ class analysis:
             h2zs = self.zs(obj)
 
             print "Analyzing its contours..."
-            snfac = SnakesFactory(h2zs,name)
+            snfac = SnakesFactory(h2zs,name,rebin=self.rebin)
             snfac.getClusters()
 
             #snakes = snfac.getContours(iterations=100)
