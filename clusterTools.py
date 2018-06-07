@@ -27,7 +27,7 @@ class Cluster:
         return eig_vec_vals
 
     def plotAxes(self,plot):
-        def plot_line(center, dir, num_steps=100, step_size=0.5):
+        def plot_line(center, dir, num_steps=400, step_size=0.5):
             line_x = []
             line_y = []
             for i in range(num_steps):
@@ -64,32 +64,35 @@ class Cluster:
             rx = [h[0] for h in rot_hits]; ry = [h[1] for h in rot_hits]; 
             plot.plot(rx, ry, color='green', marker='^',markersize=3)
 
-        # now comput e the length along major axis, long profile, etc
+        # now compute the length along major axis, long profile, etc
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
 
-        bwidth=3
-        nbinsx = int((rxmax-rxmin)/float(bwidth))
-        nbinsy = int((rymax-rymin)/float(bwidth))
+        bwidth=4
+        length=rxmax-rxmin; width=rymax-rymin
+        print "l,w = ",length," ",width
+        nbinsx = int(length/float(bwidth))
+        nbinsy = int(width/float(bwidth))
         if nbinsx>1:
-            longprof = ROOT.TProfile('longprof','longitudinal profile',nbinsx,0,self.rebin*(rxmax-rxmin))
+            longprof = ROOT.TProfile('longprof','longitudinal profile',nbinsx,0,length,'s')
             longprof.SetDirectory(None)
         else: longprof = None
         if nbinsy>1:
-            latprof = ROOT.TProfile('latprof','lateral profile',nbinsy,0,self.rebin*(rymax-rymin))
+            latprof = ROOT.TProfile('latprof','lateral profile',nbinsy,0,width,'s')
             latprof.SetDirectory(None)
         else: latprof = None
 
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
-            if longprof: longprof.Fill(self.rebin*(x-rxmin),z)
-            if latprof: latprof.Fill(self.rebin*(y-rymin),z)
+            if longprof: longprof.Fill(x-rxmin,z)
+            if latprof: latprof.Fill(y-rymin,z)
 
         profiles = [longprof,latprof]
         for p in profiles:
             if p:
                 p.GetXaxis().SetTitle('depth (pixels)')
                 p.GetYaxis().SetTitle('average counts')
+                p.SetMinimum(0)
             
         self.profiles['long'] = longprof
         self.profiles['lat'] = latprof

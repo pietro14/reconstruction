@@ -19,11 +19,11 @@ from clusterTools import Cluster
 
 class SnakesFactory:
     def __init__(self,th2,name,rebin=1):
+        self.name = name
+        self.rebin = rebin
         self.data = self.getData(th2)
         self.X = self.getActiveCoords(th2)
         self.contours = []
-        self.name = name
-        self.rebin = rebin
         
     def store_evolution_in(self,lst):
         """Returns a callback function to store the evolution of the level sets in
@@ -58,7 +58,7 @@ class SnakesFactory:
             for x_bin in xrange(x_bins): 
                 z = th2.GetBinContent(x_bin + 1,y_bin + 1)
                 if z>0:
-                    ret.append((x_bin,y_bin,z))
+                    ret.append((self.rebin*x_bin,self.rebin*y_bin,z))
         return np.array(ret)
     
     def getContours(self,iterations,threshold=0.69):
@@ -81,7 +81,7 @@ class SnakesFactory:
         self.contours = ls
         return ls
 
-    def getClusters(self,maxDist=100,minPoints=10,minPointsCore=3,plot=True):
+    def getClusters(self,maxDist=400,minPoints=20,minPointsCore=5,plot=True):
 
         from sklearn.cluster import DBSCAN
         from sklearn import metrics
@@ -101,7 +101,10 @@ class SnakesFactory:
         clusters = []
         ##################### plot
         import matplotlib.pyplot as plt
-
+        plt.axes().set_aspect('equal','box')
+        plt.ylim(0,2040)
+        plt.xlim(0,2040)
+        
         # Black removed and is used for noise instead.
         unique_labels = set(labels)
         colors = [plt.cm.Spectral(each)
@@ -116,8 +119,9 @@ class SnakesFactory:
          
             xy = X[class_member_mask & core_samples_mask]
             x = xy[:, 0]; y = xy[:, 1]
-            if plot: plt.plot(x, y, 'o', markerfacecolor=tuple(col),
-                              markeredgecolor='k', markersize=14)
+            if plot:
+                plt.plot(x, y, 'o', markerfacecolor=tuple(col),
+                         markeredgecolor='k', markersize=14)
 
             # only add the cores to the clusters saved in the event
             if k>-1 and len(xy)>minPointsCore:
@@ -133,9 +137,9 @@ class SnakesFactory:
                             canv.SaveAs('{name}_snake{iclu}_{dir}profile.{ext}'.format(name=self.name,iclu=k,dir=dir,ext=ext))
 
             # plot also the non-core hits
-            xy = X[class_member_mask & ~core_samples_mask]
-            if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
-                              markeredgecolor='k', markersize=6)
+            # xy = X[class_member_mask & ~core_samples_mask]
+            # if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
+            #                   markeredgecolor='k', markersize=6)
 
         if plot:
             plt.title('Estimated number of clusters: %d' % n_clusters_)
