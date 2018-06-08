@@ -2,7 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import ROOT,math
+import ROOT,math,os
 
 from scipy.ndimage import gaussian_filter
 from skimage import img_as_float
@@ -18,9 +18,10 @@ from clusterTools import Cluster
 
 
 class SnakesFactory:
-    def __init__(self,th2,name,rebin=1):
+    def __init__(self,th2,name,options):
         self.name = name
-        self.rebin = rebin
+        self.options = options
+        self.rebin = options.rebin
         self.data = self.getData(th2)
         self.X = self.getActiveCoords(th2)
         self.contours = []
@@ -81,7 +82,7 @@ class SnakesFactory:
         self.contours = ls
         return ls
 
-    def getClusters(self,maxDist=400,minPoints=20,minPointsCore=5,plot=True):
+    def getClusters(self,maxDist=600,minPoints=20,minPointsCore=5,plot=True):
 
         from sklearn.cluster import DBSCAN
         from sklearn import metrics
@@ -101,10 +102,17 @@ class SnakesFactory:
         clusters = []
         ##################### plot
         import matplotlib.pyplot as plt
-        plt.axes().set_aspect('equal','box')
-        plt.ylim(0,2040)
-        plt.xlim(0,2040)
-        
+        # the following is to preserve the square aspect ratio with all the camera pixels
+        # plt.axes().set_aspect('equal','box')
+        # plt.ylim(0,2040)
+        # plt.xlim(0,2040)
+
+        outname = self.options.plotDir
+        print "outname = ",outname, "   ",os.path.dirname(outname)
+        if outname and not os.path.exists(outname):
+            os.system("mkdir -p "+outname)
+            os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
+            
         # Black removed and is used for noise instead.
         unique_labels = set(labels)
         colors = [plt.cm.Spectral(each)
@@ -121,20 +129,20 @@ class SnakesFactory:
             x = xy[:, 0]; y = xy[:, 1]
             if plot:
                 plt.plot(x, y, 'o', markerfacecolor=tuple(col),
-                         markeredgecolor='k', markersize=14)
+                         markeredgecolor='k', markersize=5)
 
             # only add the cores to the clusters saved in the event
             if k>-1 and len(xy)>minPointsCore:
                 cl = Cluster(xy,self.rebin)
                 clusters.append(cl)
                 cl.plotAxes(plot=plt)
-                cl.calcProfiles(plot=plt)
+                cl.calcProfiles(plot=None)
                 for dir in ['long','lat']:
                     prof = cl.getProfile(dir)
-                    if prof:
+                    if prof and cl.widths[dir]>10: # plot the profiles only of sufficiently long snakes
                         prof.Draw()
                         for ext in ['png','pdf']:
-                            canv.SaveAs('{name}_snake{iclu}_{dir}profile.{ext}'.format(name=self.name,iclu=k,dir=dir,ext=ext))
+                            canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
 
             # plot also the non-core hits
             # xy = X[class_member_mask & ~core_samples_mask]
@@ -142,10 +150,10 @@ class SnakesFactory:
             #                   markeredgecolor='k', markersize=6)
 
         if plot:
-            plt.title('Estimated number of clusters: %d' % n_clusters_)
+            plt.title('Estimated number of snakes: %d' % n_clusters_)
             #plt.show()
             for ext in ['png','pdf']:
-                plt.savefig('{name}.{ext}'.format(name=self.name,ext=ext))
+                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
 
             

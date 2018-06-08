@@ -98,7 +98,7 @@ class analysis:
             h2zs = self.zs(obj)
 
             print "Analyzing its contours..."
-            snfac = SnakesFactory(h2zs,name,rebin=self.rebin)
+            snfac = SnakesFactory(h2zs,name,options)
             snfac.getClusters()
 
             #snakes = snfac.getContours(iterations=100)
@@ -114,10 +114,13 @@ if __name__ == '__main__':
     parser.add_option(      '--numPedEvents', dest='numPedEvents', default=-1, type='float', help='Use the last n events to calculate the pedestal. Default is all events')
 
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
+    parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
+
     (options, args) = parser.parse_args()
 
     inputf = args[0]
     ana = analysis(inputf,options)
+    print "Will save plots to ",options.plotDir
     if options.calcPedestals:
         ana.calcPedestal(options.numPedEvents)
     ana.reconstruct()

@@ -8,11 +8,12 @@ import ROOT
 class Cluster:
     def __init__(self,hits,rebin):
         self.hits = hits
+        self.rebin = rebin
         self.x = hits[:, 0]; self.y = hits[:, 1]
         self.mean_point = np.array([np.mean(self.x),np.mean(self.y)])
         self.EVs = self.eigenvectors()
+        self.widths = {}
         self.profiles = {}
-        self.rebin = rebin
     def integral(self):
         return sum([z for (x,y,z) in self.hits])
     def size(self):
@@ -70,15 +71,14 @@ class Cluster:
 
         bwidth=4
         length=rxmax-rxmin; width=rymax-rymin
-        print "l,w = ",length," ",width
         nbinsx = int(length/float(bwidth))
         nbinsy = int(width/float(bwidth))
         if nbinsx>1:
-            longprof = ROOT.TProfile('longprof','longitudinal profile',nbinsx,0,length,'s')
+            longprof = ROOT.TProfile('longprof','longitudinal profile',nbinsx,0,length,'i')
             longprof.SetDirectory(None)
         else: longprof = None
         if nbinsy>1:
-            latprof = ROOT.TProfile('latprof','lateral profile',nbinsy,0,width,'s')
+            latprof = ROOT.TProfile('latprof','lateral profile',nbinsy,0,width,'i')
             latprof.SetDirectory(None)
         else: latprof = None
 
@@ -92,13 +92,24 @@ class Cluster:
             if p:
                 p.GetXaxis().SetTitle('depth (pixels)')
                 p.GetYaxis().SetTitle('average counts')
-                p.SetMinimum(0)
-            
+                self.applyProfileStyle(p)
+                
+        # now set the cluster shapes and profiles
         self.profiles['long'] = longprof
         self.profiles['lat'] = latprof
+        self.widths['long'] = length
+        self.widths['lat'] = width
         
     def getProfile(self,name='long'):
         if len(self.profiles)==0:
             self.calcProfiles()
         return self.profiles[name] if name in self.profiles else None
     
+
+    def applyProfileStyle(self,prof):
+        prof.SetMarkerStyle(ROOT.kFullSquare)
+        prof.SetMarkerSize(1)
+        prof.SetMarkerColor(ROOT.kBlack)
+        prof.SetLineColor(ROOT.kBlack)
+        prof.SetMinimum(0)
+                
