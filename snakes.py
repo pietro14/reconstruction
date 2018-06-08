@@ -82,7 +82,7 @@ class SnakesFactory:
         self.contours = ls
         return ls
 
-    def getClusters(self,maxDist=600,minPoints=20,minPointsCore=5,plot=True):
+    def getClusters(self,maxDist=600,minPoints=30,minPointsCore=5,plot=True):
 
         from sklearn.cluster import DBSCAN
         from sklearn import metrics
@@ -91,7 +91,7 @@ class SnakesFactory:
         # make the clustering with DBSCAN algo
         X = self.X
         distance_matrix = distance.squareform(distance.pdist(X))
-        db = DBSCAN(eps=maxDist, min_samples=minPoints,n_jobs=-1).fit(distance_matrix)
+        db = DBSCAN(eps=maxDist, min_samples=minPoints,metric='euclidean',n_jobs=-1).fit(distance_matrix)
         core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
         core_samples_mask[db.core_sample_indices_] = True
         labels = db.labels_
@@ -129,7 +129,7 @@ class SnakesFactory:
             x = xy[:, 0]; y = xy[:, 1]
             if plot:
                 plt.plot(x, y, 'o', markerfacecolor=tuple(col),
-                         markeredgecolor='k', markersize=5)
+                         markeredgecolor='k', markersize=10)
 
             # only add the cores to the clusters saved in the event
             if k>-1 and len(xy)>minPointsCore:
