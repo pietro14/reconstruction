@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os,math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,17 +7,18 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 
 
-from snakes import Snakes
+from snakes import SnakesFactory
 
 class analysis:
 
     def __init__(self,rfile,options):
-        self.rebin = options.rebin
+        self.rebin = options.rebin        
         self.rfile = rfile
+        self.options = options
         self.pedfile_name = '{base}_ped_rebin{rb}.root'.format(base=os.path.splitext(self.rfile)[0],rb=self.rebin)
         if not options.calcPedestals and not os.path.exists(self.pedfile_name):
             print "WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them..."
-            self.calcPedestal()
+            self.calcPedestal(options.numPedEvents)
         print "Pulling pedestals..."
         pedrf = ROOT.TFile.Open(self.pedfile_name)
         self.pedmap = pedrf.Get('pedmap').Clone()
@@ -46,11 +49,11 @@ class analysis:
         pedmap = ROOT.TProfile2D('pedmap','pedmap',nx,0,nx,ny,0,ny,'s')
         tf = ROOT.TFile.Open(self.rfile)
         for i,e in enumerate(tf.GetListOfKeys()):
-            if maxImages>-1 and i==maxImages: break
+            if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
             name=e.GetName()
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
-            print "Processing histogram: ",name
+            print "Calc pedestal with event: ",name
             obj.RebinX(self.rebin); obj.RebinY(self.rebin); 
             for ix in xrange(nx):
                 for iy in xrange(ny):
@@ -68,6 +71,7 @@ class analysis:
         pedmean.Write()
         pedrms.Write()
         pedfile.Close()
+        print "Pedestal calculated and saved into ",self.pedfile_name
 
     def isGoodChannel(self,ix,iy):
         pedval = self.pedmap.GetBinContent(ix,iy)
@@ -83,7 +87,8 @@ class analysis:
         tf = ROOT.TFile.Open(self.rfile)
         c1 = ROOT.TCanvas('c1','',600,600)
         # loop over events (pictures)
-        for e in tf.GetListOfKeys() :
+        for ie,e in enumerate(tf.GetListOfKeys()) :
+            if ie==options.maxEntries: break
             name=e.GetName()
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
@@ -93,20 +98,29 @@ class analysis:
             h2zs = self.zs(obj)
 
             print "Analyzing its contours..."
-            thesnakes = Snakes(h2zs,name)
-            ls = thesnakes.getContours(iterations=100)
-            thesnakes.plotContours(ls)
+            snfac = SnakesFactory(h2zs,name,options)
+            snfac.getClusters()
+
+            #snakes = snfac.getContours(iterations=100)
+            #snfac.plotContours(snakes,fill=True)
+            #snfac.filledSnakes(snakes)
             
 if __name__ == '__main__':
 
     from optparse import OptionParser
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
-    parser.add_option('-r', '--rebin', dest='rebin', default=10, type='int', help='Rebin factor (same in x and y)')
+    parser.add_option('-r', '--rebin', dest='rebin', default=4, type='int', help='Rebin factor (same in x and y)')
     parser.add_option('-p', '--pedestal', dest='calcPedestals', default=False, action='store_true', help='First calculate the pedestals')
+    parser.add_option(      '--numPedEvents', dest='numPedEvents', default=-1, type='float', help='Use the last n events to calculate the pedestal. Default is all events')
+
+    parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
+    parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
+
     (options, args) = parser.parse_args()
 
     inputf = args[0]
     ana = analysis(inputf,options)
+    print "Will save plots to ",options.plotDir
     if options.calcPedestals:
-        ana.calcPedestal()
+        ana.calcPedestal(options.numPedEvents)
     ana.reconstruct()
