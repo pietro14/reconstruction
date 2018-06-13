@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math,itertools
 import ROOT
+from cameraChannel import cameraGeometry
 
 class Cluster:
     def __init__(self,hits,rebin):
@@ -71,8 +72,9 @@ class Cluster:
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
 
-        bwidth=4
-        length=rxmax-rxmin; width=rymax-rymin
+        geo = cameraGeometry()
+        bwidth=3*geo.pixelwidth
+        length=(rxmax-rxmin)*geo.pixelwidth; width=(rymax-rymin)*geo.pixelwidth
         nbinsx = int(length/float(bwidth))
         nbinsy = int(width/float(bwidth))
         if nbinsx>1:
@@ -86,14 +88,14 @@ class Cluster:
 
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
-            if longprof: longprof.Fill(x-rxmin,z)
-            if latprof: latprof.Fill(y-rymin,z)
+            if longprof: longprof.Fill((x-rxmin)*geo.pixelwidth,z)
+            if latprof: latprof.Fill((y-rymin)*geo.pixelwidth,z)
 
         profiles = [longprof,latprof]
         for p in profiles:
             if p:
-                p.GetXaxis().SetTitle('depth (pixels)')
-                p.GetYaxis().SetTitle('average counts')
+                p.GetXaxis().SetTitle('X (mm)')
+                p.GetYaxis().SetTitle('Average photons per {bwidth} #mum'.format(bwidth=bwidth * 1E+3))
                 self.applyProfileStyle(p)
                 
         # now set the cluster shapes and profiles
@@ -108,13 +110,13 @@ class Cluster:
         return self.profiles[name] if name in self.profiles else None
     
     def applyProfileStyle(self,prof):
-        prof.SetMarkerStyle(ROOT.kFullSquare)
+        prof.SetMarkerStyle(ROOT.kFullCircle)
         prof.SetMarkerSize(1)
         prof.SetMarkerColor(ROOT.kBlack)
         prof.SetLineColor(ROOT.kBlack)
         prof.SetMinimum(0)
                 
-    def hitsFullResolution(self):
+    def hitsFullResolution(self,th2_fullres,pedmap_fullres):
         if hasattr(self,'hits_fr'):
             return self.hits_fr
         else:
@@ -123,31 +125,37 @@ class Cluster:
             for h in self.hits:
                 xfull = range(int(h[0]-halfbw-0.5),int(h[0]+halfbw+0.5))
                 yfull = range(int(h[1]-halfbw-0.5),int(h[1]+halfbw+0.5))
-                z = h[2]
-                fullres = [(x,y,z) for x in xfull for y in yfull]
+                fullres = []
+                for x in xfull:
+                    for y in yfull:
+                       xbfull = th2_fullres.GetXaxis().FindBin(x)
+                       ybfull = th2_fullres.GetYaxis().FindBin(y)
+                       ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
+                       z = th2_fullres.GetBinContent(xbfull,ybfull)-ped
+                       fullres.append((x,y,z))
                 for hfr in fullres: ret.append(hfr)
             self.hits_fr = np.array(ret)
             return self.hits_fr
     
-    def plotFullResolution(self,th2_fullres,name,option='colz'):
-        hits_fr = self.hitsFullResolution()
+    def plotFullResolution(self,th2_fullres,pedmap_fullres,name,option='colz'):
+        hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
         border = 20
         xmin,xmax = (min(hits_fr[:,0])-border, max(hits_fr[:,0])+border)
         ymin,ymax = (min(hits_fr[:,1])-border, max(hits_fr[:,1])+border)
         zmax = max(hits_fr[:,2])
         nbinsx = int(xmax-xmin)
         nbinsy = int(ymax-ymin)
-        print "Square = ",xmin," ",xmax,"   ",ymin,",",ymax
         snake_fr = ROOT.TH2D(name,'',nbinsx,xmin,xmax,nbinsy,ymin,ymax)
         for (x,y,zrebin) in hits_fr:
             xb = snake_fr.GetXaxis().FindBin(x)
             yb = snake_fr.GetYaxis().FindBin(y)
             xb_fr = th2_fullres.GetXaxis().FindBin(x)
             yb_fr = th2_fullres.GetYaxis().FindBin(y)
-            z = th2_fullres.GetBinContent(xb_fr,yb_fr)
+            ped = pedmap_fullres.GetBinContent(xb_fr,yb_fr)
+            z = th2_fullres.GetBinContent(xb_fr,yb_fr) - ped
             #print "Filling xb,yb =",xb," ",yb," xb_fr,yb_fr",xb_fr," ",yb_fr," with ",x," "," ",y," ",z,"   zrebin = ",zrebin
             snake_fr.SetBinContent(xb,yb,z)
-
+            
         ROOT.gStyle.SetOptStat(0)
         ROOT.gStyle.SetPalette(ROOT.kRainBow)
 

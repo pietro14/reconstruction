@@ -110,7 +110,6 @@ class SnakesFactory:
         # plt.xlim(0,2040)
 
         outname = self.options.plotDir
-        print "outname = ",outname, "   ",os.path.dirname(outname)
         if outname and not os.path.exists(outname):
             os.system("mkdir -p "+outname)
             os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
@@ -135,6 +134,7 @@ class SnakesFactory:
 
             # only add the cores to the clusters saved in the event
             if k>-1 and len(xy)>minPointsCore:
+                print "Found cluster!"
                 cl = Cluster(xy,self.rebin)
                 clusters.append(cl)
                 cl.plotAxes(plot=plt)
@@ -160,22 +160,20 @@ class SnakesFactory:
 
         return clusters
 
-    def plotClusterFullResolution(self,clusters,th2_fullres):
-        print "Plotting full resolution clusters..." 
+    def plotClusterFullResolution(self,clusters,th2_fullres,pedmap_fullres):
         outname = self.options.plotDir
         for k,cl in enumerate(clusters):
-            cl.plotFullResolution(th2_fullres,'{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
+            cl.plotFullResolution(th2_fullres,pedmap_fullres,'{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
 
-    def plotProfiles(self,clusters,th2_fullres=None):
-        print "Plotting full resolution clusters..." 
+    def plotProfiles(self,clusters,th2_fullres=None,pedmap_fullres=None):
         outname = self.options.plotDir
         canv = ROOT.TCanvas('c1','',600,600)
         for k,cl in enumerate(clusters):
-            hits = cl.hitsFullResolution() if th2_fullres else cl.hits
+            hits = cl.hitsFullResolution(th2_fullres,pedmap_fullres) if (th2_fullres and pedmap_fullres) else cl.hits
             cl.calcProfiles(hitscalc=hits,plot=None)
             for dir in ['long','lat']:
                 prof = cl.getProfile(dir)
-                if prof and cl.widths[dir]>10: # plot the profiles only of sufficiently long snakes
+                if prof and cl.widths[dir]>0.2: # plot the profiles only of sufficiently long snakes (>200 um)
                     prof.Draw()
                     for ext in ['png','pdf']:
                         canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
