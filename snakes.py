@@ -57,9 +57,11 @@ class SnakesFactory:
         y_bins = th2.GetNbinsY()
         for y_bin in xrange(y_bins): 
             for x_bin in xrange(x_bins): 
+                x = th2.GetXaxis().GetBinCenter(x_bin+1)
+                y = th2.GetYaxis().GetBinCenter(y_bin+1)
                 z = th2.GetBinContent(x_bin + 1,y_bin + 1)
                 if z>0:
-                    ret.append((self.rebin*x_bin,self.rebin*y_bin,z))
+                    ret.append((x,y,z))
         return np.array(ret)
     
     def getContours(self,iterations,threshold=0.69):
@@ -117,7 +119,7 @@ class SnakesFactory:
         unique_labels = set(labels)
         colors = [plt.cm.Spectral(each)
                   for each in np.linspace(0, 1, len(unique_labels))]
-        canv = ROOT.TCanvas('c1','',600,600)
+        #canv = ROOT.TCanvas('c1','',600,600)
         for k, col in zip(unique_labels, colors):
             if k == -1:
                 # Black used for noise.
@@ -136,13 +138,13 @@ class SnakesFactory:
                 cl = Cluster(xy,self.rebin)
                 clusters.append(cl)
                 cl.plotAxes(plot=plt)
-                cl.calcProfiles(plot=None)
-                for dir in ['long','lat']:
-                    prof = cl.getProfile(dir)
-                    if prof and cl.widths[dir]>10: # plot the profiles only of sufficiently long snakes
-                        prof.Draw()
-                        for ext in ['png','pdf']:
-                            canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
+                # cl.calcProfiles(plot=None)
+                # for dir in ['long','lat']:
+                #     prof = cl.getProfile(dir)
+                #     if prof and cl.widths[dir]>10: # plot the profiles only of sufficiently long snakes
+                #         prof.Draw()
+                #         for ext in ['png','pdf']:
+                #             canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
 
             # plot also the non-core hits
             # xy = X[class_member_mask & ~core_samples_mask]
@@ -156,8 +158,27 @@ class SnakesFactory:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
 
-            
         return clusters
+
+    def plotClusterFullResolution(self,clusters,th2_fullres):
+        print "Plotting full resolution clusters..." 
+        outname = self.options.plotDir
+        for k,cl in enumerate(clusters):
+            cl.plotFullResolution(th2_fullres,'{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
+
+    def plotProfiles(self,clusters,th2_fullres=None):
+        print "Plotting full resolution clusters..." 
+        outname = self.options.plotDir
+        canv = ROOT.TCanvas('c1','',600,600)
+        for k,cl in enumerate(clusters):
+            hits = cl.hitsFullResolution() if th2_fullres else cl.hits
+            cl.calcProfiles(hitscalc=hits,plot=None)
+            for dir in ['long','lat']:
+                prof = cl.getProfile(dir)
+                if prof and cl.widths[dir]>10: # plot the profiles only of sufficiently long snakes
+                    prof.Draw()
+                    for ext in ['png','pdf']:
+                        canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
         
     def plotContours(self,contours):
 

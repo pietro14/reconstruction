@@ -2,7 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import math
+import math,itertools
 import ROOT
 
 class Cluster:
@@ -42,7 +42,7 @@ class Cluster:
         for line in lines:
             plot.plot(line[0], line[1], c="r")
 
-    def calcProfiles(self,plot=None):
+    def calcProfiles(self,hitscalc=[],plot=None):
         # if they have been attached to the cluster, do not recompute them
         if len(self.profiles)>0:
             return
@@ -57,7 +57,9 @@ class Cluster:
 
         # rotate the hits of the cluster along the major axis
         rot_hits=[]
-        for h in self.hits:
+        # this is in case one wants to make the profile with a different resolution wrt the clustering
+        hits = hitscalc if len(hitscalc)>0 else self.hits
+        for h in hits:
             rx,ry = rotate_around_point(h,self.EVs[0],self.mean_point)
             rh_major_axis = (rx,ry,h[-1])
             rot_hits.append(rh_major_axis)
@@ -105,7 +107,6 @@ class Cluster:
             self.calcProfiles()
         return self.profiles[name] if name in self.profiles else None
     
-
     def applyProfileStyle(self,prof):
         prof.SetMarkerStyle(ROOT.kFullSquare)
         prof.SetMarkerSize(1)
@@ -113,3 +114,49 @@ class Cluster:
         prof.SetLineColor(ROOT.kBlack)
         prof.SetMinimum(0)
                 
+    def hitsFullResolution(self):
+        if hasattr(self,'hits_fr'):
+            return self.hits_fr
+        else:
+            ret = []
+            halfbw = self.rebin/2.
+            for h in self.hits:
+                xfull = range(int(h[0]-halfbw-0.5),int(h[0]+halfbw+0.5))
+                yfull = range(int(h[1]-halfbw-0.5),int(h[1]+halfbw+0.5))
+                z = h[2]
+                fullres = [(x,y,z) for x in xfull for y in yfull]
+                for hfr in fullres: ret.append(hfr)
+            self.hits_fr = np.array(ret)
+            return self.hits_fr
+    
+    def plotFullResolution(self,th2_fullres,name,option='colz'):
+        hits_fr = self.hitsFullResolution()
+        border = 20
+        xmin,xmax = (min(hits_fr[:,0])-border, max(hits_fr[:,0])+border)
+        ymin,ymax = (min(hits_fr[:,1])-border, max(hits_fr[:,1])+border)
+        zmax = max(hits_fr[:,2])
+        nbinsx = int(xmax-xmin)
+        nbinsy = int(ymax-ymin)
+        print "Square = ",xmin," ",xmax,"   ",ymin,",",ymax
+        snake_fr = ROOT.TH2D(name,'',nbinsx,xmin,xmax,nbinsy,ymin,ymax)
+        for (x,y,zrebin) in hits_fr:
+            xb = snake_fr.GetXaxis().FindBin(x)
+            yb = snake_fr.GetYaxis().FindBin(y)
+            xb_fr = th2_fullres.GetXaxis().FindBin(x)
+            yb_fr = th2_fullres.GetYaxis().FindBin(y)
+            z = th2_fullres.GetBinContent(xb_fr,yb_fr)
+            #print "Filling xb,yb =",xb," ",yb," xb_fr,yb_fr",xb_fr," ",yb_fr," with ",x," "," ",y," ",z,"   zrebin = ",zrebin
+            snake_fr.SetBinContent(xb,yb,z)
+
+        ROOT.gStyle.SetOptStat(0)
+        ROOT.gStyle.SetPalette(ROOT.kRainBow)
+
+        cFR = ROOT.TCanvas("cfr","",600,600)
+        snake_fr.GetXaxis().SetTitle('x (pixels)')
+        snake_fr.GetYaxis().SetTitle('y (pixels)')
+        snake_fr.GetZaxis().SetTitle('counts')
+        snake_fr.GetZaxis().SetRangeUser(0,(zmax*1.05))
+        snake_fr.Draw(option)
+        for ext in ['png','pdf']:
+            cFR.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
+        
