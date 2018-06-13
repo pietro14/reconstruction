@@ -5,13 +5,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import ROOT
 ROOT.gROOT.SetBatch(True)
-
+from channelsTools import cameraChannel
 
 from snakes import SnakesFactory
 
 class analysis:
 
     def __init__(self,rfile,options):
+        self.xmax = 2048
         self.rebin = options.rebin        
         self.rfile = rfile
         self.options = options
@@ -37,35 +38,12 @@ class analysis:
         self.pedmap_fr.SetDirectory(None)
         pedrf_fr.Close()
         
-    def zs(self,th2,pedmap,nsigma=5,plot=False):
-        nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
-        xmin,xmax=(th2.GetXaxis().GetXmin(),th2.GetXaxis().GetXmax())
-        ymin,ymax=(th2.GetYaxis().GetXmin(),th2.GetYaxis().GetXmax())
-        th2_zs = ROOT.TH2D(th2.GetName()+'_zs',th2.GetName()+'_zs',nx,xmin,xmax,ny,ymin,ymax)
-        th2_zs.SetDirectory(None)
-        for ix in xrange(1,nx+1):
-            for iy in xrange(1,ny+1):
-                if not self.isGoodChannel(pedmap,ix,iy): continue
-                ped = pedmap.GetBinContent(ix,iy)
-                noise = pedmap.GetBinError(ix,iy)
-                z = max(th2.GetBinContent(ix,iy)-ped,0)
-                if z>nsigma*noise:
-                    th2_zs.SetBinContent(ix,iy,z)
-                    #print "x,y,z=",ix," ",iy," ",z,"   noise = ",noise
-        #th2_zs.GetZaxis().SetRangeUser(0,1)
-        if plot:
-            canv = ROOT.TCanvas('zs','',600,600)
-            th2_zs.Draw('colz')
-            for ext in ['png','pdf']:
-                canv.SaveAs('{name}.{ext}'.format(name=th2.GetName()+'_zs',ext=ext))
-        return th2_zs
-
     def calcPedestal(self,maxImages=-1,alternativeRebin=-1):
-        nx=ny=2048
+        nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
         pedfile = ROOT.TFile.Open(self.pedfile_name,'recreate')
-        pedmap = ROOT.TProfile2D('pedmap','pedmap',nx,0,nx,ny,0,ny,'s')
+        pedmap = ROOT.TProfile2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax,'s')
         tf = ROOT.TFile.Open(self.rfile)
         for i,e in enumerate(tf.GetListOfKeys()):
             if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
@@ -74,9 +52,11 @@ class analysis:
             if not obj.InheritsFrom('TH2'): continue
             print "Calc pedestal with event: ",name
             obj.RebinX(rebin); obj.RebinY(rebin); 
-            for ix in xrange(nx):
-                for iy in xrange(ny):
-                    pedmap.Fill(ix,iy,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
+            for ix in xrange(nx+1):
+                for iy in xrange(ny+1):
+                    x = obj.GetXaxis().GetBinCenter(ix+1)
+                    y = obj.GetYaxis().GetBinCenter(iy+1)
+                    pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
 
         tf.Close()
         pedfile.cd()
@@ -92,19 +72,12 @@ class analysis:
         pedfile.Close()
         print "Pedestal calculated and saved into ",self.pedfile_name
 
-    def isGoodChannel(self,pedmap,ix,iy):
-        pedval = pedmap.GetBinContent(ix,iy)
-        pedrms = pedmap.GetBinError(ix,iy)
-        if pedval > 110: return False
-        if pedrms < 0.2: return False
-        if pedrms > 5: return False
-        return True
-
     def reconstruct(self):
         ROOT.gStyle.SetOptStat(0)
         ROOT.gStyle.SetPalette(ROOT.kRainBow)
         tf = ROOT.TFile.Open(self.rfile)
         c1 = ROOT.TCanvas('c1','',600,600)
+        cc = cameraChannel()
         # loop over events (pictures)
         for ie,e in enumerate(tf.GetListOfKeys()) :
             if ie==options.maxEntries: break
@@ -113,17 +86,18 @@ class analysis:
             if not obj.InheritsFrom('TH2'): continue
             print "Processing histogram: ",name
             # keep the full resolution 2D image
-            h2zs_fullres = self.zs(obj,self.pedmap_fr,1,plot=False)
+            #h2zs_fullres = cc.zs(obj,self.pedmap_fr,1,plot=False)
+            h2_fullres = obj.Clone(obj.GetName()+'_fr')
             
             # rebin to make the cluster finding fast
             obj.RebinX(self.rebin); obj.RebinY(self.rebin)
             obj.Scale(1./float(math.pow(self.rebin,2)))
-            h2zs = self.zs(obj,self.pedmap)
+            h2zs = cc.zs(obj,self.pedmap)
             print "Analyzing its contours..."
             snfac = SnakesFactory(h2zs,name,options)
             snakes = snfac.getClusters()
-            snfac.plotClusterFullResolution(snakes,h2zs_fullres)
-            snfac.plotProfiles(snakes,h2zs_fullres)
+            snfac.plotClusterFullResolution(snakes,h2_fullres,self.pedmap_fr)
+            snfac.plotProfiles(snakes,h2_fullres,self.pedmap_fr)
             
             #snakes = snfac.getContours(iterations=100)
             #snfac.plotContours(snakes,fill=True)
