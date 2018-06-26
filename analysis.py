@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os,math
+import os,math,sys
 import numpy as np
 import matplotlib.pyplot as plt
 import ROOT
@@ -24,19 +24,20 @@ class analysis:
         if not os.path.exists(self.pedfile_fullres_name):
             print "WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them..."
             self.calcPedestal(options.numPedEvents,1)
-        print "Pulling pedestals..."
-        # first the one for clustering with rebin
-        pedrf = ROOT.TFile.Open(self.pedfile_name)
-        self.pedmap = pedrf.Get('pedmap').Clone()
-        self.pedmap.SetDirectory(None)
-        self.pedmean = pedrf.Get('pedmean').GetMean()
-        self.pedrms = pedrf.Get('pedrms').GetMean()
-        pedrf.Close()
-        # then the full resolution one
-        pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
-        self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
-        self.pedmap_fr.SetDirectory(None)
-        pedrf_fr.Close()
+        if not options.justPedestal:
+           print "Pulling pedestals..."
+           # first the one for clustering with rebin
+           pedrf = ROOT.TFile.Open(self.pedfile_name)
+           self.pedmap = pedrf.Get('pedmap').Clone()
+           self.pedmap.SetDirectory(None)
+           self.pedmean = pedrf.Get('pedmean').GetMean()
+           self.pedrms = pedrf.Get('pedrms').GetMean()
+           pedrf.Close()
+           # then the full resolution one
+           pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
+           self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
+           self.pedmap_fr.SetDirectory(None)
+           pedrf_fr.Close()
         
     def calcPedestal(self,maxImages=-1,alternativeRebin=-1):
         nx=ny=self.xmax
@@ -112,10 +113,17 @@ if __name__ == '__main__':
 
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
+    parser.add_option('-p', '--pedestal', dest='justPedestal', default=False, action='store_true', help='Just compute the pedestals, do not run the analysis')
 
     (options, args) = parser.parse_args()
 
     inputf = args[0]
+
+    if options.justPedestal:
+        ana = analysis(inputf,options)
+        print "Pedestals with rebin factor = ",options.rebin, "done. Exiting."
+        sys.exit(0)
+        
     ana = analysis(inputf,options)
     print "Will save plots to ",options.plotDir
     ana.reconstruct()
