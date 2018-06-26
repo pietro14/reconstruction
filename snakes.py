@@ -113,7 +113,7 @@ class SnakesFactory:
         if outname and not os.path.exists(outname):
             os.system("mkdir -p "+outname)
             os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
-            
+
         # Black removed and is used for noise instead.
         unique_labels = set(labels)
         colors = [plt.cm.Spectral(each)
@@ -137,7 +137,7 @@ class SnakesFactory:
                 print "Found cluster!"
                 cl = Cluster(xy,self.rebin)
                 clusters.append(cl)
-                cl.plotAxes(plot=plt)
+                if plot: cl.plotAxes(plot=plt)
                 # cl.calcProfiles(plot=None)
                 # for dir in ['long','lat']:
                 #     prof = cl.getProfile(dir)
