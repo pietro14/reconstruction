@@ -122,7 +122,7 @@ class analysis:
         print "Reconstructing event range: ",evrange
         # loop over events (pictures)
         for ie,e in enumerate(tf.GetListOfKeys()) :
-            if ie==max(evrange[0],0)+options.maxEntries: break
+            if options.maxEntries>0 and ie==max(evrange[0],0)+options.maxEntries: break
             if sum(evrange)>-2:
                 if ie<evrange[0] or ie>evrange[1]: continue
             name=e.GetName()
