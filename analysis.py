@@ -8,6 +8,7 @@ ROOT.gROOT.SetBatch(True)
 from channelsTools import cameraChannel
 
 from snakes import SnakesFactory
+from pmtSignal import PMTSignal
 
 class analysis:
 
@@ -118,9 +119,12 @@ class analysis:
         tf = ROOT.TFile.Open(self.rfile)
         c1 = ROOT.TCanvas('c1','',600,600)
         cc = cameraChannel()
+        print "Reconstructing event range: ",evrange
         # loop over events (pictures)
         for ie,e in enumerate(tf.GetListOfKeys()) :
-            if ie==options.maxEntries: break
+            if ie==max(evrange[0],0)+options.maxEntries: break
+            if sum(evrange)>-2:
+                if ie<evrange[0] or ie>evrange[1]: continue
             name=e.GetName()
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
@@ -140,7 +144,14 @@ class analysis:
             snakes = snfac.getClusters(plot=False)
             snfac.plotClusterFullResolution(snakes,h2_fullres,self.pedmap_fr)
             snfac.plotProfiles(snakes,h2_fullres,self.pedmap_fr)
+
+            if len(snakes):
+                pmtname = 'wfm_'+'_'.join(name.split('_')[1:])
+                pmt = PMTSignal(tf.Get(pmtname),snakes,self.options)
+                pmt.plotNice()
+                
             
+            # DEPRECATED (GAC)
             #snakes = snfac.getContours(iterations=100)
             #snfac.plotContours(snakes,fill=True)
             #snfac.filledSnakes(snakes)
