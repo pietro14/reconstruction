@@ -4,7 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math,itertools
 import ROOT
+from array import array
 from cameraChannel import cameraGeometry
+
+import utilities
+utilities = utilities.utils()
 
 class Cluster:
     def __init__(self,hits,rebin):
@@ -72,20 +76,22 @@ class Cluster:
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
 
+        xedg = utilities.dynamicProfileBins(rot_hits,'x')
+        yedg = utilities.dynamicProfileBins(rot_hits,'y')
         geo = cameraGeometry()
-        bwidth=3*geo.pixelwidth
+        xedg = [(x-int(rxmin))*geo.pixelwidth for x in xedg]
+        yedg = [(y-int(rymin))*geo.pixelwidth for y in yedg]
+
         length=(rxmax-rxmin)*geo.pixelwidth; width=(rymax-rymin)*geo.pixelwidth
-        nbinsx = int(length/float(bwidth))
-        nbinsy = int(width/float(bwidth))
-        if nbinsx>1:
-            longprof = ROOT.TProfile('longprof','longitudinal profile',nbinsx,0,length,'i')
+        if len(xedg)>1:
+            longprof = ROOT.TProfile('longprof','longitudinal profile',len(xedg)-1,array('f',xedg),'i')
             longprof.SetDirectory(None)
         else: longprof = None
-        if nbinsy>1:
-            latprof = ROOT.TProfile('latprof','lateral profile',nbinsy,0,width,'i')
+        if len(yedg)>1:
+            latprof = ROOT.TProfile('latprof','lateral profile',len(yedg)-1,array('f',yedg),'i')
             latprof.SetDirectory(None)
         else: latprof = None
-
+        
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
             if longprof: longprof.Fill((x-rxmin)*geo.pixelwidth,z)
@@ -95,7 +101,7 @@ class Cluster:
         for p in profiles:
             if p:
                 p.GetXaxis().SetTitle('X (mm)')
-                p.GetYaxis().SetTitle('Average photons per {bwidth} #mum'.format(bwidth=bwidth * 1E+3))
+                p.GetYaxis().SetTitle('Average photons per bin')
                 self.applyProfileStyle(p)
                 
         # now set the cluster shapes and profiles
@@ -120,8 +126,8 @@ class Cluster:
         if hasattr(self,'hits_fr'):
             return self.hits_fr
         else:
-            ret = []
-            halfbw = self.rebin/2.
+            retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
+            halfbw = max(5.,self.rebin/2.) # 5 is to ensure a minimal lateral size for the tails
             for h in self.hits:
                 xfull = range(int(h[0]-halfbw-0.5),int(h[0]+halfbw+0.5))
                 yfull = range(int(h[1]-halfbw-0.5),int(h[1]+halfbw+0.5))
@@ -133,7 +139,12 @@ class Cluster:
                        ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
                        z = th2_fullres.GetBinContent(xbfull,ybfull)-ped
                        fullres.append((x,y,z))
-                for hfr in fullres: ret.append(hfr)
+                for hfr in fullres:
+                    x = hfr[0]; y=hfr[1]
+                    retdict[(x,y)]=hfr[2]
+            ret=[]
+            for k,v in retdict.iteritems():
+                ret.append((k[0],k[1],v))
             self.hits_fr = np.array(ret)
             return self.hits_fr
     
