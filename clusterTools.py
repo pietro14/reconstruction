@@ -127,7 +127,7 @@ class Cluster:
             return self.hits_fr
         else:
             retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
-            halfbw = max(5.,self.rebin/2.) # 5 is to ensure a minimal lateral size for the tails
+            halfbw = max(3.,self.rebin/2.) # 5 is to ensure a minimal lateral size for the tails
             for h in self.hits:
                 xfull = range(int(h[0]-halfbw-0.5),int(h[0]+halfbw+0.5))
                 yfull = range(int(h[1]-halfbw-0.5),int(h[1]+halfbw+0.5))
@@ -137,7 +137,7 @@ class Cluster:
                        xbfull = th2_fullres.GetXaxis().FindBin(x)
                        ybfull = th2_fullres.GetYaxis().FindBin(y)
                        ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
-                       z = th2_fullres.GetBinContent(xbfull,ybfull)-ped
+                       z = max(th2_fullres.GetBinContent(xbfull,ybfull)-ped,0)
                        fullres.append((x,y,z))
                 for hfr in fullres:
                     x = hfr[0]; y=hfr[1]
@@ -163,7 +163,7 @@ class Cluster:
             xb_fr = th2_fullres.GetXaxis().FindBin(x)
             yb_fr = th2_fullres.GetYaxis().FindBin(y)
             ped = pedmap_fullres.GetBinContent(xb_fr,yb_fr)
-            z = th2_fullres.GetBinContent(xb_fr,yb_fr) - ped
+            z = max(th2_fullres.GetBinContent(xb_fr,yb_fr) - ped,0)
             #print "Filling xb,yb =",xb," ",yb," xb_fr,yb_fr",xb_fr," ",yb_fr," with ",x," "," ",y," ",z,"   zrebin = ",zrebin
             snake_fr.SetBinContent(xb,yb,z)
             
