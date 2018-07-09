@@ -16,7 +16,7 @@ class cameraChannel:
         #if pedrms > 5: return False
         return True
 
-    def zs(self,th2,pedmap,nsigma=3,plot=False):
+    def zs(self,th2,pedmap,nsigma=2,plot=False):
         nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
         xmin,xmax=(th2.GetXaxis().GetXmin(),th2.GetXaxis().GetXmax())
         ymin,ymax=(th2.GetYaxis().GetXmin(),th2.GetYaxis().GetXmax())

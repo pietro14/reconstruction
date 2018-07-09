@@ -4,7 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math,itertools
 import ROOT
+from array import array
 from cameraChannel import cameraGeometry
+
+import utilities
+utilities = utilities.utils()
 
 class Cluster:
     def __init__(self,hits,rebin):
@@ -15,8 +19,18 @@ class Cluster:
         self.EVs = self.eigenvectors()
         self.widths = {}
         self.profiles = {}
+
     def integral(self):
         return sum([z for (x,y,z) in self.hits])
+
+    def getSize(self,name='long'):
+        if len(self.profiles)==0:
+            self.calcProfiles()
+        if name in self.widths: return self.widths[name]
+        else:
+            print "ERROR! You can only get 'long' or 'lat' sizes!"
+            return -999
+
     def size(self):
         return len(self.hits)
     def dump(self):
@@ -72,20 +86,22 @@ class Cluster:
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
 
+        xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.3)
+        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.3)
         geo = cameraGeometry()
-        bwidth=3*geo.pixelwidth
+        xedg = [(x-int(rxmin))*geo.pixelwidth for x in xedg]
+        yedg = [(y-int(rymin))*geo.pixelwidth for y in yedg]
+
         length=(rxmax-rxmin)*geo.pixelwidth; width=(rymax-rymin)*geo.pixelwidth
-        nbinsx = int(length/float(bwidth))
-        nbinsy = int(width/float(bwidth))
-        if nbinsx>1:
-            longprof = ROOT.TProfile('longprof','longitudinal profile',nbinsx,0,length,'i')
+        if len(xedg)>1:
+            longprof = ROOT.TProfile('longprof','longitudinal profile',len(xedg)-1,array('f',xedg),'i')
             longprof.SetDirectory(None)
         else: longprof = None
-        if nbinsy>1:
-            latprof = ROOT.TProfile('latprof','lateral profile',nbinsy,0,width,'i')
+        if len(yedg)>1:
+            latprof = ROOT.TProfile('latprof','lateral profile',len(yedg)-1,array('f',yedg),'i')
             latprof.SetDirectory(None)
         else: latprof = None
-
+        
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
             if longprof: longprof.Fill((x-rxmin)*geo.pixelwidth,z)
@@ -95,7 +111,7 @@ class Cluster:
         for p in profiles:
             if p:
                 p.GetXaxis().SetTitle('X (mm)')
-                p.GetYaxis().SetTitle('Average photons per {bwidth} #mum'.format(bwidth=bwidth * 1E+3))
+                p.GetYaxis().SetTitle('Average photons per bin')
                 self.applyProfileStyle(p)
                 
         # now set the cluster shapes and profiles
@@ -116,30 +132,38 @@ class Cluster:
         prof.SetLineColor(ROOT.kBlack)
         prof.SetMinimum(0)
                 
-    def hitsFullResolution(self,th2_fullres,pedmap_fullres):
+    def hitsFullResolution(self,th2_fullres,pedmap_fullres,zs=False):
         if hasattr(self,'hits_fr'):
             return self.hits_fr
         else:
-            ret = []
-            halfbw = self.rebin/2.
+            retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
+            margin = 30 # in pixels
             for h in self.hits:
-                xfull = range(int(h[0]-halfbw-0.5),int(h[0]+halfbw+0.5))
-                yfull = range(int(h[1]-halfbw-0.5),int(h[1]+halfbw+0.5))
+                xfull = range(int(h[0]-margin),int(h[0]+margin))
+                yfull = range(int(h[1]-margin),int(h[1]+margin))
                 fullres = []
                 for x in xfull:
                     for y in yfull:
                        xbfull = th2_fullres.GetXaxis().FindBin(x)
                        ybfull = th2_fullres.GetYaxis().FindBin(y)
                        ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
-                       z = th2_fullres.GetBinContent(xbfull,ybfull)-ped
+                       noise = pedmap_fullres.GetBinError(xbfull,ybfull)
+                       z = max(th2_fullres.GetBinContent(xbfull,ybfull)-ped,0)
+                       if zs and z<noise:
+                           continue
                        fullres.append((x,y,z))
-                for hfr in fullres: ret.append(hfr)
+                for hfr in fullres:
+                    x = hfr[0]; y=hfr[1]
+                    retdict[(x,y)]=hfr[2]
+            ret=[]
+            for k,v in retdict.iteritems():
+                ret.append((k[0],k[1],v))
             self.hits_fr = np.array(ret)
             return self.hits_fr
     
     def plotFullResolution(self,th2_fullres,pedmap_fullres,name,option='colz'):
         hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
-        border = 20
+        border = 30
         xmin,xmax = (min(hits_fr[:,0])-border, max(hits_fr[:,0])+border)
         ymin,ymax = (min(hits_fr[:,1])-border, max(hits_fr[:,1])+border)
         zmax = max(hits_fr[:,2])
@@ -152,7 +176,7 @@ class Cluster:
             xb_fr = th2_fullres.GetXaxis().FindBin(x)
             yb_fr = th2_fullres.GetYaxis().FindBin(y)
             ped = pedmap_fullres.GetBinContent(xb_fr,yb_fr)
-            z = th2_fullres.GetBinContent(xb_fr,yb_fr) - ped
+            z = max(th2_fullres.GetBinContent(xb_fr,yb_fr) - ped,0)
             #print "Filling xb,yb =",xb," ",yb," xb_fr,yb_fr",xb_fr," ",yb_fr," with ",x," "," ",y," ",z,"   zrebin = ",zrebin
             snake_fr.SetBinContent(xb,yb,z)
             
@@ -163,7 +187,7 @@ class Cluster:
         snake_fr.GetXaxis().SetTitle('x (pixels)')
         snake_fr.GetYaxis().SetTitle('y (pixels)')
         snake_fr.GetZaxis().SetTitle('counts')
-        snake_fr.GetZaxis().SetRangeUser(0,(zmax*1.05))
+        #snake_fr.GetZaxis().SetRangeUser(0,(zmax*1.05))
         snake_fr.Draw(option)
         for ext in ['png','pdf']:
             cFR.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
