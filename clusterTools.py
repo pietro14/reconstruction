@@ -19,8 +19,18 @@ class Cluster:
         self.EVs = self.eigenvectors()
         self.widths = {}
         self.profiles = {}
+
     def integral(self):
         return sum([z for (x,y,z) in self.hits])
+
+    def getSize(self,name='long'):
+        if len(self.profiles)==0:
+            self.calcProfiles()
+        if name in self.widths: return self.widths[name]
+        else:
+            print "ERROR! You can only get 'long' or 'lat' sizes!"
+            return -999
+
     def size(self):
         return len(self.hits)
     def dump(self):
@@ -122,7 +132,7 @@ class Cluster:
         prof.SetLineColor(ROOT.kBlack)
         prof.SetMinimum(0)
                 
-    def hitsFullResolution(self,th2_fullres,pedmap_fullres):
+    def hitsFullResolution(self,th2_fullres,pedmap_fullres,zs=False):
         if hasattr(self,'hits_fr'):
             return self.hits_fr
         else:
@@ -137,7 +147,10 @@ class Cluster:
                        xbfull = th2_fullres.GetXaxis().FindBin(x)
                        ybfull = th2_fullres.GetYaxis().FindBin(y)
                        ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
+                       noise = pedmap_fullres.GetBinError(xbfull,ybfull)
                        z = max(th2_fullres.GetBinContent(xbfull,ybfull)-ped,0)
+                       if zs and z<noise:
+                           continue
                        fullres.append((x,y,z))
                 for hfr in fullres:
                     x = hfr[0]; y=hfr[1]

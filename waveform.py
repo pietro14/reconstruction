@@ -4,7 +4,7 @@ import os,math,sys
 import numpy as np
 import ROOT
 ROOT.gROOT.SetBatch(True)
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks,peak_widths
 
 class PeakFinder:
     def __init__(self,tgraph,xmin=-1,xmax=-1):
@@ -39,8 +39,7 @@ class PeakFinder:
         plt.vlines(x=self.getPeakTimes(), ymin=self.y[self.peaks] - self.getProminences(),
                    ymax = self.y[self.peaks], color = "C1")
         plt.hlines(y=self.getHMs(), xmin=self.getPeakBoundaries('left'),
-                   xmax=self.getPeakBoundaries('right'), color = "C1")
-        
+                   xmax=self.getPeakBoundaries('right'), color = "C1")        
         plt.xlabel('Time (ns)')
         plt.ylabel('amplitude (mV)')
         for ext in ['png','pdf']:
@@ -50,10 +49,26 @@ class PeakFinder:
     def getPeakBoundaries(self,side):
         if side=='left': return np.array([self.x[int(x)] for x in self.properties["left_ips"]])
         return np.array([self.x[int(x)] for x in self.properties["right_ips"]])
-        
+
     def getFWHMs(self):
         return self.properties["widths"]
-        
+
+    def getFullWidths(self):
+        self.widths_full = peak_widths(self.y, self.peaks, rel_height=1)        
+        return self.widths_full
+
+    def getTimes(self,side='rise'):
+        if side=='rise': index=2
+        elif side=='fall': index=3
+        else:
+            print "ERROR! Side should be either rise or fall. Exiting."
+            return []
+        if not hasattr(self,'widths_full'):
+            self.getFullWidths()
+        # intersection points are interpolated
+        times = np.array([self.x[int(x)] for x in self.widths_full[index]])
+        return times
+
     def getHMs(self):
         return self.properties["width_heights"]
 

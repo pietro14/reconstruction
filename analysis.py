@@ -56,6 +56,7 @@ class analysis:
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
         self.autotree.createPMTVariables()
+        self.autotree.createCameraVariables()
 
     def endJob(self):
         self.outTree.write()
@@ -145,7 +146,8 @@ class analysis:
                 snakes = snfac.getClusters(plot=False)
                 snfac.plotClusterFullResolution(snakes,pic_fullres,self.pedmap_fr)
                 snfac.plotProfiles(snakes,pic_fullres,self.pedmap_fr)
-
+                self.autotree.fillCameraVariables(snakes)
+                
                 # PMT waveform reconstruction
                 from waveform import PeakFinder,PMTSignal
                 wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
@@ -160,6 +162,7 @@ class analysis:
                 pf.findPeaks(threshold,min_distance_peaks,prominence)
                 pf.plotpy(pdir=options.plotDir)
                 self.autotree.fillPMTVariables(pf)
+
                 
                 # fill reco tree
                 self.outTree.fill()
