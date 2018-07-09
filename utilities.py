@@ -4,8 +4,8 @@ class utils:
     def __init__(self):
         pass
 
-    def dynamicProfileBins(self,hits,coord='x',relError=0.20):
-        minPixels = 1/relError/relError
+    def dynamicProfileBins(self,hits,coord='x',relError=0.1):
+        minPixels = max(1,1/relError/relError)
         index = 0 if coord=='x' else 1
         xmin=min([h[index] for h in hits])
         xmax=max([h[index] for h in hits])

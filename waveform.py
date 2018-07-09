@@ -40,8 +40,6 @@ class PeakFinder:
                    ymax = self.y[self.peaks], color = "C1")
         plt.hlines(y=self.getHMs(), xmin=self.getPeakBoundaries('left'),
                    xmax=self.getPeakBoundaries('right'), color = "C1")
-        print "times = ",self.getPeakTimes()
-        print "amplitudes = ",self.getAmplitudes()
         
         plt.xlabel('Time (ns)')
         plt.ylabel('amplitude (mV)')

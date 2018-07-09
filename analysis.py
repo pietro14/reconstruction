@@ -119,6 +119,10 @@ class analysis:
             name=key.GetName()
             obj=key.ReadObj()
 
+            ###### DEBUG #########
+            # if iev!=9: continue
+            ######################
+            
             if obj.InheritsFrom('TH2'):
                 run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
                 print "Processing run: ",run," event ",event,"..."

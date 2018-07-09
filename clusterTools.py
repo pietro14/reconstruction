@@ -76,8 +76,8 @@ class Cluster:
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
 
-        xedg = utilities.dynamicProfileBins(rot_hits,'x')
-        yedg = utilities.dynamicProfileBins(rot_hits,'y')
+        xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.3)
+        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.3)
         geo = cameraGeometry()
         xedg = [(x-int(rxmin))*geo.pixelwidth for x in xedg]
         yedg = [(y-int(rymin))*geo.pixelwidth for y in yedg]
@@ -127,10 +127,10 @@ class Cluster:
             return self.hits_fr
         else:
             retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
-            halfbw = max(3.,self.rebin/2.) # 5 is to ensure a minimal lateral size for the tails
+            margin = 30 # in pixels
             for h in self.hits:
-                xfull = range(int(h[0]-halfbw-0.5),int(h[0]+halfbw+0.5))
-                yfull = range(int(h[1]-halfbw-0.5),int(h[1]+halfbw+0.5))
+                xfull = range(int(h[0]-margin),int(h[0]+margin))
+                yfull = range(int(h[1]-margin),int(h[1]+margin))
                 fullres = []
                 for x in xfull:
                     for y in yfull:
@@ -150,7 +150,7 @@ class Cluster:
     
     def plotFullResolution(self,th2_fullres,pedmap_fullres,name,option='colz'):
         hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
-        border = 20
+        border = 30
         xmin,xmax = (min(hits_fr[:,0])-border, max(hits_fr[:,0])+border)
         ymin,ymax = (min(hits_fr[:,1])-border, max(hits_fr[:,1])+border)
         zmax = max(hits_fr[:,2])
@@ -174,7 +174,7 @@ class Cluster:
         snake_fr.GetXaxis().SetTitle('x (pixels)')
         snake_fr.GetYaxis().SetTitle('y (pixels)')
         snake_fr.GetZaxis().SetTitle('counts')
-        snake_fr.GetZaxis().SetRangeUser(0,(zmax*1.05))
+        #snake_fr.GetZaxis().SetRangeUser(0,(zmax*1.05))
         snake_fr.Draw(option)
         for ext in ['png','pdf']:
             cFR.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
