@@ -103,9 +103,12 @@ class analysis:
         print "Pedestal calculated and saved into ",self.pedfile_name
 
     def reconstruct(self,evrange=(-1,-1)):
-        
+
+        ROOT.gROOT.Macro('rootlogon.C')
         ROOT.gStyle.SetOptStat(0)
         ROOT.gStyle.SetPalette(ROOT.kRainBow)
+        savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kWarning
+
         tf = ROOT.TFile.Open(self.rfile)
         c1 = ROOT.TCanvas('c1','',600,600)
         cc = cameraChannel()
@@ -121,7 +124,7 @@ class analysis:
             obj=key.ReadObj()
 
             ###### DEBUG #########
-            # if iev!=9: continue
+            #if iev!=9 and iev!=4: continue
             ######################
             
             if obj.InheritsFrom('TH2'):
@@ -160,7 +163,7 @@ class analysis:
                 prominence = 2 # noise seems ~1 mV
                 width = 5 # minimal width of the signal
                 pf.findPeaks(threshold,min_distance_peaks,prominence)
-                pf.plotpy(pdir=options.plotDir)
+                #pf.plotpy(pdir=options.plotDir)
                 self.autotree.fillPMTVariables(pf)
 
                 
@@ -172,6 +175,9 @@ class analysis:
                 #snfac.plotContours(snakes,fill=True)
                 #snfac.filledSnakes(snakes)
 
+        ROOT.gErrorIgnoreLevel = savErrorLevel
+
+                
 if __name__ == '__main__':
 
     from optparse import OptionParser

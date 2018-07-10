@@ -102,9 +102,10 @@ class Cluster:
             if latprof: latprof.Fill((y-rymin)*geo.pixelwidth,z)
 
         profiles = [longprof,latprof]
-        for p in profiles:
+        titles = ['longitudinal','transverse']
+        for ip,p in enumerate(profiles):
             if p:
-                p.GetXaxis().SetTitle('X (mm)')
+                p.GetXaxis().SetTitle('X_{%s} (mm)' % titles[ip])
                 p.GetYaxis().SetTitle('Average photons per bin')
                 self.applyProfileStyle(p)
                 
@@ -128,14 +129,13 @@ class Cluster:
         # thresholds on the light. Should be configurable...
         #threshold = 
 
-    
     def applyProfileStyle(self,prof):
         prof.SetMarkerStyle(ROOT.kFullCircle)
         prof.SetMarkerSize(1)
         prof.SetMarkerColor(ROOT.kBlack)
         prof.SetLineColor(ROOT.kBlack)
-        prof.SetMinimum(0)
-                
+        prof.SetMinimum(-1.0)
+        
     def hitsFullResolution(self,th2_fullres,pedmap_fullres,zs=False):
         if hasattr(self,'hits_fr'):
             return self.hits_fr
@@ -159,7 +159,7 @@ class Cluster:
                                 ybfull = th2_fullres.GetYaxis().FindBin(yfullint)
                                 ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
                                 noise = pedmap_fullres.GetBinError(xbfull,ybfull)
-                                z = max(th2_fullres.GetBinContent(xbfull,ybfull)-ped,0)
+                                z = th2_fullres.GetBinContent(xbfull,ybfull)-ped
                                 if zs and z<0.5*noise:
                                     continue
                                 fullres.append((xfullint,yfullint,z))
@@ -196,6 +196,7 @@ class Cluster:
         # just for the 2D plotting, cut at 1.5 (mean of the RMS of all the pixels)
         snake_fr.GetZaxis().SetRangeUser(3.0,(zmax*1.05))
         snake_fr.Draw(option)
+        #cFR.SetRightMargin(0.2); cFR.SetLeftMargin(0.1); cFR.SetBottomMargin(0.1);
+        cFR.SetBottomMargin(0.3); cFR.SetLeftMargin(0.2); cFR.SetRightMargin(0.2); 
         for ext in ['png','pdf']:
             cFR.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
-        
