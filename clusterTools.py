@@ -19,7 +19,8 @@ class Cluster:
         self.EVs = self.eigenvectors()
         self.widths = {}
         self.profiles = {}
-
+        self.shapes = {}
+        
     def integral(self):
         return sum([z for (x,y,z) in self.hits])
 
@@ -112,8 +113,14 @@ class Cluster:
         # now set the cluster shapes and profiles
         self.profiles['long'] = longprof
         self.profiles['lat'] = latprof
+        # those are not used, since they include the "margins" at 0
+        # just used as the starting values in clusterShapes()
         self.widths['long'] = length
         self.widths['lat'] = width
+
+        # get the peaks inside the profile
+        for direction in ['lat','long']:
+            self.clusterShapes(direction)
         
     def getProfile(self,name='long'):
         if len(self.profiles)==0:
@@ -121,14 +128,53 @@ class Cluster:
         return self.profiles[name] if name in self.profiles else None
 
     def clusterShapes(self,name='long'):
+        # ensure the cluster profiles are ready
         if name not in ['lat','long']:
             print "ERROR! Requested profile along the ",name," direction. Should be either 'long' or 'lat'. Exiting clusterShapes()."
             return
         self.getProfile(name)
-        from waveform import PeakFinder
-        # thresholds on the light. Should be configurable...
-        #threshold = 
 
+        from waveform import PeakFinder,simplePeak
+
+        # find first the length/width with intersection of the base of the large peak
+        # threshold = 3
+        # min_distance_peaks = 5 # number of bins of the profile, to be converted in mm later... TO DO
+        # prominence = 2 # noise seems <1
+        # width = 10  # find only 1 big peak
+        # pf = PeakFinder(self.profiles[name])        
+        # pf.findPeaks(threshold,min_distance_peaks,prominence,width)
+        # self.widths[name] = pf.getFWHMs()[0] if len(pf.getFWHMs()) else 0 # first should be the only big peak
+        self.shapes['%s_width' % name] = self.widths[name]
+        
+        # find the peaks and store their properties
+        # thresholds on the light. Should be configurable...
+        threshold = 3
+        min_distance_peaks = 3 # number of bins of the profile, to be converted in mm later... TO DO
+        prominence = 2 # noise seems <1
+        width = 1 # minimal width of the signal
+        pf = PeakFinder(self.profiles[name])        
+        pf.findPeaks(threshold,min_distance_peaks,prominence,width)
+
+        amplitudes = pf.getAmplitudes()
+        prominences = pf.getProminences()
+        fwhms = pf.getFWHMs()
+        peakPositions = pf.getPeakTimes()
+        
+        peaksInProfile = [simplePeak(amplitudes[i],prominences[i],peakPositions[i],fwhms[i]) for i in xrange(len(amplitudes))]
+        peaksInProfile = sorted(peaksInProfile, key = lambda x: x.mean, reverse=True)
+
+        if len(peaksInProfile):
+            mainPeak = peaksInProfile[0]
+            self.shapes[name+'_p0amplitude']  = mainPeak.amplitude
+            self.shapes[name+'_p0prominence'] = mainPeak.prominence
+            self.shapes[name+'_p0mean']       = mainPeak.mean
+            self.shapes[name+'_p0fwhm']       = mainPeak.fwhm
+        else:
+            self.shapes[name+'_p0amplitude']  = -999
+            self.shapes[name+'_p0prominence'] = -999
+            self.shapes[name+'_p0mean']       = -999
+            self.shapes[name+'_p0fwhm']       = -999
+            
     def applyProfileStyle(self,prof):
         prof.SetMarkerStyle(ROOT.kFullCircle)
         prof.SetMarkerSize(1)
@@ -141,8 +187,10 @@ class Cluster:
             return self.hits_fr
         else:
             retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
-            latmargin = 15 # in pixels
-            longmargin = 100 # in pixels
+            #latmargin = 15 # in pixels
+            #longmargin = 100 # in pixels
+            latmargin = 5 # in pixels
+            longmargin = 20 # in pixels
             for h in self.hits:
                 rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
                 rxfull = range(int(rx-longmargin),int(rx+longmargin))

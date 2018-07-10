@@ -124,7 +124,7 @@ class analysis:
             obj=key.ReadObj()
 
             ###### DEBUG #########
-            #if iev!=9 and iev!=4: continue
+            ## if iev!=9 and iev!=4: continue
             ######################
             
             if obj.InheritsFrom('TH2'):
@@ -142,7 +142,6 @@ class analysis:
                 h2zs = cc.zs(obj,self.pedmap)
 
                 # Cluster reconstruction on 2D picture
-                print "Analyzing picture ",name," contours..."
                 snfac = SnakesFactory(h2zs,name,options)
                 # this plotting is only the pyplot representation.
                 # Doesn't work on MacOS with multithreading for some reason... 
@@ -163,7 +162,7 @@ class analysis:
                 prominence = 2 # noise seems ~1 mV
                 width = 5 # minimal width of the signal
                 pf.findPeaks(threshold,min_distance_peaks,prominence)
-                #pf.plotpy(pdir=options.plotDir)
+                pf.plotpy(pdir=options.plotDir)
                 self.autotree.fillPMTVariables(pf)
 
                 
