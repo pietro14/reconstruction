@@ -141,8 +141,8 @@ class Cluster:
             return self.hits_fr
         else:
             retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
-            latmargin = 5 # in pixels
-            longmargin = 50 # in pixels
+            latmargin = 15 # in pixels
+            longmargin = 100 # in pixels
             for h in self.hits:
                 rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
                 rxfull = range(int(rx-longmargin),int(rx+longmargin))
@@ -152,14 +152,17 @@ class Cluster:
                     for ryf in ryfull:
                         rhf = (rxf,ryf,-1)
                         xfull,yfull = utilities.rotate_around_point(rhf,self.EVs[0],self.mean_point,inverse=True)
-                        xbfull = th2_fullres.GetXaxis().FindBin(xfull)
-                        ybfull = th2_fullres.GetYaxis().FindBin(yfull)
-                        ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
-                        noise = pedmap_fullres.GetBinError(xbfull,ybfull)
-                        z = max(th2_fullres.GetBinContent(xbfull,ybfull)-ped,0)
-                        if zs and z<0.5*noise:
-                            continue
-                        fullres.append((xfull,yfull,z))
+                        # these for are to ensure that one includes all bins after rounding/rotation
+                        for xfullint in range(int(xfull-1),int(xfull+1)):
+                            for yfullint in range(int(yfull-1),int(yfull+1)):
+                                xbfull = th2_fullres.GetXaxis().FindBin(xfullint)
+                                ybfull = th2_fullres.GetYaxis().FindBin(yfullint)
+                                ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
+                                noise = pedmap_fullres.GetBinError(xbfull,ybfull)
+                                z = max(th2_fullres.GetBinContent(xbfull,ybfull)-ped,0)
+                                if zs and z<0.5*noise:
+                                    continue
+                                fullres.append((xfullint,yfullint,z))
                 for hfr in fullres:
                     x = hfr[0]; y=hfr[1]
                     retdict[(x,y)]=hfr[2]
@@ -171,21 +174,16 @@ class Cluster:
     
     def plotFullResolution(self,th2_fullres,pedmap_fullres,name,option='colz'):
         hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
-        border = 30
+        border = 15
         xmin,xmax = (min(hits_fr[:,0])-border, max(hits_fr[:,0])+border)
         ymin,ymax = (min(hits_fr[:,1])-border, max(hits_fr[:,1])+border)
         zmax = max(hits_fr[:,2])
         nbinsx = int(xmax-xmin)
         nbinsy = int(ymax-ymin)
         snake_fr = ROOT.TH2D(name,'',nbinsx,xmin,xmax,nbinsy,ymin,ymax)
-        for (x,y,zrebin) in hits_fr:
+        for (x,y,z) in hits_fr:
             xb = snake_fr.GetXaxis().FindBin(x)
             yb = snake_fr.GetYaxis().FindBin(y)
-            xb_fr = th2_fullres.GetXaxis().FindBin(x)
-            yb_fr = th2_fullres.GetYaxis().FindBin(y)
-            ped = pedmap_fullres.GetBinContent(xb_fr,yb_fr)
-            z = max(th2_fullres.GetBinContent(xb_fr,yb_fr) - ped,0)
-            #print "Filling xb,yb =",xb," ",yb," xb_fr,yb_fr",xb_fr," ",yb_fr," with ",x," "," ",y," ",z,"   zrebin = ",zrebin
             snake_fr.SetBinContent(xb,yb,z)
             
         ROOT.gStyle.SetOptStat(0)
@@ -195,7 +193,8 @@ class Cluster:
         snake_fr.GetXaxis().SetTitle('x (pixels)')
         snake_fr.GetYaxis().SetTitle('y (pixels)')
         snake_fr.GetZaxis().SetTitle('counts')
-        snake_fr.GetZaxis().SetRangeUser(0,(zmax*1.05))
+        # just for the 2D plotting, cut at 1.5 (mean of the RMS of all the pixels)
+        snake_fr.GetZaxis().SetRangeUser(3.0,(zmax*1.05))
         snake_fr.Draw(option)
         for ext in ['png','pdf']:
             cFR.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
