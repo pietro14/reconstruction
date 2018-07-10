@@ -134,7 +134,7 @@ class SnakesFactory:
 
             # only add the cores to the clusters saved in the event
             if k>-1 and len(xy)>minPointsCore:
-                print "Found cluster!"
+                # print "Found cluster!"
                 cl = Cluster(xy,self.rebin)
                 clusters.append(cl)
                 if plot: cl.plotAxes(plot=plt)
@@ -175,6 +175,9 @@ class SnakesFactory:
                 prof = cl.getProfile(dir)
                 if prof and cl.widths[dir]>0.2: # plot the profiles only of sufficiently long snakes (>200 um)
                     prof.Draw()
+                    line = ROOT.TLine(prof.GetXaxis().GetXmin(),0,prof.GetXaxis().GetXmax(),0)
+                    line.SetLineWidth(2); line.SetLineColor(ROOT.kGray); line.SetLineStyle(ROOT.kDashed)
+                    line.Draw("L")
                     for ext in ['png','pdf']:
                         canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
         

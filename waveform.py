@@ -6,16 +6,37 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 from scipy.signal import find_peaks,peak_widths
 
+class simplePeak:
+    def __init__(self,ampli,prominence,mean,fwhm):
+        self.amplitude = ampli
+        self.prominence = prominence
+        self.mean = mean
+        self.fwhm = fwhm
+    def __repr__(self):
+        return "(Ampli={ampli:.2f}, Prom={prom:.2f}, Mean={mean:.2f}, FWHM={fwhm:.2f})".format(ampli=self.amplitude,prom=self.prominence,mean=self.mean,fwhm=self.fwhm)
+
 class PeakFinder:
-    def __init__(self,tgraph,xmin=-1,xmax=-1):
-        self.importTGraph(tgraph,xmin,xmax)
-        self.name = tgraph.GetName()
+    def __init__(self,graph,xmin=None,xmax=None):
+        if graph.InheritsFrom('TGraph'):
+            self.importTGraph(graph,xmin,xmax)
+        elif graph.InheritsFrom('TH1'):
+            self.importTH1(graph,xmin,xmax)
+        self.name = graph.GetName()
         
     def importTGraph(self,tgraph,xmin,xmax):
-        # transform to positive signals
+        # transform to positive signals for PMT
         y = np.array([-y for y in tgraph.GetY()])
         x = np.array(tgraph.GetX())
-        xmax = xmax if xmax>0 else x[-1]
+        self.setData(x,y,xmin,xmax)
+
+    def importTH1(self,tprof,xmin,xmax):
+        y = np.array([tprof.GetBinContent(b) for b in xrange(1,tprof.GetNbinsX()+1)])
+        x = np.array([tprof.GetXaxis().GetBinCenter(b) for b in xrange(1,tprof.GetNbinsX()+1)])
+        self.setData(x,y,xmin,xmax)
+        
+    def setData(self,x,y,xmin,xmax):
+        xmax = xmax if xmax!=None else x[-1]
+        xmin = xmin if xmin!=None else x[0]
         ix = np.array([i for i,v in enumerate(x) if v>xmin and v<xmax])
         self.x = np.array(x[ix])
         self.y = np.array(y[ix])
@@ -119,7 +140,7 @@ if __name__ == '__main__':
     # sampling was 5 GHz (5/ns). Separate peaks of at least 1ns
 
     threshold = 10 # min threshold for a signal
-    min_distance_peaks = 10 # number of samples (10 samples = 2ns)
+    min_distance_peaks = 3 # number of samples (10 samples = 2ns)
     prominence = 2 # noise seems ~1 mV
     width = 5 # minimal width of the signal
 

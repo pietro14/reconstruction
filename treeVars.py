@@ -24,9 +24,20 @@ class AutoFillTreeProducer:
         self.outTree.branch('track_integral', 'F', lenVar='nTrack')
         self.outTree.branch('track_length', 'F', lenVar='nTrack')
         self.outTree.branch('track_width', 'F', lenVar='nTrack')
+        self.outTree.branch('track_p0amplitude', 'F', lenVar='nTrack')
+        self.outTree.branch('track_p0prominence', 'F', lenVar='nTrack')
+        self.outTree.branch('track_p0fwhm', 'F', lenVar='nTrack')
+        self.outTree.branch('track_p0mean', 'F', lenVar='nTrack')
 
     def fillCameraVariables(self,clusters):
         self.outTree.fillBranch('track_integral', [cl.integral() for cl in clusters])
-        self.outTree.fillBranch('track_length', [cl.getSize('long') for cl in clusters])
-        self.outTree.fillBranch('track_width', [cl.getSize('lat') for cl in clusters])
+        self.outTree.fillBranch('track_length', [cl.shapes['long_width'] for cl in clusters])
+        self.outTree.fillBranch('track_width', [cl.shapes['lat_width'] for cl in clusters])
+        self.outTree.fillBranch('track_p0amplitude', [cl.shapes['long_p0amplitude'] for cl in clusters])
+        self.outTree.fillBranch('track_p0prominence', [cl.shapes['long_p0prominence'] for cl in clusters])
+        self.outTree.fillBranch('track_p0fwhm', [cl.shapes['long_p0fwhm'] for cl in clusters])
+        self.outTree.fillBranch('track_p0mean', [cl.shapes['long_p0mean'] for cl in clusters])
+
+
+
         

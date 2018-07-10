@@ -22,4 +22,12 @@ class utils:
         xedges.append(int(xmax))
         return xedges
 
-    
+    def rotate_around_point(self, hit, dir, pivot, inverse=False):
+        x,y = hit[:-1]
+        ox, oy = pivot
+        cos,sin = dir
+        if inverse: cos = -1*cos
+        qx = ox + cos * (x - ox) + sin * (y - oy)
+        qy = oy - sin * (x - ox) + cos * (y - oy)
+        return qx, qy
+
