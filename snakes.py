@@ -84,7 +84,7 @@ class SnakesFactory:
         self.contours = ls
         return ls
 
-    def getClusters(self,maxDist=600,minPoints=30,minPointsCore=5,plot=True):
+    def getClusters(self,maxDist=500,minPoints=6,minPointsCore=3,plot=True):
 
         from sklearn.cluster import DBSCAN
         from sklearn import metrics
@@ -165,12 +165,15 @@ class SnakesFactory:
         for k,cl in enumerate(clusters):
             cl.plotFullResolution(th2_fullres,pedmap_fullres,'{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
 
-    def plotProfiles(self,clusters,th2_fullres=None,pedmap_fullres=None):
-        outname = self.options.plotDir
-        canv = ROOT.TCanvas('c1','',600,600)
+    def calcProfiles(self,clusters,th2_fullres=None,pedmap_fullres=None):
         for k,cl in enumerate(clusters):
             hits = cl.hitsFullResolution(th2_fullres,pedmap_fullres) if (th2_fullres and pedmap_fullres) else cl.hits
             cl.calcProfiles(hitscalc=hits,plot=None)
+                             
+    def plotProfiles(self,clusters):
+        outname = self.options.plotDir
+        canv = ROOT.TCanvas('c1','',600,600)
+        for k,cl in enumerate(clusters):
             for dir in ['long','lat']:
                 prof = cl.getProfile(dir)
                 if prof and cl.widths[dir]>0.2: # plot the profiles only of sufficiently long snakes (>200 um)
@@ -211,4 +214,43 @@ class SnakesFactory:
         #plt.show()
         for ext in ['png','pdf']:
             plt.savefig('{name}.{ext}'.format(name=self.name,ext=ext))
-            
+
+
+
+class SnakesProducer:
+    def __init__(self,sources,params,options):
+        self.picture   = sources['picture']   if 'picture' in sources else None
+        self.pictureHD = sources['pictureHD'] if 'pictureHD' in sources else None
+        self.pedmapHD  = sources['pedmapHD']  if 'pedmapHD' in sources else None
+        self.name      = sources['name']      if 'name' in sources else None
+
+        self.snakeQualityLevel = params['snake_qual']   if 'snake_qual' in params else 3
+        self.plot2D            = params['plot2D']       if 'plot2D' in params else True
+        self.plotpy            = params['plotpy']       if 'plotpy' in params else False
+        self.plotprofiles      = params['plotprofiles'] if 'plotprofiles' in params else True
+
+        self.options = options
+
+    def run(self):
+        ret = []
+        if any([x==None for x in self.picture,self.pictureHD,self.pedmapHD,self.name]):
+            return ret
+        
+        # Cluster reconstruction on 2D picture
+        snfac = SnakesFactory(self.picture,self.name,self.options)
+
+        # this plotting is only the pyplot representation.
+        # Doesn't work on MacOS with multithreading for some reason... 
+        snakes = snfac.getClusters(plot=self.plotpy)
+        snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
+
+        # sort snakes by longitudinal width
+        snakes = sorted(snakes, key = lambda x: x.widths['long'], reverse=True)
+        # and reject discharges (round)
+        snakes = filter(lambda x: x.qualityLevel()>=self.snakeQualityLevel, snakes)
+        
+        # plotting
+        if self.plot2D:       snfac.plotClusterFullResolution(snakes,self.pictureHD,self.pedmapHD)
+        if self.plotprofiles: snfac.plotProfiles(snakes)
+
+        return snakes
