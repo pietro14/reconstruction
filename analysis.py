@@ -5,9 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import ROOT
 ROOT.gROOT.SetBatch(True)
-from channelsTools import cameraChannel
+from cameraChannel import cameraTools
 
-from snakes import SnakesFactory
+from snakes import SnakesProducer
 from output import OutputTree
 from treeVars import AutoFillTreeProducer
 
@@ -111,7 +111,7 @@ class analysis:
 
         tf = ROOT.TFile.Open(self.rfile)
         c1 = ROOT.TCanvas('c1','',600,600)
-        cc = cameraChannel()
+        ctools = cameraTools()
         print "Reconstructing event range: ",evrange
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
@@ -124,7 +124,8 @@ class analysis:
             obj=key.ReadObj()
 
             ###### DEBUG #########
-            ## if iev!=9 and iev!=4: continue
+            # if iev!=9 and iev!=4 and iev!=162: continue
+            if iev==0: continue
             ######################
             
             if obj.InheritsFrom('TH2'):
@@ -139,40 +140,35 @@ class analysis:
                 obj.Scale(1./float(math.pow(self.rebin,2)))
 
                 # applying zero-suppression
-                h2zs = cc.zs(obj,self.pedmap)
-
+                h2zs = ctools.zs(obj,self.pedmap)
+                print "Zero-suppression done. Now clustering..."
+                
                 # Cluster reconstruction on 2D picture
-                snfac = SnakesFactory(h2zs,name,options)
-                # this plotting is only the pyplot representation.
-                # Doesn't work on MacOS with multithreading for some reason... 
-                snakes = snfac.getClusters(plot=False)
-                snfac.plotClusterFullResolution(snakes,pic_fullres,self.pedmap_fr)
-                snfac.plotProfiles(snakes,pic_fullres,self.pedmap_fr)
-                self.autotree.fillCameraVariables(snakes)
+                snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres, 'pedmapHD': self.pedmap_fr, 'name': name}
+                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': False, 'plotprofiles': True}
+                snprod = SnakesProducer(snprod_inputs,snprod_params,options)
+                snakes = snprod.run()                
+                self.autotree.fillCameraVariables(h2zs,snakes)
                 
                 # PMT waveform reconstruction
-                from waveform import PeakFinder,PMTSignal
+                from waveform import PeakFinder,PeaksProducer
                 wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
-                #pmtsig = PMTSignal(wform,snakes,self.options)
-                #pmtsig.plotNice()
-
-                pf = PeakFinder(wform,6160,6300) # time range ok for FNG
-                threshold = 10 # min threshold for a signal
-                min_distance_peaks = 10 # number of samples (10 samples = 2ns)
-                prominence = 2 # noise seems ~1 mV
-                width = 5 # minimal width of the signal
-                pf.findPeaks(threshold,min_distance_peaks,prominence)
-                pf.plotpy(pdir=options.plotDir)
-                self.autotree.fillPMTVariables(pf)
+                # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
+                pkprod_inputs = {'waveform': wform}
+                pkprod_params = {'threshold': 0, # min threshold for a signal
+                                 'minPeakDistance': 1, # number of samples (1 sample = 1ns )
+                                 'prominence': 0.5, # noise after resampling very small
+                                 'width': 1, # minimal width of the signal
+                                 'resample': 5,  # to sample waveform at 1 GHz only
+                                 'rangex': (6160,6300)
+                }
+                pkprod = PeaksProducer(pkprod_inputs,pkprod_params,options)
+                peaksfinder = pkprod.run()
+                self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
 
                 
                 # fill reco tree
                 self.outTree.fill()
-                             
-                # DEPRECATED (GAC)
-                #snakes = snfac.getContours(iterations=100)
-                #snfac.plotContours(snakes,fill=True)
-                #snfac.filledSnakes(snakes)
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
 

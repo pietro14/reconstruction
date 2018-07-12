@@ -1,21 +1,32 @@
 #!/usr/bin/env python
+import ROOT
+ROOT.gROOT.SetBatch(True)
 
 class cameraGeometry:
     def __init__(self):
         self.pixelwidth = 100E-3 # mm
         
-class cameraChannel:
+class cameraTools:
     def __init__(self):
         pass
         
-    def isGoodChannel(self,pedmap,ix,iy):
-        pedval = pedmap.GetBinContent(ix,iy)
-        pedrms = pedmap.GetBinError(ix,iy)
-        if pedval > 110: return False
-        if pedrms < 0.2: return False
+    def isGoodChannelSafe(self,pedmap,ix,iy):
+        pedvals = []; pedrmss = []
+        for x in xrange(ix-1,ix+2):
+            for y in xrange(iy-1,iy+2):
+                pedvals.append(pedmap.GetBinContent(x,y))
+                pedrmss.append(pedmap.GetBinError(x,y))
+        if any([p>110 for p in pedvals]): return False
+        if any([r<0.2 for r in pedvals]): return False
         #if pedrms > 5: return False
         return True
 
+    def isGoodChannelFast(self,pedval,pedrms):
+        if pedval > 110: return False
+        if pedrms < 0.2: return False
+        if pedrms > 5: return False
+        return True
+    
     def zs(self,th2,pedmap,nsigma=2,plot=False):
         nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
         xmin,xmax=(th2.GetXaxis().GetXmin(),th2.GetXaxis().GetXmax())
@@ -28,10 +39,9 @@ class cameraChannel:
                 y = th2.GetYaxis().GetBinCenter(iy)
                 ped_ixb = pedmap.GetXaxis().FindBin(x)
                 ped_iyb = pedmap.GetYaxis().FindBin(y)
-                print ix," ",iy,"     ",ped_ixb," ",ped_iyb
-                #if not self.isGoodChannel(pedmap,ped_ixb,ped_iyb): continue
                 ped = pedmap.GetBinContent(ped_ixb,ped_iyb)
                 noise = pedmap.GetBinError(ped_ixb,ped_iyb)
+                if not self.isGoodChannelFast(ped,noise): continue                
                 z = max(th2.GetBinContent(ix,iy)-ped,0)
                 if z>nsigma*noise:
                     th2_zs.SetBinContent(ix,iy,z)

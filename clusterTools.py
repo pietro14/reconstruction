@@ -81,8 +81,8 @@ class Cluster:
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
 
-        xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.3)
-        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.3)
+        xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.1)
+        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.5)
         geo = cameraGeometry()
         xedg = [(x-int(rxmin))*geo.pixelwidth for x in xedg]
         yedg = [(y-int(rymin))*geo.pixelwidth for y in yedg]
@@ -163,6 +163,7 @@ class Cluster:
         peaksInProfile = [simplePeak(amplitudes[i],prominences[i],peakPositions[i],fwhms[i]) for i in xrange(len(amplitudes))]
         peaksInProfile = sorted(peaksInProfile, key = lambda x: x.mean, reverse=True)
 
+        self.shapes[name+'_fullrms']          = self.profiles[name].GetRMS()
         if len(peaksInProfile):
             mainPeak = peaksInProfile[0]
             self.shapes[name+'_p0amplitude']  = mainPeak.amplitude
@@ -190,7 +191,7 @@ class Cluster:
             #latmargin = 15 # in pixels
             #longmargin = 100 # in pixels
             latmargin = 5 # in pixels
-            longmargin = 20 # in pixels
+            longmargin = 5 # in pixels
             for h in self.hits:
                 rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
                 rxfull = range(int(rx-longmargin),int(rx+longmargin))
@@ -242,9 +243,21 @@ class Cluster:
         snake_fr.GetYaxis().SetTitle('y (pixels)')
         snake_fr.GetZaxis().SetTitle('counts')
         # just for the 2D plotting, cut at 1.5 (mean of the RMS of all the pixels)
-        snake_fr.GetZaxis().SetRangeUser(3.0,(zmax*1.05))
+        snake_fr.GetZaxis().SetRangeUser(.0,(zmax*1.05))
         snake_fr.Draw(option)
         #cFR.SetRightMargin(0.2); cFR.SetLeftMargin(0.1); cFR.SetBottomMargin(0.1);
         cFR.SetBottomMargin(0.3); cFR.SetLeftMargin(0.2); cFR.SetRightMargin(0.2); 
         for ext in ['png','pdf']:
             cFR.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
+
+
+    def qualityLevel(self):
+        # result: 1=loose, 2=medium, 3=tight
+        kGood = 0
+        # sanity (they are not sparse points clustered)
+        if self.shapes['lat_p0fwhm']>-999: kGood += 1
+        # sphericity
+        if self.shapes['long_width']/self.shapes['lat_width']>2.0: kGood += 1
+        # uniformity in long/lateral shape
+        if self.shapes['long_fullrms']/self.shapes['lat_fullrms']>2.0: kGood += 1
+        return kGood
