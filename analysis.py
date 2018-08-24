@@ -95,14 +95,12 @@ class analysis:
             obj.RebinX(rebin); obj.RebinY(rebin); 
             for ix in xrange(nx+1):
                 for iy in xrange(ny+1):
+                    x = obj.GetXaxis().GetBinCenter(ix+1)
+                    y = obj.GetYaxis().GetBinCenter(iy+1)
                     if options.pedExclRegion and ix>int(xmin) and ix<int(xmax) and iy>int(ymin) and iy<int(ymax):
                         ix_rnd,iy_rnd = utilities.gen_rand_limit(int(xmin)/rebin,int(xmax)/rebin,int(ymin)/rebin,int(ymax)/rebin)
-                        x = obj.GetXaxis().GetBinCenter(ix_rnd+1)
-                        y = obj.GetYaxis().GetBinCenter(iy_rnd+1)
-                        pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
+                        pedmap.Fill(x,y,obj.GetBinContent(ix_rnd+1,iy_rnd+1)/float(math.pow(self.rebin,2)))
                     else:
-                        x = obj.GetXaxis().GetBinCenter(ix+1)
-                        y = obj.GetYaxis().GetBinCenter(iy+1)                        
                         pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
         tf.Close()
         pedfile.cd()
