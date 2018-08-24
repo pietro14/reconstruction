@@ -17,12 +17,14 @@ from morphsnakes import(morphological_chan_vese,
 from clusterTools import Cluster
 
 
+
 class SnakesFactory:
     def __init__(self,th2,name,options):
         self.name = name
         self.options = options
         self.rebin = options.rebin
         self.data = self.getData(th2)
+        from cameraChannel import getActiveCoords
         self.X = self.getActiveCoords(th2)
         self.contours = []
         
@@ -47,22 +49,6 @@ class SnakesFactory:
                 if z>0:
                     bins[y_bin,x_bin] = th2.GetBinContent(x_bin + 1,y_bin + 1)
         return bins
-
-    def getActiveCoords(self,th2):
-        ret = []
-        if not th2.InheritsFrom("TH2"):
-            print "ERROR! The input object should be a TH2"
-            return ret
-        x_bins = th2.GetNbinsX()
-        y_bins = th2.GetNbinsY()
-        for y_bin in xrange(y_bins): 
-            for x_bin in xrange(x_bins): 
-                x = th2.GetXaxis().GetBinCenter(x_bin+1)
-                y = th2.GetYaxis().GetBinCenter(y_bin+1)
-                z = th2.GetBinContent(x_bin + 1,y_bin + 1)
-                if z>0:
-                    ret.append((x,y,z))
-        return np.array(ret)
     
     def getContours(self,iterations,threshold=0.69):
         

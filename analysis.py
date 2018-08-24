@@ -11,6 +11,9 @@ from snakes import SnakesProducer
 from output import OutputTree
 from treeVars import AutoFillTreeProducer
 
+import utilities
+utilities = utilities.utils()
+
 class analysis:
 
     def __init__(self,rfile,options):
@@ -21,11 +24,11 @@ class analysis:
         self.pedfile_name = '{base}_ped_rebin{rb}.root'.format(base=os.path.splitext(self.rfile)[0],rb=self.rebin)
         if not os.path.exists(self.pedfile_name):
             print "WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them..."
-            self.calcPedestal(options.numPedEvents)
+            self.calcPedestal(options)
         self.pedfile_fullres_name = '{base}_ped_rebin1.root'.format(base=os.path.splitext(self.rfile)[0])
         if not os.path.exists(self.pedfile_fullres_name):
             print "WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them..."
-            self.calcPedestal(options.numPedEvents,1)
+            self.calcPedestal(options,1)
         if not options.justPedestal:
            print "Pulling pedestals..."
            # first the one for clustering with rebin
@@ -68,13 +71,21 @@ class analysis:
         tf.Close()
         return ret
 
-    def calcPedestal(self,maxImages=-1,alternativeRebin=-1):
+    def calcPedestal(self,options,alternativeRebin=-1):
+        maxImages=options.numPedEvents
         nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
         pedfile = ROOT.TFile.Open(self.pedfile_name,'recreate')
         pedmap = ROOT.TProfile2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax,'s')
         tf = ROOT.TFile.Open(self.rfile)
+        if options.pedExclRegion:
+            print "Excluding the following region from the calculation of pedestals:"
+            xmin,xmax = options.pedExclRegion.split(',')[0].split(':')
+            ymin,ymax = options.pedExclRegion.split(',')[1].split(':')
+            print "xrange excl = ({xmin},{xmax})".format(xmin=xmin,xmax=xmax)
+            print "yrange excl = ({ymin},{ymax})".format(ymin=ymin,ymax=ymax)
+            
         for i,e in enumerate(tf.GetListOfKeys()):
             if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
             name=e.GetName()
@@ -84,10 +95,15 @@ class analysis:
             obj.RebinX(rebin); obj.RebinY(rebin); 
             for ix in xrange(nx+1):
                 for iy in xrange(ny+1):
-                    x = obj.GetXaxis().GetBinCenter(ix+1)
-                    y = obj.GetYaxis().GetBinCenter(iy+1)
-                    pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
-
+                    if options.pedExclRegion and ix>int(xmin) and ix<int(xmax) and iy>int(ymin) and iy<int(ymax):
+                        ix_rnd,iy_rnd = utilities.gen_rand_limit(int(xmin)/rebin,int(xmax)/rebin,int(ymin)/rebin,int(ymax)/rebin)
+                        x = obj.GetXaxis().GetBinCenter(ix_rnd+1)
+                        y = obj.GetYaxis().GetBinCenter(iy_rnd+1)
+                        pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
+                    else:
+                        x = obj.GetXaxis().GetBinCenter(ix+1)
+                        y = obj.GetYaxis().GetBinCenter(iy+1)                        
+                        pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
         tf.Close()
         pedfile.cd()
         pedmap.Write()
@@ -184,7 +200,8 @@ if __name__ == '__main__':
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
     parser.add_option('-p', '--pedestal', dest='justPedestal', default=False, action='store_true', help='Just compute the pedestals, do not run the analysis')
-
+    parser.add_option(      '--exclude-region', dest='pedExclRegion', default=None, type='string', help='Exclude a rectangular region for pedestals. In the form "xmin:xmax,ymin:ymax"')
+    
     (options, args) = parser.parse_args()
 
     inputf = args[0]

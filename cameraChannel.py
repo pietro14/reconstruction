@@ -53,3 +53,19 @@ class cameraTools:
             for ext in ['png','pdf']:
                 canv.SaveAs('{name}.{ext}'.format(name=th2.GetName()+'_zs',ext=ext))
         return th2_zs
+
+    def getActiveCoords(self,th2):
+        ret = []
+        if not th2.InheritsFrom("TH2"):
+            print "ERROR! The input object should be a TH2"
+            return ret
+        x_bins = th2.GetNbinsX()
+        y_bins = th2.GetNbinsY()
+        for y_bin in xrange(y_bins): 
+            for x_bin in xrange(x_bins): 
+                x = th2.GetXaxis().GetBinCenter(x_bin+1)
+                y = th2.GetYaxis().GetBinCenter(y_bin+1)
+                z = th2.GetBinContent(x_bin + 1,y_bin + 1)
+                if z>0:
+                    ret.append((x,y,z))
+        return np.array(ret)
