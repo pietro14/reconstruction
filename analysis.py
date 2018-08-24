@@ -97,8 +97,10 @@ class analysis:
                 for iy in xrange(ny+1):
                     x = obj.GetXaxis().GetBinCenter(ix+1)
                     y = obj.GetYaxis().GetBinCenter(iy+1)
-                    if options.pedExclRegion and ix>int(xmin) and ix<int(xmax) and iy>int(ymin) and iy<int(ymax):
-                        ix_rnd,iy_rnd = utilities.gen_rand_limit(int(xmin)/rebin,int(xmax)/rebin,int(ymin)/rebin,int(ymax)/rebin)
+                    if options.pedExclRegion and x>int(xmin) and x<int(xmax) and y>int(ymin) and y<int(ymax):
+                        ix_rnd,iy_rnd = utilities.gen_rand_limit(int(xmin)/rebin,int(xmax)/rebin,
+                                                                 int(ymin)/rebin,int(ymax)/rebin,
+                                                                 maxx=self.xmax/rebin,maxy=self.xmax/rebin)
                         pedmap.Fill(x,y,obj.GetBinContent(ix_rnd+1,iy_rnd+1)/float(math.pow(self.rebin,2)))
                     else:
                         pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
@@ -129,7 +131,8 @@ class analysis:
         print "Reconstructing event range: ",evrange
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            iev = iobj/2
+            #iev = iobj/2 # when PMT is present
+            iev = iobj
             if options.maxEntries>0 and iev==max(evrange[0],0)+options.maxEntries: break
             if sum(evrange)>-2:
                 if iev<evrange[0] or iev>evrange[1]: continue
@@ -139,11 +142,14 @@ class analysis:
 
             ###### DEBUG #########
             # if iev!=9 and iev!=4 and iev!=162: continue
-            if iev==0: continue
+            if iev<2: continue
             ######################
             
             if obj.InheritsFrom('TH2'):
-                run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
+                # DAQ convention
+                # run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
+                # BTF convention
+                run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
                 print "Processing run: ",run," event ",event,"..."
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
@@ -153,13 +159,20 @@ class analysis:
                 obj.RebinX(self.rebin); obj.RebinY(self.rebin)
                 obj.Scale(1./float(math.pow(self.rebin,2)))
 
+                # restrict to a subrange
+                if options.pedExclRegion:
+                    xmin,xmax = options.pedExclRegion.split(',')[0].split(':')
+                    ymin,ymax = options.pedExclRegion.split(',')[1].split(':')
+                    h2rs = ctools.getRestrictedImage(obj,int(xmin),int(xmax),int(ymin),int(ymax))
+                else:
+                    h2rs = obj
                 # applying zero-suppression
-                h2zs = ctools.zs(obj,self.pedmap)
+                h2zs = ctools.zs(h2rs,self.pedmap,plot=False)
                 print "Zero-suppression done. Now clustering..."
                 
                 # Cluster reconstruction on 2D picture
-                snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres, 'pedmapHD': self.pedmap_fr, 'name': name}
-                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': False, 'plotprofiles': True}
+                snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres, 'pedmapHD': self.pedmap_fr, 'name': name, 'algo': 'HOUGH'}
+                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': True, 'plotprofiles': True}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,options)
                 snakes = snprod.run()                
                 self.autotree.fillCameraVariables(h2zs,snakes)

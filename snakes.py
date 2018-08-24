@@ -15,17 +15,17 @@ from morphsnakes import(morphological_chan_vese,
                         checkerboard_level_set)
 
 from clusterTools import Cluster
-
-
+from cameraChannel import cameraTools
+import matplotlib.pyplot as plt
 
 class SnakesFactory:
     def __init__(self,th2,name,options):
         self.name = name
         self.options = options
         self.rebin = options.rebin
-        self.data = self.getData(th2)
-        from cameraChannel import getActiveCoords
-        self.X = self.getActiveCoords(th2)
+        ct = cameraTools()
+        self.data = ct.getData(th2)
+        self.X = ct.getActiveCoords(th2)
         self.contours = []
         
     def store_evolution_in(self,lst):
@@ -35,20 +35,6 @@ class SnakesFactory:
         def _store(x):
             lst.append(np.copy(x))
         return _store
-
-    def getData(self,th2):
-        if not th2.InheritsFrom("TH2"):
-            print "ERROR! The input object should be a TH2"
-            return []
-        x_bins = th2.GetNbinsX()
-        y_bins = th2.GetNbinsY()
-        bins = np.zeros((x_bins,y_bins))
-        for y_bin in xrange(y_bins): 
-            for x_bin in xrange(x_bins): 
-                z = th2.GetBinContent(x_bin + 1,y_bin + 1)
-                if z>0:
-                    bins[y_bin,x_bin] = th2.GetBinContent(x_bin + 1,y_bin + 1)
-        return bins
     
     def getContours(self,iterations,threshold=0.69):
         
@@ -89,7 +75,6 @@ class SnakesFactory:
 
         clusters = []
         ##################### plot
-        import matplotlib.pyplot as plt
         # the following is to preserve the square aspect ratio with all the camera pixels
         # plt.axes().set_aspect('equal','box')
         # plt.ylim(0,2040)
@@ -146,6 +131,45 @@ class SnakesFactory:
 
         return clusters
 
+    def getTracks(self,plot=True):
+        from skimage.transform import (hough_line, hough_line_peaks)
+        # Classic straight-line Hough transform
+        image = self.data
+        h, theta, d = hough_line(image)
+
+        if plot:
+            # Generating figure
+            from matplotlib import cm
+            fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+            ax = axes.ravel()
+
+            ax[0].imshow(image, cmap=cm.gray)
+            ax[0].set_title('Input image')
+            ax[0].set_axis_off()
+            
+            ax[1].imshow(np.log(1 + h),
+                         extent=[np.rad2deg(theta[-1]), np.rad2deg(theta[0]), d[-1], d[0]],
+                         cmap=cm.gray, aspect=1/1.5)
+            ax[1].set_title('Hough transform')
+            ax[1].set_xlabel('Angles (degrees)')
+            ax[1].set_ylabel('Distance (pixels)')
+            ax[1].axis('image')
+            
+            ax[2].imshow(image, cmap=cm.gray)
+            thr = 0.7 * np.amax(h)
+            for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
+                y0 = (dist - 0 * np.cos(angle)) / np.sin(angle)
+                y1 = (dist - image.shape[1] * np.cos(angle)) / np.sin(angle)
+                ax[2].plot((0, image.shape[1]), (y0, y1), '-r')
+            ax[2].set_xlim((0, image.shape[1]))
+            ax[2].set_ylim((image.shape[0], 0))
+            ax[2].set_axis_off()
+            ax[2].set_title('Detected lines')
+            
+            plt.tight_layout()
+            plt.show()
+            
+        
     def plotClusterFullResolution(self,clusters,th2_fullres,pedmap_fullres):
         outname = self.options.plotDir
         for k,cl in enumerate(clusters):
@@ -209,7 +233,8 @@ class SnakesProducer:
         self.pictureHD = sources['pictureHD'] if 'pictureHD' in sources else None
         self.pedmapHD  = sources['pedmapHD']  if 'pedmapHD' in sources else None
         self.name      = sources['name']      if 'name' in sources else None
-
+        self.algo      = sources['algo']      if 'algo' in sources else 'DBSCAN'
+        
         self.snakeQualityLevel = params['snake_qual']   if 'snake_qual' in params else 3
         self.plot2D            = params['plot2D']       if 'plot2D' in params else True
         self.plotpy            = params['plotpy']       if 'plotpy' in params else False
@@ -227,7 +252,11 @@ class SnakesProducer:
 
         # this plotting is only the pyplot representation.
         # Doesn't work on MacOS with multithreading for some reason... 
-        snakes = snfac.getClusters(plot=self.plotpy)
+        if self.algo=='DBSCAN':
+            snakes = snfac.getClusters(plot=self.plotpy)
+        elif self.algo=='HOUGH':
+            snakes = snfac.getTracks(plot=self.plotpy)            
+            exit(0)
         snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
 
         # sort snakes by longitudinal width
