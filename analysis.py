@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os,math,sys
+import os,math,sys,random
 import numpy as np
 import matplotlib.pyplot as plt
 import ROOT
@@ -58,7 +58,7 @@ class analysis:
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
-        self.autotree.createPMTVariables()
+        if self.options.daq == 'btf': self.autotree.createPMTVariables()
         self.autotree.createCameraVariables()
 
     def endJob(self):
@@ -92,16 +92,21 @@ class analysis:
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
             print "Calc pedestal with event: ",name
-            obj.RebinX(rebin); obj.RebinY(rebin); 
+            if rebin>1:
+                obj.RebinX(rebin);
+                obj.RebinY(rebin); 
             for ix in xrange(nx+1):
                 for iy in xrange(ny+1):
                     x = obj.GetXaxis().GetBinCenter(ix+1)
                     y = obj.GetYaxis().GetBinCenter(iy+1)
                     if options.pedExclRegion and x>int(xmin) and x<int(xmax) and y>int(ymin) and y<int(ymax):
-                        ix_rnd,iy_rnd = utilities.gen_rand_limit(int(xmin)/rebin,int(xmax)/rebin,
-                                                                 int(ymin)/rebin,int(ymax)/rebin,
-                                                                 maxx=self.xmax/rebin,maxy=self.xmax/rebin)
-                        pedmap.Fill(x,y,obj.GetBinContent(ix_rnd+1,iy_rnd+1)/float(math.pow(self.rebin,2)))
+                        ix_rnd = iy_rnd = 0
+                        # need to take only hits within the ellipse not to bias pedestals
+                        while math.hypot(ix_rnd-self.xmax/2, iy_rnd-self.xmax/2)>600:
+                            ix_rnd,iy_rnd = utilities.gen_rand_limit(int(xmin)/rebin,int(xmax)/rebin,
+                                                                     int(ymin)/rebin,int(ymax)/rebin,
+                                                                     maxx=self.xmax/rebin,maxy=self.xmax/rebin)
+                        pedmap.Fill(x,y,obj.GetBinContent(ix_rnd+1,iy_rnd+1)/float(math.pow(self.rebin,2)))                        
                     else:
                         pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
         tf.Close()
@@ -131,9 +136,8 @@ class analysis:
         print "Reconstructing event range: ",evrange
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            #iev = iobj/2 # when PMT is present
-            iev = iobj
-            if options.maxEntries>0 and iev==max(evrange[0],0)+options.maxEntries: break
+            iev = iobj if self.options.daq == 'btf' else iobj/2 # when PMT is present
+            if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange)>-2:
                 if iev<evrange[0] or iev>evrange[1]: continue
                 
@@ -160,39 +164,43 @@ class analysis:
                 obj.Scale(1./float(math.pow(self.rebin,2)))
 
                 # restrict to a subrange
-                if options.pedExclRegion:
-                    xmin,xmax = options.pedExclRegion.split(',')[0].split(':')
-                    ymin,ymax = options.pedExclRegion.split(',')[1].split(':')
-                    h2rs = ctools.getRestrictedImage(obj,int(xmin),int(xmax),int(ymin),int(ymax))
+                if self.options.pedExclRegion:
+                    xmin,xmax = self.options.pedExclRegion.split(',')[0].split(':')
+                    ymin,ymax = self.options.pedExclRegion.split(',')[1].split(':')
+                    h2rs           = ctools.getRestrictedImage(obj,int(xmin),int(xmax),int(ymin),int(ymax))
+                    pic_fullres_rs = ctools.getRestrictedImage(pic_fullres,int(xmin),int(xmax),int(ymin),int(ymax))
+                    pedmap_fr_rs   = ctools.getRestrictedImage(self.pedmap_fr,int(xmin),int(xmax),int(ymin),int(ymax))
                 else:
                     h2rs = obj
+                    pic_fullres_rs = pic_fullres
+                    pedmap_fr_rs = self.pedmap_fr
                 # applying zero-suppression
-                h2zs = ctools.zs(h2rs,self.pedmap,plot=False)
+                h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
                 print "Zero-suppression done. Now clustering..."
                 
                 # Cluster reconstruction on 2D picture
-                snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres, 'pedmapHD': self.pedmap_fr, 'name': name, 'algo': 'HOUGH'}
-                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': True, 'plotprofiles': True}
-                snprod = SnakesProducer(snprod_inputs,snprod_params,options)
+                snprod_inputs = {'picture': h2unzs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': 'HOUGH' if self.options.daq=='btf' else 'DBSCAN'}
+                snprod_params = {'snake_qual': 1, 'plot2D': False, 'plotpy': True, 'plotprofiles': True}
+                snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()                
                 self.autotree.fillCameraVariables(h2zs,snakes)
                 
-                # PMT waveform reconstruction
-                from waveform import PeakFinder,PeaksProducer
-                wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
-                # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
-                pkprod_inputs = {'waveform': wform}
-                pkprod_params = {'threshold': 0, # min threshold for a signal
-                                 'minPeakDistance': 1, # number of samples (1 sample = 1ns )
-                                 'prominence': 0.5, # noise after resampling very small
-                                 'width': 1, # minimal width of the signal
-                                 'resample': 5,  # to sample waveform at 1 GHz only
-                                 'rangex': (6160,6500)
-                }
-                pkprod = PeaksProducer(pkprod_inputs,pkprod_params,options)
-                peaksfinder = pkprod.run()
-                self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
-
+                if self.options.daq != 'btf':
+                   # PMT waveform reconstruction
+                   from waveform import PeakFinder,PeaksProducer
+                   wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
+                   # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
+                   pkprod_inputs = {'waveform': wform}
+                   pkprod_params = {'threshold': 0, # min threshold for a signal
+                                    'minPeakDistance': 1, # number of samples (1 sample = 1ns )
+                                    'prominence': 0.5, # noise after resampling very small
+                                    'width': 1, # minimal width of the signal
+                                    'resample': 5,  # to sample waveform at 1 GHz only
+                                    'rangex': (6160,6500)
+                   }
+                   pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
+                   peaksfinder = pkprod.run()
+                   self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
                 
                 # fill reco tree
                 self.outTree.fill()
@@ -212,6 +220,7 @@ if __name__ == '__main__':
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
     parser.add_option('-p', '--pedestal', dest='justPedestal', default=False, action='store_true', help='Just compute the pedestals, do not run the analysis')
     parser.add_option(      '--exclude-region', dest='pedExclRegion', default=None, type='string', help='Exclude a rectangular region for pedestals. In the form "xmin:xmax,ymin:ymax"')
+    parser.add_option(       '--daq', dest="daq", type="string", default="btf", help="DAQ type (btf/midas)");
     
     (options, args) = parser.parse_args()
 

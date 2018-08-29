@@ -6,7 +6,8 @@ import math
 
 class cameraGeometry:
     def __init__(self):
-        self.pixelwidth = 100E-3 # mm
+        # 240 mm = major axis of the ellipse = 2048 pixels
+        self.pixelwidth = 117E-3 # mm
         
 class cameraTools:
     def __init__(self):
@@ -35,7 +36,8 @@ class cameraTools:
         xmin,xmax=(th2.GetXaxis().GetXmin(),th2.GetXaxis().GetXmax())
         ymin,ymax=(th2.GetYaxis().GetXmin(),th2.GetYaxis().GetXmax())
         th2_zs = ROOT.TH2D(th2.GetName()+'_zs',th2.GetName()+'_zs',nx,xmin,xmax,ny,ymin,ymax)
-        th2_zs.SetDirectory(None)
+        th2_unzs = th2_zs.Clone(th2.GetName()+'_unzs')
+        th2_zs.SetDirectory(None); th2_unzs.SetDirectory(None);
         for ix in xrange(1,nx+1):
             for iy in xrange(1,ny+1):
                 x = th2.GetXaxis().GetBinCenter(ix)
@@ -45,9 +47,9 @@ class cameraTools:
                 ped = pedmap.GetBinContent(ped_ixb,ped_iyb)
                 noise = pedmap.GetBinError(ped_ixb,ped_iyb)
                 #if not self.isGoodChannelFast(ped,noise): continue                
-                z = max(th2.GetBinContent(ix,iy)-ped,0)
-                if z>3:
-                #if z>nsigma*noise:
+                z = th2.GetBinContent(ix,iy)-ped
+                th2_unzs.SetBinContent(ix,iy,z)
+                if z>nsigma*noise:
                     th2_zs.SetBinContent(ix,iy,z)
                     #print "x,y,z=",ix," ",iy," ",z,"   noise = ",noise
         #th2_zs.GetZaxis().SetRangeUser(0,1)
@@ -56,7 +58,7 @@ class cameraTools:
             th2_zs.Draw('colz')
             for ext in ['png','pdf','root']:
                 canv.SaveAs('{name}.{ext}'.format(name=th2.GetName()+'_zs',ext=ext))
-        return th2_zs
+        return (th2_zs,th2_unzs)
 
     def getData(self,th2):
         if not th2.InheritsFrom("TH2"):
@@ -68,8 +70,7 @@ class cameraTools:
         for y_bin in xrange(y_bins): 
             for x_bin in xrange(x_bins): 
                 z = th2.GetBinContent(x_bin + 1,y_bin + 1)
-                if z>0:
-                    bins[x_bin,y_bin] = math.log(th2.GetBinContent(x_bin + 1,y_bin + 1))
+                bins[x_bin,y_bin] = z
         return bins
 
     def getActiveCoords(self,th2):
@@ -85,11 +86,10 @@ class cameraTools:
                 y = th2.GetYaxis().GetBinCenter(y_bin+1)
                 z = th2.GetBinContent(x_bin + 1,y_bin + 1)
                 if z>0:
-                    ret.append((x,y,z))
+                    ret.append((x,y,math.log(z)))
         return np.array(ret)
 
     def getRestrictedImage(self,th2,xmin,xmax,ymin,ymax):
-        print "getting restricted image..."
         nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
         nxp = xmax-xmin
         nyp = ymax-ymin
@@ -101,8 +101,8 @@ class cameraTools:
                 orig_iyb = th2.GetYaxis().FindBin(y)
                 z = th2.GetBinContent(orig_ixb,orig_iyb)
                 th2_rs.SetBinContent(ix+1,iy+1,z)
-        canv = ROOT.TCanvas('zs','',600,600)
-        th2_rs.Draw('colz')
-        for ext in ['png','pdf','root']:
-            canv.SaveAs('{name}_rs.{ext}'.format(name=th2.GetName(),ext=ext))
+        # canv = ROOT.TCanvas('zs','',600,600)
+        # th2_rs.Draw('colz')
+        # for ext in ['png','pdf','root']:
+        #     canv.SaveAs('{name}_rs.{ext}'.format(name=th2.GetName(),ext=ext))
         return th2_rs

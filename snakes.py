@@ -25,6 +25,10 @@ class SnakesFactory:
         self.rebin = options.rebin
         ct = cameraTools()
         self.data = ct.getData(th2)
+        self.datalog = np.zeros((self.data.shape[0],self.data.shape[1]))
+        for (x,y),value in np.ndenumerate(self.data):
+            if value > 3: # tresholding needed for tracking
+                self.datalog[x,y] = math.log(value)
         self.X = ct.getActiveCoords(th2)
         self.contours = []
         
@@ -117,8 +121,7 @@ class SnakesFactory:
                 #         for ext in ['png','pdf']:
                 #             canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
 
-            # plot also the non-core hits
-            # xy = X[class_member_mask & ~core_samples_mask]
+            # plot also the non-core hits            # xy = X[class_member_mask & ~core_samples_mask]
             # if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
             #                   markeredgecolor='k', markersize=6)
 
@@ -134,41 +137,63 @@ class SnakesFactory:
     def getTracks(self,plot=True):
         from skimage.transform import (hough_line, hough_line_peaks)
         # Classic straight-line Hough transform
-        image = self.data
+        image = self.datalog
         h, theta, d = hough_line(image)
-
+        
+        tracks = []
+        thr = 0.8 * np.amax(h)
+        #######################   IMPLEMENT HERE THE SAVING OF THE TRACKS ############
+        # loop over prominent tracks
+        itrk = 0
+        for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
+            print "Track # ",itrk
+            #points_along_trk = np.zeros((self.data.shape[1],self.data.shape[0]))
+            points_along_trk = []
+            for x in xrange(self.data.shape[1]):
+                y = min(self.data.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
+                #points_along_trk[x,y] = self.data[y,x]
+                #print "adding point: %d,%d,%f" % (x,y,self.data[y,x])
+                # add a halo fo +/- 20 pixels to calculate the lateral profile
+                for iy in xrange(int(y)-20,int(y)+20):
+                    if iy<0 or iy>=self.data.shape[0]: continue
+                    points_along_trk.append((x,iy,self.data[iy,x]))
+            xy = np.array(points_along_trk)
+            trk = Cluster(xy,self.rebin)
+            tracks.append(trk)
+            itrk += 1
+        ###################################
+            
         if plot:
             # Generating figure
             from matplotlib import cm
-            fig, axes = plt.subplots(1, 3, figsize=(15, 6))
-            ax = axes.ravel()
+            fig, ax = plt.subplots(2, 1, figsize=(18, 6))
+            #ax = axes.ravel()
 
             ax[0].imshow(image, cmap=cm.gray)
-            ax[0].set_title('Input image')
-            ax[0].set_axis_off()
-            
-            ax[1].imshow(np.log(1 + h),
-                         extent=[np.rad2deg(theta[-1]), np.rad2deg(theta[0]), d[-1], d[0]],
-                         cmap=cm.gray, aspect=1/1.5)
-            ax[1].set_title('Hough transform')
-            ax[1].set_xlabel('Angles (degrees)')
-            ax[1].set_ylabel('Distance (pixels)')
-            ax[1].axis('image')
-            
-            ax[2].imshow(image, cmap=cm.gray)
-            thr = 0.7 * np.amax(h)
+            ax[0].set_title('Camera image')
+            #ax[0].set_axis_off()            
+
+            ax[1].imshow(image, cmap=cm.gray)
             for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
                 y0 = (dist - 0 * np.cos(angle)) / np.sin(angle)
                 y1 = (dist - image.shape[1] * np.cos(angle)) / np.sin(angle)
-                ax[2].plot((0, image.shape[1]), (y0, y1), '-r')
-            ax[2].set_xlim((0, image.shape[1]))
-            ax[2].set_ylim((image.shape[0], 0))
-            ax[2].set_axis_off()
-            ax[2].set_title('Detected lines')
-            
+                ax[1].plot((0, image.shape[1]), (y0, y1), '-r')
+            ax[1].set_xlim((0, image.shape[1]))
+            ax[1].set_ylim((image.shape[0], 0))
+            #ax[1].set_axis_off()
+            ax[1].set_title('Fitted tracks')
+
             plt.tight_layout()
-            plt.show()
-            
+            #plt.show()
+            outname = self.options.plotDir
+            if outname and not os.path.exists(outname):
+                os.system("mkdir -p "+outname)
+                os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
+            for ext in ['png','pdf']:
+                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
+            plt.gcf().clear()
+
+        return tracks
         
     def plotClusterFullResolution(self,clusters,th2_fullres,pedmap_fullres):
         outname = self.options.plotDir
@@ -177,19 +202,22 @@ class SnakesFactory:
 
     def calcProfiles(self,clusters,th2_fullres=None,pedmap_fullres=None):
         for k,cl in enumerate(clusters):
-            hits = cl.hitsFullResolution(th2_fullres,pedmap_fullres) if (th2_fullres and pedmap_fullres) else cl.hits
+            if self.rebin==1:
+                hits = cl.hits
+            else:
+                hits = cl.hitsFullResolution(th2_fullres,pedmap_fullres) if (th2_fullres and pedmap_fullres) else cl.hits
             cl.calcProfiles(hitscalc=hits,plot=None)
                              
     def plotProfiles(self,clusters):
         outname = self.options.plotDir
-        canv = ROOT.TCanvas('c1','',600,600)
+        canv = ROOT.TCanvas('c1','',1200,600)
         for k,cl in enumerate(clusters):
             for dir in ['long','lat']:
                 prof = cl.getProfile(dir)
                 if prof and cl.widths[dir]>0.2: # plot the profiles only of sufficiently long snakes (>200 um)
                     prof.Draw()
                     line = ROOT.TLine(prof.GetXaxis().GetXmin(),0,prof.GetXaxis().GetXmax(),0)
-                    line.SetLineWidth(2); line.SetLineColor(ROOT.kGray); line.SetLineStyle(ROOT.kDashed)
+                    line.SetLineWidth(1); line.SetLineColor(ROOT.kGray); line.SetLineStyle(ROOT.kDashed)
                     line.Draw("L")
                     for ext in ['png','pdf']:
                         canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
@@ -256,9 +284,10 @@ class SnakesProducer:
             snakes = snfac.getClusters(plot=self.plotpy)
         elif self.algo=='HOUGH':
             snakes = snfac.getTracks(plot=self.plotpy)            
-            exit(0)
-        snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
 
+        print "Get light profiles..."
+        snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
+        
         # sort snakes by longitudinal width
         snakes = sorted(snakes, key = lambda x: x.widths['long'], reverse=True)
         # and reject discharges (round)
