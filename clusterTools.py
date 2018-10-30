@@ -80,9 +80,11 @@ class Cluster:
         # now compute the length along major axis, long profile, etc
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
-
         xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.1)
         yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.5)
+        # rxmin = 1000; rxmax = 1500 # central 5 cm of the track
+        # xedg = range(int(rxmin),int(rxmax)) # full binning for BTF tracks
+        # yedg = range(int(rymin),int(rymax)) # full binning for BTF tracks
         geo = cameraGeometry()
         xedg = [(x-int(rxmin))*geo.pixelwidth for x in xedg]
         yedg = [(y-int(rymin))*geo.pixelwidth for y in yedg]
@@ -178,9 +180,10 @@ class Cluster:
             
     def applyProfileStyle(self,prof):
         prof.SetMarkerStyle(ROOT.kFullCircle)
-        prof.SetMarkerSize(1)
+        prof.SetMarkerSize(0.5)
         prof.SetMarkerColor(ROOT.kBlack)
-        prof.SetLineColor(ROOT.kBlack)
+        prof.SetLineColor(ROOT.kGray)
+        prof.SetLineWidth(1)
         prof.SetMinimum(-1.0)
         
     def hitsFullResolution(self,th2_fullres,pedmap_fullres,zs=False):
@@ -190,7 +193,7 @@ class Cluster:
             retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
             #latmargin = 15 # in pixels
             #longmargin = 100 # in pixels
-            latmargin = 5 # in pixels
+            latmargin = 30 # in pixels
             longmargin = 5 # in pixels
             for h in self.hits:
                 rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
@@ -222,7 +225,11 @@ class Cluster:
             return self.hits_fr
     
     def plotFullResolution(self,th2_fullres,pedmap_fullres,name,option='colz'):
-        hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
+        # REPETITION!!!! IMPROVE...
+        if self.rebin==1:
+            hits_fr = self.hits
+        else:
+            hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
         border = 15
         xmin,xmax = (min(hits_fr[:,0])-border, max(hits_fr[:,0])+border)
         ymin,ymax = (min(hits_fr[:,1])-border, max(hits_fr[:,1])+border)
@@ -243,8 +250,10 @@ class Cluster:
         snake_fr.GetYaxis().SetTitle('y (pixels)')
         snake_fr.GetZaxis().SetTitle('counts')
         # just for the 2D plotting, cut at 1.5 (mean of the RMS of all the pixels)
-        snake_fr.GetZaxis().SetRangeUser(.0,(zmax*1.05))
+        #snake_fr.GetZaxis().SetRangeUser(.0,(zmax*1.05))
+        snake_fr.GetZaxis().SetRangeUser(0,10)
         snake_fr.Draw(option)
+        print "cluster integral = ",snake_fr.Integral()
         #cFR.SetRightMargin(0.2); cFR.SetLeftMargin(0.1); cFR.SetBottomMargin(0.1);
         cFR.SetBottomMargin(0.3); cFR.SetLeftMargin(0.2); cFR.SetRightMargin(0.2); 
         for ext in ['png','pdf']:
@@ -257,7 +266,7 @@ class Cluster:
         # sanity (they are not sparse points clustered)
         if self.shapes['lat_p0fwhm']>-999: kGood += 1
         # sphericity
-        if self.shapes['long_width']/self.shapes['lat_width']>2.0: kGood += 1
+        if self.shapes['lat_width']>0 and self.shapes['long_width']/self.shapes['lat_width']>2.0: kGood += 1
         # uniformity in long/lateral shape
-        if self.shapes['long_fullrms']/self.shapes['lat_fullrms']>2.0: kGood += 1
+        if self.shapes['lat_fullrms']>0 and self.shapes['long_fullrms']/self.shapes['lat_fullrms']>2.0: kGood += 1
         return kGood
