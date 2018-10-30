@@ -151,9 +151,11 @@ class analysis:
             
             if obj.InheritsFrom('TH2'):
                 # DAQ convention
-                # run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
                 # BTF convention
-                run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
+                if self.options.daq == 'btf':
+                    run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
+                else:
+                    run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
                 print "Processing run: ",run," event ",event,"..."
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
@@ -179,7 +181,9 @@ class analysis:
                 print "Zero-suppression done. Now clustering..."
                 
                 # Cluster reconstruction on 2D picture
-                snprod_inputs = {'picture': h2unzs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': 'HOUGH' if self.options.daq=='btf' else 'DBSCAN'}
+                algo = 'DBSCAN'
+                if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
+                snprod_inputs = {'picture': h2unzs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
                 snprod_params = {'snake_qual': 1, 'plot2D': False, 'plotpy': True, 'plotprofiles': True}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()                
@@ -221,6 +225,7 @@ if __name__ == '__main__':
     parser.add_option('-p', '--pedestal', dest='justPedestal', default=False, action='store_true', help='Just compute the pedestals, do not run the analysis')
     parser.add_option(      '--exclude-region', dest='pedExclRegion', default=None, type='string', help='Exclude a rectangular region for pedestals. In the form "xmin:xmax,ymin:ymax"')
     parser.add_option(       '--daq', dest="daq", type="string", default="btf", help="DAQ type (btf/midas)");
+    parser.add_option(       '--type', dest="type", type="string", default="beam", help="events type (beam/cosmics/neutrons)");
     
     (options, args) = parser.parse_args()
 

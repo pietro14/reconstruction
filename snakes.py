@@ -27,7 +27,7 @@ class SnakesFactory:
         self.data = ct.getData(th2)
         self.datalog = np.zeros((self.data.shape[0],self.data.shape[1]))
         for (x,y),value in np.ndenumerate(self.data):
-            if value > 3: # tresholding needed for tracking
+            if value > 3.0/math.sqrt(self.rebin): # tresholding needed for tracking
                 self.datalog[x,y] = math.log(value)
         self.X = ct.getActiveCoords(th2)
         self.contours = []
@@ -139,6 +139,7 @@ class SnakesFactory:
         # Classic straight-line Hough transform
         image = self.datalog
         h, theta, d = hough_line(image)
+        print "tracks found"
         
         tracks = []
         thr = 0.8 * np.amax(h)
@@ -154,7 +155,7 @@ class SnakesFactory:
                 #points_along_trk[x,y] = self.data[y,x]
                 #print "adding point: %d,%d,%f" % (x,y,self.data[y,x])
                 # add a halo fo +/- 20 pixels to calculate the lateral profile
-                for iy in xrange(int(y)-20,int(y)+20):
+                for iy in xrange(int(y)-5,int(y)+5):
                     if iy<0 or iy>=self.data.shape[0]: continue
                     points_along_trk.append((x,iy,self.data[iy,x]))
             xy = np.array(points_along_trk)
@@ -202,7 +203,7 @@ class SnakesFactory:
 
     def calcProfiles(self,clusters,th2_fullres=None,pedmap_fullres=None):
         for k,cl in enumerate(clusters):
-            if self.rebin==1:
+            if self.rebin==1 or not th2_fullres or not pedmap_fullres:
                 hits = cl.hits
             else:
                 hits = cl.hitsFullResolution(th2_fullres,pedmap_fullres) if (th2_fullres and pedmap_fullres) else cl.hits
@@ -287,6 +288,7 @@ class SnakesProducer:
 
         print "Get light profiles..."
         snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
+        # snfac.calcProfiles(snakes) # this is for BTF
         
         # sort snakes by longitudinal width
         snakes = sorted(snakes, key = lambda x: x.widths['long'], reverse=True)
