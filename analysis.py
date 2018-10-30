@@ -160,7 +160,7 @@ class analysis:
                                  'prominence': 0.5, # noise after resampling very small
                                  'width': 1, # minimal width of the signal
                                  'resample': 5,  # to sample waveform at 1 GHz only
-                                 'rangex': (6160,6300)
+                                 'rangex': (6160,6500)
                 }
                 pkprod = PeaksProducer(pkprod_inputs,pkprod_params,options)
                 peaksfinder = pkprod.run()
