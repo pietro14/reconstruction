@@ -1,0 +1,4 @@
+trackIntegral  : track_integral[0]: 20,0.,1000.  ; XTitle="track light (counts)", IncludeOverflows=False
+trackLength    : track_length[0]:   50,0,50.     ; XTitle="track length (mm)", IncludeOverflows=False
+braggIntergral : track_width[0]*track_lp0fwhm[0]*track_lp0amplitude[0] : 15,0.,250. ; XTitle="Light in Bragg peak", IncludeOverflows=False
+peakFraction   : track_width[0]*track_lp0fwhm[0]*track_lp0amplitude[0]/track_integral[0] : 15,0.,1. ; XTitle="Light in Bragg peak", IncludeOverflows=False
