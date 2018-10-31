@@ -104,6 +104,8 @@ class PlotMaker:
         c1.SetTopMargin(c1.GetTopMargin()*1.2);
         topsize = 0.06*600./height
         c1.Draw()
+        c1.SetLogy(True if pspec.hasOption('Logy') else False)
+        c1.SetLogz(True if pspec.hasOption('Logz') else False)
         c1.SetWindowSize(plotformat[0] + (plotformat[0] - c1.GetWw()), plotformat[1] + (plotformat[1] - c1.GetWh()));
         if "TH2" in histo.ClassName() or "TProfile2D" in histo.ClassName():
             c1.SetRightMargin(0.20)
