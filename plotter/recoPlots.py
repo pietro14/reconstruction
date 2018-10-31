@@ -85,13 +85,13 @@ class PlotMaker:
         histo.GetXaxis().SetTitleSize(0.05)
         histo.GetXaxis().SetTitleOffset(0.9)
         histo.GetXaxis().SetLabelFont(42)
-        histo.GetXaxis().SetLabelSize(0.05)
+        histo.GetXaxis().SetLabelSize(0.04)
         histo.GetXaxis().SetLabelOffset(0.007)
         histo.GetYaxis().SetTitleFont(42)
         histo.GetYaxis().SetTitleSize(0.05)
         histo.GetYaxis().SetTitleOffset(0.90 if doWide else 1.7)
         histo.GetYaxis().SetLabelFont(42)
-        histo.GetYaxis().SetLabelSize(0.05)
+        histo.GetYaxis().SetLabelSize(0.04)
         histo.GetYaxis().SetLabelOffset(0.007)
         histo.GetYaxis().SetTitle(pspec.getOption('YTitle',ytitle))
         histo.GetXaxis().SetTitle(pspec.getOption('XTitle',outputName))
@@ -105,7 +105,26 @@ class PlotMaker:
         topsize = 0.06*600./height
         c1.Draw()
         c1.SetWindowSize(plotformat[0] + (plotformat[0] - c1.GetWw()), plotformat[1] + (plotformat[1] - c1.GetWh()));
-        histo.Draw("HIST")
+        if "TH2" in histo.ClassName() or "TProfile2D" in histo.ClassName():
+            c1.SetRightMargin(0.20)
+            histo.SetContour(100)
+            ROOT.gStyle.SetPaintTextFormat(pspec.getOption("PaintTextFormat","g"))
+            histo.SetMarkerSize(pspec.getOption("MarkerSize",1))
+            if pspec.hasOption('ZMin') and pspec.hasOption('ZMax'):
+                histo.GetZaxis().SetRangeUser(pspec.getOption('ZMin',1.0), pspec.getOption('ZMax',1.0))
+            # histo.SetMarkerStyle(mca.getProcessOption(p,'MarkerStyle',1))
+            # histo.SetMarkerColor(mca.getProcessOption(p,'FillColor',ROOT.kBlack))
+            histo.Draw(pspec.getOption("PlotMode","COLZ"))
+            # Z axis setting ######################
+            histo.GetZaxis().SetTitle(pspec.getOption('ZTitle',ytitle)) # use same content of default ytitle defined above, Events or Events/XX
+            histo.GetZaxis().SetTitleFont(42)
+            histo.GetZaxis().SetTitleSize(0.055)
+            histo.GetZaxis().SetTitleOffset(0.90 if doWide else 1.2)
+            histo.GetZaxis().SetLabelFont(42)
+            histo.GetZaxis().SetLabelSize(0.05)
+            histo.GetZaxis().SetLabelOffset(0.007)
+        else:
+            histo.Draw("HIST")
         for ext in ['png','pdf']:
             c1.SaveAs("%s/%s.%s" % (printDir, outputName, ext))
         ROOT.gErrorIgnoreLevel = savErrorLevel
