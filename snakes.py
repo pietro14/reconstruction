@@ -60,7 +60,7 @@ class SnakesFactory:
         self.contours = ls
         return ls
 
-    def getClusters(self,maxDist=500,minPoints=6,minPointsCore=3,plot=True):
+    def getClusters(self,maxDist=1000,minPoints=20,minPointsCore=10,plot=True):
 
         from sklearn.cluster import DBSCAN
         from sklearn import metrics
@@ -216,12 +216,9 @@ class SnakesFactory:
             for dir in ['long','lat']:
                 prof = cl.getProfile(dir)
                 if prof and cl.widths[dir]>0.2: # plot the profiles only of sufficiently long snakes (>200 um)
-                    prof.Draw()
-                    line = ROOT.TLine(prof.GetXaxis().GetXmin(),0,prof.GetXaxis().GetXmax(),0)
-                    line.SetLineWidth(1); line.SetLineColor(ROOT.kGray); line.SetLineStyle(ROOT.kDashed)
-                    line.Draw("L")
+                    prof.Draw("pe1")
                     for ext in ['png','pdf']:
-                        canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
+                        canv.SaveAs('{pdir}/{name}_cluster{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
         
     def plotContours(self,contours):
 
