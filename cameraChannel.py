@@ -25,9 +25,9 @@ class cameraTools:
         return True
 
     def isGoodChannelFast(self,pedval,pedrms):
-        if pedval > 110: return False
-        if pedrms < 0.2: return False
-        if pedrms > 5: return False
+        if pedval > 130: return False
+        # if pedrms < 0.2: return False
+        # if pedrms > 5: return False
         return True
     
     def zs(self,th2,pedmap,nsigma=2,plot=False):
@@ -46,7 +46,7 @@ class cameraTools:
                 ped_iyb = pedmap.GetYaxis().FindBin(y)
                 ped = pedmap.GetBinContent(ped_ixb,ped_iyb)
                 noise = pedmap.GetBinError(ped_ixb,ped_iyb)
-                #if not self.isGoodChannelFast(ped,noise): continue                
+                if not self.isGoodChannelFast(ped,noise): continue                
                 z = th2.GetBinContent(ix,iy)-ped
                 th2_unzs.SetBinContent(ix,iy,z)
                 if z>nsigma*noise:
