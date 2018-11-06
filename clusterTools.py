@@ -91,11 +91,11 @@ class Cluster:
 
         length=(rxmax-rxmin)*geo.pixelwidth; width=(rymax-rymin)*geo.pixelwidth
         if len(xedg)>1:
-            longprof = ROOT.TProfile('longprof','longitudinal profile',len(xedg)-1,array('f',xedg),'i')
+            longprof = ROOT.TH1F('longprof','longitudinal profile',len(xedg)-1,array('f',xedg),'i')
             longprof.SetDirectory(None)
         else: longprof = None
         if len(yedg)>1:
-            latprof = ROOT.TProfile('latprof','lateral profile',len(yedg)-1,array('f',yedg),'i')
+            latprof = ROOT.TH1F('latprof','lateral profile',len(yedg)-1,array('f',yedg),'i')
             latprof.SetDirectory(None)
         else: latprof = None
         
