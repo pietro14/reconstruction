@@ -45,12 +45,18 @@ class analysis:
            pedrf_fr.Close()
 
     # the following is needed for multithreading
-    def __call__(self,evrange=(-1,-1)):
-        return self.reconstruct(evrange)
-
-    def beginJob(self):
+    def __call__(self,evrange=(-1,-1,-1)):
+        if evrange[0]==-1:
+            outfname = self.options.outFile
+        else:
+            outfname = '{base}_chunk{ij}.root'.format(base=self.options.outFile.split('.')[0],ij=evrange[0])
+        self.beginJob(outfname)
+        self.reconstruct(evrange)
+        self.endJob()
+        
+    def beginJob(self,outfname):
         # prepare output file
-        self.outputFile = ROOT.TFile.Open(self.options.outFile, "RECREATE")
+        self.outputFile = ROOT.TFile.Open(outfname, "RECREATE")
         # prepare output tree
         self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
         self.outTree = OutputTree(self.outputFile,self.outputTree)
@@ -123,7 +129,7 @@ class analysis:
         pedfile.Close()
         print "Pedestal calculated and saved into ",self.pedfile_name
 
-    def reconstruct(self,evrange=(-1,-1)):
+    def reconstruct(self,evrange=(-1,-1,-1)):
 
         ROOT.gROOT.Macro('rootlogon.C')
         ROOT.gStyle.SetOptStat(0)
@@ -131,15 +137,15 @@ class analysis:
         savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
         tf = ROOT.TFile.Open(self.rfile)
-        c1 = ROOT.TCanvas('c1','',600,600)
+        #c1 = ROOT.TCanvas('c1','',600,600)
         ctools = cameraTools()
-        print "Reconstructing event range: ",evrange
+        print "Reconstructing event range: ",evrange[1],"-",evrange[2]
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
             iev = iobj if self.options.daq == 'btf' else iobj/2 # when PMT is present
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
-            if sum(evrange)>-2:
-                if iev<evrange[0] or iev>evrange[1]: continue
+            if sum(evrange[1:])>-2:
+                if iev<evrange[1] or iev>evrange[2]: continue
                 
             name=key.GetName()
             obj=key.ReadObj()
@@ -200,7 +206,8 @@ class analysis:
                                     'prominence': 0.5, # noise after resampling very small
                                     'width': 1, # minimal width of the signal
                                     'resample': 5,  # to sample waveform at 1 GHz only
-                                    'rangex': (6160,6500)
+                                    'rangex': (6160,6500),
+                                    'plotpy': False
                    }
                    pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
                    peaksfinder = pkprod.run()
@@ -237,20 +244,18 @@ if __name__ == '__main__':
         sys.exit(0)
         
     ana = analysis(inputf,options)
-    nev = ana.getNEvents()
+    nev = ana.getNEvents() if options.maxEntries == -1 else int(options.maxEntries)
     print "This run has ",nev," events."
     print "Will save plots to ",options.plotDir
-    ana.beginJob()
     
     if options.jobs>1:
-        print "WARNING! With multiprocessing the tree filling is not working yet! Only do reconstruction and plotting"
         nj = int(nev/options.jobs)
-        chunks = [(i,min(i+nj,nev)) for i in xrange(0,nev,nj)]
+        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(xrange(0,nev,nj))]
         print chunks
         from multiprocessing import Pool
         pool = Pool(options.jobs)
         ret = pool.map(ana, chunks)
     else:
+        ana.beginJob(options.outFile)
         ana.reconstruct()
-
-    ana.endJob()
+        ana.endJob()
