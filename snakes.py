@@ -283,7 +283,7 @@ class SnakesProducer:
         elif self.algo=='HOUGH':
             snakes = snfac.getTracks(plot=self.plotpy)            
 
-        print "Get light profiles..."
+        # print "Get light profiles..."
         snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
         # snfac.calcProfiles(snakes) # this is for BTF
         
