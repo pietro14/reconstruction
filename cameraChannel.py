@@ -25,13 +25,13 @@ class cameraTools:
         return True
 
     def isGoodChannelFast(self,pedval,pedrms):
-        if pedval > 130: return False
-        # if pedrms < 0.2: return False
-        # if pedrms > 5: return False
+        if pedval > 110: return False
+        if pedrms < 0.2: return False
+        if pedrms > 5: return False
         return True
     
-    def zs(self,th2,pedmap,nsigma=2,plot=False):
-        print "zero suppressing..."
+    def zs(self,th2,pedmap,nsigma=3,plot=False):
+        #print "zero suppressing..."
         nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
         xmin,xmax=(th2.GetXaxis().GetXmin(),th2.GetXaxis().GetXmax())
         ymin,ymax=(th2.GetYaxis().GetXmin(),th2.GetYaxis().GetXmax())
@@ -60,6 +60,21 @@ class cameraTools:
                 canv.SaveAs('{name}.{ext}'.format(name=th2.GetName()+'_zs',ext=ext))
         return (th2_zs,th2_unzs)
 
+    def zshits(self,hits,pedmap,nsigma=3,plot=False):
+        print "zero suppressing a subset of ",len(hits)," hits..."
+        ret=[]
+        for h in hits:
+            x,y,z=h[0],h[1],h[2]
+            # warning: this works only for FR coordinates, otherwise need the findbin etc...
+            ped = pedmap.GetBinContent(x+1,y+1)
+            noise = pedmap.GetBinError(x+1,y+1)
+            z_ps = z-ped
+            if self.isGoodChannelFast(ped,noise) and z_ps>nsigma*noise and z_ps<30:
+                ret.append(x,y,z_ps)
+            else:
+                ret.append(x,y,0)
+        return ret
+    
     def getData(self,th2):
         if not th2.InheritsFrom("TH2"):
             print "ERROR! The input object should be a TH2"
