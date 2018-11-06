@@ -58,7 +58,7 @@ class analysis:
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
-        if self.options.daq == 'btf': self.autotree.createPMTVariables()
+        if self.options.daq == 'midas': self.autotree.createPMTVariables()
         self.autotree.createCameraVariables()
 
     def endJob(self):
@@ -178,13 +178,13 @@ class analysis:
                     pedmap_fr_rs = self.pedmap_fr
                 # applying zero-suppression
                 h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
-                print "Zero-suppression done. Now clustering..."
+                #print "Zero-suppression done. Now clustering..."
                 
                 # Cluster reconstruction on 2D picture
                 algo = 'DBSCAN'
                 if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                snprod_inputs = {'picture': h2unzs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
-                snprod_params = {'snake_qual': 1, 'plot2D': False, 'plotpy': True, 'plotprofiles': True}
+                snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
+                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': False, 'plotprofiles': True}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()                
                 self.autotree.fillCameraVariables(h2zs,snakes)
@@ -224,8 +224,8 @@ if __name__ == '__main__':
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
     parser.add_option('-p', '--pedestal', dest='justPedestal', default=False, action='store_true', help='Just compute the pedestals, do not run the analysis')
     parser.add_option(      '--exclude-region', dest='pedExclRegion', default=None, type='string', help='Exclude a rectangular region for pedestals. In the form "xmin:xmax,ymin:ymax"')
-    parser.add_option(       '--daq', dest="daq", type="string", default="btf", help="DAQ type (btf/midas)");
-    parser.add_option(       '--type', dest="type", type="string", default="beam", help="events type (beam/cosmics/neutrons)");
+    parser.add_option(       '--daq', dest="daq", type="string", default="midas", help="DAQ type (btf/midas)");
+    parser.add_option(       '--type', dest="type", type="string", default="neutrons", help="events type (beam/cosmics/neutrons)");
     
     (options, args) = parser.parse_args()
 
