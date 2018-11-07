@@ -73,7 +73,7 @@ class analysis:
         
     def getNEvents(self):
         tf = ROOT.TFile.Open(self.rfile)
-        ret = len(tf.GetListOfKeys())
+        ret = len(tf.GetListOfKeys()) if self.options.daq!='midas' else int(len(tf.GetListOfKeys())/2) 
         tf.Close()
         return ret
 
