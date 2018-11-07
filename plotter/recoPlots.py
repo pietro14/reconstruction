@@ -145,7 +145,7 @@ def addPlotterOptions(parser):
 if __name__ == '__main__':
 
     from optparse import OptionParser
-    parser = OptionParser(usage="%prog [options] tree plotfile.txt")
+    parser = OptionParser(usage="%prog [options] tree*.root plotfile.txt")
     addPlotterOptions(parser)
     (options, args) = parser.parse_args()
     if len(args) == 0:

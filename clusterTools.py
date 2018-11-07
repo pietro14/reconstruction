@@ -22,7 +22,11 @@ class Cluster:
         self.shapes = {}
         
     def integral(self):
-        return sum([z for (x,y,z) in self.hits])
+        if hasattr(self,'hits_fr'):
+            return sum([z for (x,y,z) in self.hits_fr])
+        else:
+            print "WARNING: Hits with full resolution map not available. Returning 0 integral!"
+            return 0
 
     def getSize(self,name='long'):
         if len(self.profiles)==0:
@@ -33,10 +37,16 @@ class Cluster:
             return -999
 
     def size(self):
-        return len(self.hits)
-
+        if hasattr(self,'hits_fr'):
+            return len(self.hits_fr)
+        else: return 0
+        
     def dump(self):
-        print self.hits
+        if hasattr(self,'hits_fr'):
+            return len(self.hits_fr)
+        else:
+            print "DUMPING rebinned hits in absence of full res ones"
+            print self.hits
 
     def eigenvectors(self):
         covmat = np.cov([self.x,self.y])
