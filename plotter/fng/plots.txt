@@ -1,7 +1,10 @@
-trackIntegral  : track_integral: 50,0.,1000.  ; XTitle="photons in track", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
-trackLength    : track_length:   25,2,50.     ; XTitle="track length (mm)", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
-braggIntegral  : track_width*track_lp0fwhm*track_lp0amplitude : 50,0.,500. ; XTitle="Amplitude in Bragg peak", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
-peakFraction   : track_width*track_lp0fwhm*track_lp0amplitude/track_integral : 20,0.,1. ; XTitle="Amplitude fraction in Bragg peak", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
-pWpH           : track_lp0fwhm\:track_lp0amplitude : 15,3,15,20,0,20 ; XTitle="peak height (counts)", YTitle="Peak FWHM (mm)", FillStyle=3005
-pAbA           : track_width*track_lp0fwhm*track_lp0amplitude\:(track_integral-track_width*track_lp0fwhm*track_lp0amplitude) : 20,0,1000,20,0,500 ; XTitle="amplitude before peak (counts)", YTitle="peak amplitude (counts)"
-AvsL           : track_integral\:track_length : 40,0,40,50,0,1000 ; XTitle="track length (mm)", XTitle="photons in track", Logz=True
+trackIntegral  : track_integral: 30,0.,1000.  ; XTitle="photons in track", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
+trackSize      : track_nhits: 30,0.,500.     ; XTitle="track hits", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
+trackLength    : track_length:   30,10,50.     ; XTitle="track length (mm)", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
+#braggIntegral  : track_lp0amplitude : 50,0,1000 ; XTitle="Amplitude in Bragg peak", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
+#peakFraction   : track_lp0amplitude/track_integral : 20,0.,1. ; XTitle="Amplitude fraction in Bragg peak", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
+#pWpH           : track_lp0fwhm\:track_lp0amplitude : 25,100,1000,20,1,10 ; XTitle="peak amplitude (counts)", YTitle="Peak FWHM (mm)"
+#pAbA           : track_lp0amplitude\:(track_integral-track_lp0amplitude) : 20,0,1000,20,0,1000 ; XTitle="amplitude before peak (counts)", YTitle="peak amplitude (counts)"
+AvsL           : track_integral\:track_length : 50,10,50,50,0,500 ; XTitle="track length (mm)", YTitle="photons in track"
+energyDensity  : track_integral/track_nhits : 30,1,3 ; XTitle="photons/hit", FillColor=ROOT.kAzure+3, FillStyle=3005
+
