@@ -256,6 +256,8 @@ class Cluster:
         snake_fr.GetXaxis().SetTitle('x (pixels)')
         snake_fr.GetYaxis().SetTitle('y (pixels)')
         snake_fr.GetZaxis().SetTitle('counts')
+        snake_fr.GetXaxis().SetNdivisions(505,ROOT.kTRUE)
+        snake_fr.GetYaxis().SetNdivisions(505,ROOT.kTRUE)
         # just for the 2D plotting, cut at 1.5 (mean of the RMS of all the pixels)
         snake_fr.GetZaxis().SetRangeUser(.0,(zmax*1.05))
         snake_fr.Draw(option)
