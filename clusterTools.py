@@ -25,7 +25,7 @@ class Cluster:
         if hasattr(self,'hits_fr'):
             return sum([z for (x,y,z) in self.hits_fr])
         else:
-            print "WARNING: Hits with full resolution map not available. Returning 0 integral!"
+            print("WARNING: Hits with full resolution map not available. Returning 0 integral!")
             return 0
 
     def getSize(self,name='long'):
@@ -33,7 +33,7 @@ class Cluster:
             self.calcProfiles()
         if name in self.widths: return self.widths[name]
         else:
-            print "ERROR! You can only get 'long' or 'lat' sizes!"
+            print("ERROR! You can only get 'long' or 'lat' sizes!")
             return -999
 
     def size(self):
@@ -45,8 +45,8 @@ class Cluster:
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)
         else:
-            print "DUMPING rebinned hits in absence of full res ones"
-            print self.hits
+            print("DUMPING rebinned hits in absence of full res ones")
+            print(self.hits)
 
     def eigenvectors(self):
         covmat = np.cov([self.x,self.y])
@@ -142,7 +142,7 @@ class Cluster:
     def clusterShapes(self,name='long'):
         # ensure the cluster profiles are ready
         if name not in ['lat','long']:
-            print "ERROR! Requested profile along the ",name," direction. Should be either 'long' or 'lat'. Exiting clusterShapes()."
+            print("ERROR! Requested profile along the ",name," direction. Should be either 'long' or 'lat'. Exiting clusterShapes().")
             return
         self.getProfile(name)
 

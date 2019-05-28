@@ -150,7 +150,7 @@ class SnakesFactory:
         # Classic straight-line Hough transform
         image = self.datalog
         h, theta, d = hough_line(image)
-        print "tracks found"
+        print("tracks found")
         
         tracks = []
         thr = 0.8 * np.amax(h)
@@ -158,15 +158,15 @@ class SnakesFactory:
         # loop over prominent tracks
         itrk = 0
         for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
-            print "Track # ",itrk
+            print("Track # ",itrk)
             #points_along_trk = np.zeros((self.data.shape[1],self.data.shape[0]))
             points_along_trk = []
-            for x in xrange(self.data.shape[1]):
+            for x in range(self.data.shape[1]):
                 y = min(self.data.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
                 #points_along_trk[x,y] = self.data[y,x]
                 #print "adding point: %d,%d,%f" % (x,y,self.data[y,x])
                 # add a halo fo +/- 20 pixels to calculate the lateral profile
-                for iy in xrange(int(y)-5,int(y)+5):
+                for iy in range(int(y)-5,int(y)+5):
                     if iy<0 or iy>=self.data.shape[0]: continue
                     points_along_trk.append((x,iy,self.data[iy,x]))
             xy = np.array(points_along_trk)
