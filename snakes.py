@@ -17,6 +17,7 @@ from morphsnakes import(morphological_chan_vese,
 from clusterTools import Cluster
 from cameraChannel import cameraTools
 import matplotlib.pyplot as plt
+from iDBSCAN import iDBSCAN
 
 class SnakesFactory:
     def __init__(self,th2,name,options):
@@ -65,11 +66,21 @@ class SnakesFactory:
         from sklearn.cluster import DBSCAN
         from sklearn import metrics
         from scipy.spatial import distance
+        
+        #### Parameters
+        
+        iterative    = 1         # number of iterations for the IDBSC
+        vector_eps = [2.26, 3.5, 2.8, 6]
+        vector_min_samples = [2, 15, 6, 2] #vector_min_samples = [2, 30, 6, 2]
+        cuts = [0, 150]
+        
+        ####
 
         # make the clustering with DBSCAN algo
         X = self.X
         distance_matrix = distance.squareform(distance.pdist(X))
-        db = DBSCAN(eps=maxDist, min_samples=minPoints,metric='euclidean',n_jobs=-1).fit(distance_matrix)
+        #db = DBSCAN(eps=maxDist, min_samples=minPoints,metric='euclidean',n_jobs=-1).fit(distance_matrix)
+        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(points)
         core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
         core_samples_mask[db.core_sample_indices_] = True
         labels = db.labels_
