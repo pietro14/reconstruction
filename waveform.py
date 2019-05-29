@@ -30,9 +30,9 @@ class PeakFinder:
         x = np.array(tgraph.GetX())
         if rebin:
             yrebin = []; xrebin = []
-            for i in xrange(0,len(y),rebin):
-                yrebin.append(np.mean([y[j] for j in xrange(i,min(i+rebin,len(y)))]))
-                xrebin.append(np.mean([x[j] for j in xrange(i,min(i+rebin,len(y)))]))
+            for i in range(0,len(y),rebin):
+                yrebin.append(np.mean([y[j] for j in range(i,min(i+rebin,len(y)))]))
+                xrebin.append(np.mean([x[j] for j in range(i,min(i+rebin,len(y)))]))
             y = np.array(yrebin)
             x = np.array(xrebin)
         self.setData(x,y,xmin,xmax)
@@ -40,11 +40,11 @@ class PeakFinder:
     def importTH1(self,th1,xmin,xmax,rebin):
         if rebin:
             if th1.InheritsFrom('TProfile'):
-                print "WARNING! Rebinning for TProfile not implemented yet!"
+                print("WARNING! Rebinning for TProfile not implemented yet!")
             else:
                 th1.Rebin(rebin)
-        y = np.array([th1.GetBinContent(b) for b in xrange(1,th1.GetNbinsX()+1)])
-        x = np.array([th1.GetXaxis().GetBinCenter(b) for b in xrange(1,th1.GetNbinsX()+1)])
+        y = np.array([th1.GetBinContent(b) for b in range(1,th1.GetNbinsX()+1)])
+        x = np.array([th1.GetXaxis().GetBinCenter(b) for b in range(1,th1.GetNbinsX()+1)])
         self.setData(x,y,xmin,xmax)
         
     def setData(self,x,y,xmin,xmax):
@@ -80,7 +80,7 @@ class PeakFinder:
                    xmax=self.getPeakBoundaries('right'), color = "C1")        
         plt.xlabel('Time (ns)')
         plt.ylabel('amplitude (mV)')
-        for ext in ['png','pdf']:
+        for ext in ['pdf']:
             plt.savefig('{pdir}/{name}.{ext}'.format(pdir=pdir,name=self.name,ext=ext))
         plt.gcf().clear()
 
@@ -99,7 +99,7 @@ class PeakFinder:
         if side=='rise': index=2
         elif side=='fall': index=3
         else:
-            print "ERROR! Side should be either rise or fall. Exiting."
+            print("ERROR! Side should be either rise or fall. Exiting.")
             return []
         if not hasattr(self,'widths_full'):
             self.getFullWidths()
@@ -124,8 +124,8 @@ class PeakFinder:
         for i,y in enumerate(self.y):
             if x0==-1 and y>threshold: x0=self.x[i]
             if x0>0 and x1==-1 and y<threshold: x1=self.x[i]
-        self.x0 = max(x0,self.xmin)
-        self.x1 = max(x1,self.xmax)
+        self.x0 = np.nanmax(x0,self.xmin)
+        self.x1 = np.nanmax(x1,self.xmax)
 
     def getTot(self):
         return self.x1-self.x0
@@ -180,7 +180,7 @@ class PMTSignal:
         title = 'N clusters = {nclu}, max length = {maxl:.1f}mm'.format(nclu=len(self.clusters), maxl=maxwidth)
         self.waveform.SetTitle(title)
 
-        for ext in ['png','pdf']:
+        for ext in ['pdf']:
             canv.SaveAs('{od}/{name}.{ext}'.format(od=self.options.plotDir,name=self.waveform.GetName(),ext=ext))
 
 
@@ -188,7 +188,7 @@ class PMTSignal:
 if __name__ == '__main__':
 
     inputf = sys.argv[1]
-    print "testing ",inputf 
+    print("testing ",inputf) 
 
     tf = ROOT.TFile(inputf)
     # sampling was 5 GHz (5/ns). Separate peaks of at least 1ns

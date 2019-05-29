@@ -31,3 +31,27 @@ class utils:
         qy = oy - sin * (x - ox) + cos * (y - oy)
         return qx, qy
 
+    def gen_rand_limit(self, x1, x2, y1, y2, maxx=2048, maxy=2048):
+        import random
+        # generate x, y O(1)
+        # --x
+        left = random.randrange(0, x1)
+        right = random.randrange(x2+1, maxx)
+        withinx = random.randrange(x1, x2+1)
+        # adjust probability of a point outside the box columns
+        # a point outside has probability (1/(maxx-w)) v.s. a point inside has 1/w
+        # the same is true for rows. adjupx/y adjust for this probability 
+        w = abs(x2-x1)
+        h = abs(y2-y1)
+        adjpx = ((maxx - w)/w/2)
+        x = random.choice([left, right] * adjpx + [withinx])
+        # --y
+        top = random.randrange(0, y1)
+        bottom = random.randrange(y2+1, maxy)
+        withiny = random.randrange(y1, y2+1)
+        if x == left or x == right:
+            adjpy = ((maxy- h)/h/2)
+            y = random.choice([top, bottom] * adjpy + [withiny])
+        else:
+            y = random.choice([top, bottom])
+        return x, y 
