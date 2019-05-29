@@ -15,8 +15,8 @@ class cameraTools:
         
     def isGoodChannelSafe(self,pedmap,ix,iy):
         pedvals = []; pedrmss = []
-        for x in xrange(ix-1,ix+2):
-            for y in xrange(iy-1,iy+2):
+        for x in range(ix-1,ix+2):
+            for y in range(iy-1,iy+2):
                 pedvals.append(pedmap.GetBinContent(x,y))
                 pedrmss.append(pedmap.GetBinError(x,y))
         if any([p>110 for p in pedvals]): return False
@@ -38,8 +38,8 @@ class cameraTools:
         th2_zs = ROOT.TH2D(th2.GetName()+'_zs',th2.GetName()+'_zs',nx,xmin,xmax,ny,ymin,ymax)
         th2_unzs = th2_zs.Clone(th2.GetName()+'_unzs')
         th2_zs.SetDirectory(None); th2_unzs.SetDirectory(None);
-        for ix in xrange(1,nx+1):
-            for iy in xrange(1,ny+1):
+        for ix in range(1,nx+1):
+            for iy in range(1,ny+1):
                 x = th2.GetXaxis().GetBinCenter(ix)
                 y = th2.GetYaxis().GetBinCenter(iy)
                 ped_ixb = pedmap.GetXaxis().FindBin(x)
@@ -56,12 +56,12 @@ class cameraTools:
         if plot:
             canv = ROOT.TCanvas('zs','',600,600)
             th2_zs.Draw('colz')
-            for ext in ['png','pdf','root']:
+            for ext in ['pdf','root']:
                 canv.SaveAs('{name}.{ext}'.format(name=th2.GetName()+'_zs',ext=ext))
         return (th2_zs,th2_unzs)
 
     def zshits(self,hits,pedmap,nsigma=3,plot=False):
-        print "zero suppressing a subset of ",len(hits)," hits..."
+        print("zero suppressing a subset of ",len(hits)," hits...")
         ret=[]
         for h in hits:
             x,y,z=h[0],h[1],h[2]
@@ -77,13 +77,13 @@ class cameraTools:
     
     def getData(self,th2):
         if not th2.InheritsFrom("TH2"):
-            print "ERROR! The input object should be a TH2"
+            print("ERROR! The input object should be a TH2")
             return []
         x_bins = th2.GetNbinsX()
         y_bins = th2.GetNbinsY()
         bins = np.zeros((x_bins,y_bins))
-        for y_bin in xrange(y_bins): 
-            for x_bin in xrange(x_bins): 
+        for y_bin in range(y_bins): 
+            for x_bin in range(x_bins): 
                 z = th2.GetBinContent(x_bin + 1,y_bin + 1)
                 bins[x_bin,y_bin] = z
         return bins
@@ -91,12 +91,12 @@ class cameraTools:
     def getActiveCoords(self,th2):
         ret = []
         if not th2.InheritsFrom("TH2"):
-            print "ERROR! The input object should be a TH2"
+            print("ERROR! The input object should be a TH2")
             return ret
         x_bins = th2.GetNbinsX()
         y_bins = th2.GetNbinsY()
-        for y_bin in xrange(y_bins): 
-            for x_bin in xrange(x_bins): 
+        for y_bin in range(y_bins): 
+            for x_bin in range(x_bins): 
                 x = th2.GetXaxis().GetBinCenter(x_bin+1)
                 y = th2.GetYaxis().GetBinCenter(y_bin+1)
                 z = th2.GetBinContent(x_bin + 1,y_bin + 1)
@@ -110,8 +110,8 @@ class cameraTools:
         nyp = ymax-ymin
         th2_rs = ROOT.TH2D(th2.GetName()+'_rs',th2.GetName()+'_rs',nxp,xmin,xmax,nyp,ymin,ymax)
         th2_rs.SetDirectory(None)
-        for ix,x in enumerate(xrange(xmin,xmax)):
-            for iy,y in enumerate(xrange(ymin,ymax)):
+        for ix,x in enumerate(range(xmin,xmax)):
+            for iy,y in enumerate(range(ymin,ymax)):
                 orig_ixb = th2.GetXaxis().FindBin(x)
                 orig_iyb = th2.GetYaxis().FindBin(y)
                 z = th2.GetBinContent(orig_ixb,orig_iyb)

@@ -21,22 +21,22 @@ class analysis:
         self.rebin = options.rebin        
         self.rfile = rfile
         self.options = options
-        self.pedfile_name = '{base}_ped_rebin{rb}.root'.format(base=os.path.splitext(self.rfile)[0],rb=self.rebin)
+        self.pedfile_name = 'pedestals/pedmap_ex100_rebin4.root'
         if not os.path.exists(self.pedfile_name):
-            print "WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them..."
+            print("WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them...")
             self.calcPedestal(options)
-        self.pedfile_fullres_name = '{base}_ped_rebin1.root'.format(base=os.path.splitext(self.rfile)[0])
+        self.pedfile_fullres_name = 'pedestals/pedmap_ex100_rebin1.root'
         if not os.path.exists(self.pedfile_fullres_name):
-            print "WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them..."
+            print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
         if not options.justPedestal:
-           print "Pulling pedestals..."
+           print("Pulling pedestals...")
            # first the one for clustering with rebin
            pedrf = ROOT.TFile.Open(self.pedfile_name)
            self.pedmap = pedrf.Get('pedmap').Clone()
            self.pedmap.SetDirectory(None)
-           self.pedmean = pedrf.Get('pedmean').GetMean()
-           self.pedrms = pedrf.Get('pedrms').GetMean()
+           #self.pedmean = pedrf.Get('pedmean').GetMean()
+           #self.pedrms = pedrf.Get('pedrms').GetMean()
            pedrf.Close()
            # then the full resolution one
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
@@ -64,7 +64,7 @@ class analysis:
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
-        if self.options.daq == 'midas': self.autotree.createPMTVariables()
+        #if self.options.daq == 'midas': self.autotree.createPMTVariables()
         self.autotree.createCameraVariables()
 
     def endJob(self):
@@ -86,23 +86,23 @@ class analysis:
         pedmap = ROOT.TProfile2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax,'s')
         tf = ROOT.TFile.Open(self.rfile)
         if options.pedExclRegion:
-            print "Excluding the following region from the calculation of pedestals:"
+            print("Excluding the following region from the calculation of pedestals:")
             xmin,xmax = options.pedExclRegion.split(',')[0].split(':')
             ymin,ymax = options.pedExclRegion.split(',')[1].split(':')
-            print "xrange excl = ({xmin},{xmax})".format(xmin=xmin,xmax=xmax)
-            print "yrange excl = ({ymin},{ymax})".format(ymin=ymin,ymax=ymax)
+            print("xrange excl = ({xmin},{xmax})".format(xmin=xmin,xmax=xmax))
+            print("yrange excl = ({ymin},{ymax})".format(ymin=ymin,ymax=ymax))
             
         for i,e in enumerate(tf.GetListOfKeys()):
             if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
             name=e.GetName()
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
-            print "Calc pedestal with event: ",name
+            print("Calc pedestal with event: ",name)
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
-            for ix in xrange(nx+1):
-                for iy in xrange(ny+1):
+            for ix in range(nx+1):
+                for iy in range(ny+1):
                     x = obj.GetXaxis().GetBinCenter(ix+1)
                     y = obj.GetYaxis().GetBinCenter(iy+1)
                     if options.pedExclRegion and x>int(xmin) and x<int(xmax) and y>int(ymin) and y<int(ymax):
@@ -120,14 +120,14 @@ class analysis:
         pedmap.Write()
         pedmean = ROOT.TH1D('pedmean','pedestal mean',500,97,103)
         pedrms = ROOT.TH1D('pedrms','pedestal RMS',500,0,5)
-        for ix in xrange(nx):
-            for iy in xrange(ny):
+        for ix in range(nx):
+            for iy in range(ny):
                pedmean.Fill(pedmap.GetBinContent(ix,iy)) 
                pedrms.Fill(pedmap.GetBinError(ix,iy)) 
         pedmean.Write()
         pedrms.Write()
         pedfile.Close()
-        print "Pedestal calculated and saved into ",self.pedfile_name
+        print("Pedestal calculated and saved into ",self.pedfile_name)
 
     def reconstruct(self,evrange=(-1,-1,-1)):
 
@@ -139,10 +139,11 @@ class analysis:
         tf = ROOT.TFile.Open(self.rfile)
         #c1 = ROOT.TCanvas('c1','',600,600)
         ctools = cameraTools()
-        print "Reconstructing event range: ",evrange[1],"-",evrange[2]
+        print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
             iev = iobj if self.options.daq == 'btf' else iobj/2 # when PMT is present
+            print("max entries = ",self.options.maxEntries)
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
                 if iev<evrange[1] or iev>evrange[2]: continue
@@ -162,7 +163,7 @@ class analysis:
                     run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
                 else:
                     run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
-                print "Processing run: ",run," event ",event,"..."
+                print("Processing run: ",run," event ",event,"...")
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
 
@@ -185,6 +186,7 @@ class analysis:
                 # applying zero-suppression
                 h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
                 #print "Zero-suppression done. Now clustering..."
+                print("nX,nY={nx},{ny}".format(nx=h2zs.GetNbinsX(),ny=h2zs.GetNbinsY()))
                 
                 # Cluster reconstruction on 2D picture
                 algo = 'DBSCAN'
@@ -192,10 +194,10 @@ class analysis:
                 snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
                 snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': False, 'plotprofiles': True}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
-                snakes = snprod.run()                
+                snakes = snprod.run()
                 self.autotree.fillCameraVariables(h2zs,snakes)
                 
-                if self.options.daq != 'btf':
+                if False: #self.options.daq != 'btf':
                    # PMT waveform reconstruction
                    from waveform import PeakFinder,PeaksProducer
                    wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
@@ -240,18 +242,18 @@ if __name__ == '__main__':
 
     if options.justPedestal:
         ana = analysis(inputf,options)
-        print "Pedestals with rebin factor = ",options.rebin, "done. Exiting."
+        print("Pedestals with rebin factor = ",options.rebin, "done. Exiting.")
         sys.exit(0)
         
     ana = analysis(inputf,options)
     nev = ana.getNEvents() if options.maxEntries == -1 else int(options.maxEntries)
-    print "This run has ",nev," events."
-    print "Will save plots to ",options.plotDir
+    print("This run has ",nev," events.")
+    print("Will save plots to ",options.plotDir)
     
     if options.jobs>1:
         nj = int(nev/options.jobs)
-        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(xrange(0,nev,nj))]
-        print chunks
+        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(0,nev,nj))]
+        print(chunks)
         from multiprocessing import Pool
         pool = Pool(options.jobs)
         ret = pool.map(ana, chunks)

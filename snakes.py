@@ -128,10 +128,9 @@ class SnakesFactory:
         if plot:
             plt.title('Estimated number of snakes: %d' % n_clusters_)
             #plt.show()
-            for ext in ['png','pdf']:
+            for ext in ['pdf']:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
-
         return clusters
 
     def getTracks(self,plot=True):
@@ -139,7 +138,7 @@ class SnakesFactory:
         # Classic straight-line Hough transform
         image = self.datalog
         h, theta, d = hough_line(image)
-        print "tracks found"
+        print("tracks found")
         
         tracks = []
         thr = 0.8 * np.amax(h)
@@ -147,15 +146,15 @@ class SnakesFactory:
         # loop over prominent tracks
         itrk = 0
         for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
-            print "Track # ",itrk
+            print("Track # ",itrk)
             #points_along_trk = np.zeros((self.data.shape[1],self.data.shape[0]))
             points_along_trk = []
-            for x in xrange(self.data.shape[1]):
+            for x in range(self.data.shape[1]):
                 y = min(self.data.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
                 #points_along_trk[x,y] = self.data[y,x]
                 #print "adding point: %d,%d,%f" % (x,y,self.data[y,x])
                 # add a halo fo +/- 20 pixels to calculate the lateral profile
-                for iy in xrange(int(y)-5,int(y)+5):
+                for iy in range(int(y)-5,int(y)+5):
                     if iy<0 or iy>=self.data.shape[0]: continue
                     points_along_trk.append((x,iy,self.data[iy,x]))
             xy = np.array(points_along_trk)
@@ -190,7 +189,7 @@ class SnakesFactory:
             if outname and not os.path.exists(outname):
                 os.system("mkdir -p "+outname)
                 os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
-            for ext in ['png','pdf']:
+            for ext in ['pdf']:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
 
@@ -217,7 +216,7 @@ class SnakesFactory:
                 prof = cl.getProfile(dir)
                 if prof and cl.widths[dir]>0.2: # plot the profiles only of sufficiently long snakes (>200 um)
                     prof.Draw("pe1")
-                    for ext in ['png','pdf']:
+                    for ext in ['pdf']:
                         canv.SaveAs('{pdir}/{name}_cluster{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
         
     def plotContours(self,contours):
@@ -248,7 +247,7 @@ class SnakesFactory:
         
         fig.tight_layout()
         #plt.show()
-        for ext in ['png','pdf']:
+        for ext in ['pdf']:
             plt.savefig('{name}.{ext}'.format(name=self.name,ext=ext))
 
 
@@ -270,7 +269,7 @@ class SnakesProducer:
 
     def run(self):
         ret = []
-        if any([x==None for x in self.picture,self.pictureHD,self.pedmapHD,self.name]):
+        if any([x==None for x in (self.picture,self.pictureHD,self.pedmapHD,self.name)]):
             return ret
         
         # Cluster reconstruction on 2D picture
@@ -285,12 +284,13 @@ class SnakesProducer:
 
         # print "Get light profiles..."
         snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
+        
         # snfac.calcProfiles(snakes) # this is for BTF
         
         # sort snakes by longitudinal width
         snakes = sorted(snakes, key = lambda x: x.widths['long'], reverse=True)
         # and reject discharges (round)
-        snakes = filter(lambda x: x.qualityLevel()>=self.snakeQualityLevel, snakes)
+        snakes = [x for x in snakes if x.qualityLevel()>=self.snakeQualityLevel]
         
         # plotting
         if self.plot2D:       snfac.plotClusterFullResolution(snakes,self.pictureHD,self.pedmapHD)

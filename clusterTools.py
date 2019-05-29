@@ -25,7 +25,7 @@ class Cluster:
         if hasattr(self,'hits_fr'):
             return sum([z for (x,y,z) in self.hits_fr])
         else:
-            print "WARNING: Hits with full resolution map not available. Returning 0 integral!"
+            print("WARNING: Hits with full resolution map not available. Returning 0 integral!")
             return 0
 
     def getSize(self,name='long'):
@@ -33,7 +33,7 @@ class Cluster:
             self.calcProfiles()
         if name in self.widths: return self.widths[name]
         else:
-            print "ERROR! You can only get 'long' or 'lat' sizes!"
+            print("ERROR! You can only get 'long' or 'lat' sizes!")
             return -999
 
     def size(self):
@@ -45,8 +45,8 @@ class Cluster:
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)
         else:
-            print "DUMPING rebinned hits in absence of full res ones"
-            print self.hits
+            print("DUMPING rebinned hits in absence of full res ones")
+            print(self.hits)
 
     def eigenvectors(self):
         covmat = np.cov([self.x,self.y])
@@ -142,7 +142,7 @@ class Cluster:
     def clusterShapes(self,name='long'):
         # ensure the cluster profiles are ready
         if name not in ['lat','long']:
-            print "ERROR! Requested profile along the ",name," direction. Should be either 'long' or 'lat'. Exiting clusterShapes()."
+            print("ERROR! Requested profile along the ",name," direction. Should be either 'long' or 'lat'. Exiting clusterShapes().")
             return
         self.getProfile(name)
 
@@ -172,7 +172,7 @@ class Cluster:
         fwhms = pf.getFWHMs()
         peakPositions = pf.getPeakTimes()
         
-        peaksInProfile = [simplePeak(amplitudes[i],prominences[i],peakPositions[i],fwhms[i]) for i in xrange(len(amplitudes))]
+        peaksInProfile = [simplePeak(amplitudes[i],prominences[i],peakPositions[i],fwhms[i]) for i in range(len(amplitudes))]
         peaksInProfile = sorted(peaksInProfile, key = lambda x: x.mean, reverse=True)
 
         self.shapes[name+'_fullrms']          = self.profiles[name].GetRMS()
@@ -207,8 +207,8 @@ class Cluster:
             longmargin = 5 # in pixels
             for h in self.hits:
                 rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
-                rxfull = range(int(rx-longmargin),int(rx+longmargin))
-                ryfull = range(int(ry-latmargin),int(ry+latmargin))
+                rxfull = list(range(int(rx-longmargin),int(rx+longmargin)))
+                ryfull = list(range(int(ry-latmargin),int(ry+latmargin)))
                 fullres = []
                 for rxf in rxfull:
                     for ryf in ryfull:
@@ -226,7 +226,7 @@ class Cluster:
                     x = hfr[0]; y=hfr[1]
                     retdict[(x,y)]=hfr[2]
             ret=[]
-            for k,v in retdict.iteritems():
+            for k,v in retdict.items():
                 ret.append((k[0],k[1],v))
             self.hits_fr = np.array(ret)
             return self.hits_fr
@@ -264,7 +264,7 @@ class Cluster:
         #print "cluster integral = ",snake_fr.Integral()
         #cFR.SetRightMargin(0.2); cFR.SetLeftMargin(0.1); cFR.SetBottomMargin(0.1);
         cFR.SetBottomMargin(0.3); cFR.SetLeftMargin(0.2); cFR.SetRightMargin(0.2); 
-        for ext in ['png','pdf']:
+        for ext in ['pdf']:
             cFR.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
 
 
