@@ -63,13 +63,39 @@ class SnakesFactory:
     def getClusters(self,maxDist=1000,minPoints=20,minPointsCore=10,plot=True):
 
         from sklearn.cluster import DBSCAN
+        from iDBSCAN import iDBSCAN
         from sklearn import metrics
         from scipy.spatial import distance
-
+        
+        #   IDBSCAN parameters  #
+        
+        scale = 4
+        iterative    = 1         # number of iterations for the IDBSC
+        vector_eps = [2, 2.9, 3.6, 5]#[2.26, 3.5, 2.8, 6]
+        vector_min_samples = [2, 15, 10, 2]#[2, 30, 6, 2]
+        vector_eps = list(np.array(vector_eps, dtype=int)*scale)
+        #vector_min_samples = list(np.array(vector_min_samples, dtype=int)*scale)
+    
+        cuts = [0, 0]
+        
+        #-----------------------#
+        
         # make the clustering with DBSCAN algo
         X = self.X
-        distance_matrix = distance.squareform(distance.pdist(X))
-        db = DBSCAN(eps=maxDist, min_samples=minPoints,metric='euclidean',n_jobs=-1).fit(distance_matrix)
+        X1 = np.floor(X[:,0:2])
+        
+        np.save('test', X1)
+        
+        fig = plt.figure(figsize=(20,20))
+        plt.scatter(X1[:, 1], X1[:, 0])
+        plt.savefig('./test.png', format='png')
+        plt.close('all')
+        print('Done')
+        
+        
+        #distance_matrix = distance.squareform(distance.pdist(X))
+        #db = DBSCAN(eps=maxDist, min_samples=minPoints,metric='euclidean',n_jobs=-1).fit(distance_matrix)
+        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X1)
         core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
         core_samples_mask[db.core_sample_indices_] = True
         labels = db.labels_
@@ -111,6 +137,7 @@ class SnakesFactory:
             if k>-1 and len(xy)>minPointsCore:
                 # print "Found cluster!"
                 cl = Cluster(xy,self.rebin)
+                cl.iteration = db.tag_[k]
                 clusters.append(cl)
                 if plot: cl.plotAxes(plot=plt)
                 # cl.calcProfiles(plot=None)

@@ -40,15 +40,12 @@ class cameraTools:
         th2_zs.SetDirectory(None); th2_unzs.SetDirectory(None);
         for ix in range(1,nx+1):
             for iy in range(1,ny+1):
-                x = th2.GetXaxis().GetBinCenter(ix)
-                y = th2.GetYaxis().GetBinCenter(iy)
-                ped_ixb = pedmap.GetXaxis().FindBin(x)
-                ped_iyb = pedmap.GetYaxis().FindBin(y)
-                ped = pedmap.GetBinContent(ped_ixb,ped_iyb)
-                noise = pedmap.GetBinError(ped_ixb,ped_iyb)
-                if not self.isGoodChannelFast(ped,noise): continue                
+                ped   = pedmap.GetBinContent(ix,iy)
+                noise = pedmap.GetBinError(ix,iy)
+                if not self.isGoodChannelFast(ped,noise): continue
                 z = th2.GetBinContent(ix,iy)-ped
                 th2_unzs.SetBinContent(ix,iy,z)
+                #print("x,y,z=",ix," ",iy," ",z,"   noise = ",noise , "ped-ib = ", ped_ixb," - ", ped_ixb)
                 if z>nsigma*noise:
                     th2_zs.SetBinContent(ix,iy,z)
                     #print "x,y,z=",ix," ",iy," ",z,"   noise = ",noise

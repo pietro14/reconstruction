@@ -15,4 +15,5 @@ __init__.py
 *.root
 *#
 *.bak
+*.ipynb_checkpoints/
 

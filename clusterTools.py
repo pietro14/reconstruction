@@ -41,6 +41,11 @@ class Cluster:
             return len(self.hits_fr)
         else: return 0
         
+    def iterations(self):
+        if hasattr(self,'iteration'):
+            return self.iteration
+        else: return 0
+        
     def dump(self):
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)

@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import matplotlib
+matplotlib.use('Agg')
+
 import os,math,sys,random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -143,7 +146,7 @@ class analysis:
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
             iev = iobj if self.options.daq == 'btf' else iobj/2 # when PMT is present
-            print("max entries = ",self.options.maxEntries)
+            #print("max entries = ",self.options.maxEntries)
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
                 if iev<evrange[1] or iev>evrange[2]: continue
@@ -186,6 +189,45 @@ class analysis:
                 # applying zero-suppression
                 h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
                 #print "Zero-suppression done. Now clustering..."
+                
+                # ---- DEBUG ---- #
+                #if debug = True:
+                #from root_numpy import hist2array
+                #X1 = hist2array(pic_fullres)
+                #X2 = hist2array(pedmap_fr_rs)
+                #X3 = hist2array(h2rs)
+                #X4 = hist2array(self.pedmap)
+                
+                #fig, ax = plt.subplots(2,2,figsize=(30, 30))
+                #ax[0,0].imshow(X1,cmap="viridis", vmin=85,vmax=110,origin='lower' )
+                #ax[0,0].set_title("Pic_fullres")
+                #ax[0,1].imshow(X2,cmap="viridis", vmin=85,vmax=110,origin='lower' )
+                #ax[0,1].set_title("Pedmap Fullres")
+                #ax[1,0].imshow(X3,cmap="viridis", vmin=85,vmax=110,origin='lower' )
+                #ax[1,0].set_title("h2 Rescaled")
+                #ax[1,1].imshow(X4,cmap="viridis", vmin=85,vmax=110,origin='lower' )
+                #ax[1,1].set_title("Pedmap Rescaled")
+                #plt.savefig('./Debug1.png', format='png')
+                #plt.close('all')
+               # 
+                #X5 = hist2array(h2zs)
+               # print('min: ', np.min(X5))
+               # print('max: ', np.max(X5))
+               # X6 = hist2array(h2unzs)
+               # print('min: ', np.min(X6))
+               # print('max: ', np.max(X6))
+               # print('Shape: ', np.shape(X6))
+               # 
+               # fig, ax = plt.subplots(1,2,figsize=(20, 10))
+               # ax[0].imshow(X5,cmap="viridis", vmin=0,vmax=10,origin='lower' )
+               # ax[0].set_title("Hist Zero-suppression")
+               # ax[1].imshow(X6,cmap="viridis", vmin=-5.5,vmax=15,origin='lower' )
+               # ax[1].set_title("Hist UN Zero-suppression")
+               # plt.savefig('./Debug2.png', format='png')
+               # plt.close('all')
+               # 
+                
+                # ^^^^ DEBUG ^^^^ #
                 print("nX,nY={nx},{ny}".format(nx=h2zs.GetNbinsX(),ny=h2zs.GetNbinsY()))
                 
                 # Cluster reconstruction on 2D picture
