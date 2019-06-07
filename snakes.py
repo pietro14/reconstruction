@@ -82,15 +82,6 @@ class SnakesFactory:
         X = self.X
         X1 = X[:,0:2]
         
-        np.save('test', X1)
-        
-        fig = plt.figure(figsize=(20,20))
-        plt.scatter(X1[:, 1], X1[:, 0])
-        plt.savefig('./test.png', format='png')
-        plt.close('all')
-        print('Done')
-        
-        
         #distance_matrix = distance.squareform(distance.pdist(X))
         #db = DBSCAN(eps=maxDist, min_samples=minPoints,metric='euclidean',n_jobs=-1).fit(distance_matrix)
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X1)
