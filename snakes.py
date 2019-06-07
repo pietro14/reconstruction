@@ -69,20 +69,18 @@ class SnakesFactory:
         
         #   IDBSCAN parameters  #
         
-        scale = 4
-        iterative    = 1         # number of iterations for the IDBSC
-        vector_eps = [2, 2.9, 3.6, 5]#[2.26, 3.5, 2.8, 6]
-        vector_min_samples = [2, 15, 10, 2]#[2, 30, 6, 2]
-        vector_eps = list(np.array(vector_eps, dtype=int)*scale)
-        #vector_min_samples = list(np.array(vector_min_samples, dtype=int)*scale)
-    
-        cuts = [0, 0]
+        scale              = 4
+        iterative          = 4                         # number of iterations for the IDBSC
+        vector_eps         = [2, 2.9, 3.2, 5]          #[2.26, 3.5, 2.8, 6]
+        vector_min_samples = [2, 18, 17, 5]            # [2, 30, 6, 2]
+        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
+        cuts               = [0, 0]
         
         #-----------------------#
         
         # make the clustering with DBSCAN algo
         X = self.X
-        X1 = np.floor(X[:,0:2])
+        X1 = X[:,0:2]
         
         np.save('test', X1)
         
@@ -127,17 +125,18 @@ class SnakesFactory:
 
             class_member_mask = (labels == k)
          
-            xy = X[class_member_mask & core_samples_mask]
+            #xy = X[class_member_mask & core_samples_mask]
+            xy = X[class_member_mask]
             x = xy[:, 0]; y = xy[:, 1]
             if plot:
                 plt.plot(x, y, 'o', markerfacecolor=tuple(col),
                          markeredgecolor='k', markersize=10)
 
             # only add the cores to the clusters saved in the event
-            if k>-1 and len(xy)>minPointsCore:
+            if k>-1: #and len(xy)>minPointsCore:
                 # print "Found cluster!"
                 cl = Cluster(xy,self.rebin)
-                cl.iteration = db.tag_[k]
+                cl.iteration = db.tag_[labels == k][0]
                 clusters.append(cl)
                 if plot: cl.plotAxes(plot=plt)
                 # cl.calcProfiles(plot=None)
@@ -151,7 +150,7 @@ class SnakesFactory:
             # plot also the non-core hits            # xy = X[class_member_mask & ~core_samples_mask]
             # if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
             #                   markeredgecolor='k', markersize=6)
-
+        print(len(clusters))
         if plot:
             plt.title('Estimated number of snakes: %d' % n_clusters_)
             #plt.show()
@@ -317,7 +316,7 @@ class SnakesProducer:
         # sort snakes by longitudinal width
         snakes = sorted(snakes, key = lambda x: x.widths['long'], reverse=True)
         # and reject discharges (round)
-        snakes = [x for x in snakes if x.qualityLevel()>=self.snakeQualityLevel]
+        #snakes = [x for x in snakes if x.qualityLevel()>=self.snakeQualityLevel]
         
         # plotting
         if self.plot2D:       snfac.plotClusterFullResolution(snakes,self.pictureHD,self.pedmapHD)

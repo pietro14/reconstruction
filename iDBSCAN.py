@@ -49,18 +49,18 @@ def idbscan(X, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_sampl
         Cluster labels for each point.  Noisy samples are given the label -1.
     tag : array [n_samples]
         tag for each point.
-            - Noisy samples are given the label 'n'
-            - Long tracks samples are given the label 'l'
-            - Medium tracks are given the label 'm'
-            - Small tracks are given the label 's'
+            - Noisy samples are given the label '-1'
+            - 1st iteration tracks are given the label '1'
+            - 2nd iteration tracks are given the label '2'
+            - 3rd iteration tracks are given the label '3'
 
     """
 
     ## - - - - -
     Index              = np.arange(0,np.shape(X)[0],dtype=int)
     Fcluster           = (-1)+np.zeros(np.shape(X)[0],dtype=int)
-    Flabel             = np.empty(np.shape(X)[0],dtype=str)
-    Flabel[:]          = 'n'
+    Flabel             = np.empty(np.shape(X)[0],dtype=int)
+    Flabel[:]          = -1
     auxClu             = -1
     # - - - - - -
     #vector_eps         = [2.26, 3.5, 2.8, 6]
