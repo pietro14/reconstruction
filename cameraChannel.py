@@ -30,7 +30,8 @@ class cameraTools:
         if pedrms > 5: return False
         return True
     
-    def zs(self,th2,pedmap,nsigma=3,plot=False):
+    def zs(self,th2,pedmap,nsigma=3.2,plot=False):
+        cimax = 160       # valori del cut sull'imagine
         #print "zero suppressing..."
         nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
         xmin,xmax=(th2.GetXaxis().GetXmin(),th2.GetXaxis().GetXmax())
@@ -44,9 +45,10 @@ class cameraTools:
                 noise = pedmap.GetBinError(ix,iy)
                 if not self.isGoodChannelFast(ped,noise): continue
                 z = th2.GetBinContent(ix,iy)-ped
+                z1 = th2.GetBinContent(ix,iy)
                 th2_unzs.SetBinContent(ix,iy,z)
                 #print("x,y,z=",ix," ",iy," ",z,"   noise = ",noise , "ped-ib = ", ped_ixb," - ", ped_ixb)
-                if z>nsigma*noise:
+                if (z>nsigma*noise) & (z1<cimax):
                     th2_zs.SetBinContent(ix,iy,z)
                     #print "x,y,z=",ix," ",iy," ",z,"   noise = ",noise
         #th2_zs.GetZaxis().SetRangeUser(0,1)
@@ -98,7 +100,8 @@ class cameraTools:
                 y = th2.GetYaxis().GetBinCenter(y_bin+1)
                 z = th2.GetBinContent(x_bin + 1,y_bin + 1)
                 if z>0:
-                    ret.append((x,y,math.log(z)))
+                    #ret.append((x,y,math.log(z)))
+                    ret.append((x,y,z))
         return np.array(ret)
 
     def getRestrictedImage(self,th2,xmin,xmax,ymin,ymax):

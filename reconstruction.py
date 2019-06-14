@@ -165,8 +165,8 @@ class analysis:
                 if self.options.daq == 'btf':
                     run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
                 else:
-                    run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
-                print("Processing run: ",run," event ",event,"...")
+                    run,event=(int(name.split('_')[0].split('run')[-1]),int(name.split('_')[-1]))
+                print("Processing Run: ",run,"- Event ",event,"...")
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
 
@@ -228,7 +228,7 @@ class analysis:
                # 
                 
                 # ^^^^ DEBUG ^^^^ #
-                print("nX,nY={nx},{ny}".format(nx=h2zs.GetNbinsX(),ny=h2zs.GetNbinsY()))
+                #print("nX,nY={nx},{ny}".format(nx=h2zs.GetNbinsX(),ny=h2zs.GetNbinsY()))
                 
                 # Cluster reconstruction on 2D picture
                 algo = 'DBSCAN'

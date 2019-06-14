@@ -71,22 +71,39 @@ class SnakesFactory:
         
         scale              = 4
         iterative          = 4                         # number of iterations for the IDBSC
-        vector_eps         = [2, 2.9, 3.2, 5]          #[2.26, 3.5, 2.8, 6]
-        vector_min_samples = [2, 18, 17, 5]            # [2, 30, 6, 2]
+        vector_eps         = [2, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
+        vector_min_samples = [3,  50,  28, 7]            # [2, 30, 6, 2]
         vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
         cuts               = [0, 0]
         
         #-----------------------#
         
         # make the clustering with DBSCAN algo
-        X = self.X
-        X1 = X[:,0:2]
-        
-        #distance_matrix = distance.squareform(distance.pdist(X))
-        #db = DBSCAN(eps=maxDist, min_samples=minPoints,metric='euclidean',n_jobs=-1).fit(distance_matrix)
+        X  = self.X      # EDGES right after the zs and pedmap subtraction 
+        np.save('test.npy', X)
+        # - - - - - - - - - - - - - -
+        # simulated third dimension
+        X1 = X[:,0:2]    # X and Y coordinates to manipulate
+        Z  = X[:,2]      # Z coordinate
+        lp = len(X1)     # number of pixels that passed the threshold
+        Xl = list(X1)    # Aux variable to simulate the Z-dimension
+
+        for ii in range(0,lp):                             # Looping over the index of the coordinates
+            cor = X1[ii,:]                                 # variabel to get the coordinate
+            for count in range(0,np.int(np.round(Z[ii]))): # Looping over the number of 'photons' in that coordinate
+                Xl.append(cor)                             # add a coordinate repeatedly 
+        X1 = np.array(Xl)                                  # Convert the list to an array
+        # - - - - - - - - - - - - - -
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X1)
-        core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-        core_samples_mask[db.core_sample_indices_] = True
+        # Returning to '2' dimensions
+        
+        db.labels_              = db.labels_[range(0,lp)]               # Returning theses variables to the length
+        #db.core_sample_indices_ = db.core_sample_indices_[range(0,lp)]  # of the 'real' edges, to exclude the 
+        db.tag_                 = db.tag_[range(0,lp)]                  # fake repetitions.
+        # - - - - - - - - - - - - - -
+        
+        #core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+        #core_samples_mask[db.core_sample_indices_] = True
         labels = db.labels_
         
         # Number of clusters in labels, ignoring noise if present.
@@ -118,14 +135,23 @@ class SnakesFactory:
          
             #xy = X[class_member_mask & core_samples_mask]
             xy = X[class_member_mask]
-            x = xy[:, 0]; y = xy[:, 1]
+            
+            x = xy[:, 0]; y = xy[:, 1]; z = xy[:, 2]
+            
             if plot:
                 plt.plot(x, y, 'o', markerfacecolor=tuple(col),
                          markeredgecolor='k', markersize=10)
 
             # only add the cores to the clusters saved in the event
-            if k>-1: #and len(xy)>minPointsCore:
-                # print "Found cluster!"
+            if k>-1 and len(x)>1:
+                # GetFullResolution Cluster
+                #xy_fr = Cluster.getFullResTrack(self,xy,self.pictureHD,self.pedmapHD)
+                # --- 
+#                 print("DEBUG")
+#                 print(x)
+#                 print(y)
+#                 print(np.cov(np.array([x,y])))
+                
                 cl = Cluster(xy,self.rebin)
                 cl.iteration = db.tag_[labels == k][0]
                 clusters.append(cl)
@@ -141,7 +167,6 @@ class SnakesFactory:
             # plot also the non-core hits            # xy = X[class_member_mask & ~core_samples_mask]
             # if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
             #                   markeredgecolor='k', markersize=6)
-        print(len(clusters))
         if plot:
             plt.title('Estimated number of snakes: %d' % n_clusters_)
             #plt.show()
