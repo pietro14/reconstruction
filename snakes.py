@@ -67,12 +67,19 @@ class SnakesFactory:
         from sklearn import metrics
         from scipy.spatial import distance
         
+        tip = '3D'
+        
         #   IDBSCAN parameters  #
         
         scale              = 4
         iterative          = 4                         # number of iterations for the IDBSC
-        vector_eps         = [2, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-        vector_min_samples = [3,  50,  28, 7]            # [2, 30, 6, 2]
+        if tip == '3D':
+            vector_eps         = [2, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
+            vector_min_samples = [3,  50,  28, 7]            # [2, 30, 6, 2]
+        else:
+            vector_eps         = [2, 2.9, 3.2, 5]
+            vector_min_samples = [2,  18,  17, 5]
+        
         vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
         cuts               = [0, 0]
         
@@ -80,30 +87,27 @@ class SnakesFactory:
         
         # make the clustering with DBSCAN algo
         X  = self.X      # EDGES right after the zs and pedmap subtraction 
-        np.save('test.npy', X)
         # - - - - - - - - - - - - - -
         # simulated third dimension
         X1 = X[:,0:2]    # X and Y coordinates to manipulate
-        Z  = X[:,2]      # Z coordinate
-        lp = len(X1)     # number of pixels that passed the threshold
-        Xl = list(X1)    # Aux variable to simulate the Z-dimension
+        if tip == '3D':
+            Z  = X[:,2]      # Z coordinate
+            lp = len(X1)     # number of pixels that passed the threshold
+            Xl = list(X1)    # Aux variable to simulate the Z-dimension
 
-        for ii in range(0,lp):                             # Looping over the index of the coordinates
-            cor = X1[ii,:]                                 # variabel to get the coordinate
-            for count in range(0,np.int(np.round(Z[ii]))): # Looping over the number of 'photons' in that coordinate
-                Xl.append(cor)                             # add a coordinate repeatedly 
-        X1 = np.array(Xl)                                  # Convert the list to an array
+            for ii in range(0,lp):                             # Looping over the index of the coordinates
+                cor = X1[ii,:]                                 # variabel to get the coordinate
+                for count in range(0,np.int(np.round(Z[ii]))): # Looping over the number of 'photons' in that coordinate
+                    Xl.append(cor)                             # add a coordinate repeatedly 
+            X1 = np.array(Xl)                                  # Convert the list to an array
         # - - - - - - - - - - - - - -
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X1)
         # Returning to '2' dimensions
-        
-        db.labels_              = db.labels_[range(0,lp)]               # Returning theses variables to the length
-        #db.core_sample_indices_ = db.core_sample_indices_[range(0,lp)]  # of the 'real' edges, to exclude the 
-        db.tag_                 = db.tag_[range(0,lp)]                  # fake repetitions.
+        if tip == '3D':
+            db.labels_              = db.labels_[range(0,lp)]               # Returning theses variables to the length
+            db.tag_                 = db.tag_[range(0,lp)]                  # of the 'real' edges, to exclude the fake repetitions.
         # - - - - - - - - - - - - - -
         
-        #core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-        #core_samples_mask[db.core_sample_indices_] = True
         labels = db.labels_
         
         # Number of clusters in labels, ignoring noise if present.
@@ -147,10 +151,6 @@ class SnakesFactory:
                 # GetFullResolution Cluster
                 #xy_fr = Cluster.getFullResTrack(self,xy,self.pictureHD,self.pedmapHD)
                 # --- 
-#                 print("DEBUG")
-#                 print(x)
-#                 print(y)
-#                 print(np.cov(np.array([x,y])))
                 
                 cl = Cluster(xy,self.rebin)
                 cl.iteration = db.tag_[labels == k][0]
