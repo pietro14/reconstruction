@@ -39,6 +39,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('track_lp0fwhm', 'F', lenVar='nTrack')
         self.outTree.branch('track_lp0mean', 'F', lenVar='nTrack')
         self.outTree.branch('track_tp0fwhm', 'F', lenVar='nTrack')
+        self.outTree.branch('track_iteration', 'F', lenVar='nTrack')
 
     def fillCameraVariables(self,pic,clusters):
         self.outTree.fillBranch('cmos_integral',pic.Integral())
@@ -55,6 +56,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('track_lp0fwhm', [cl.shapes['long_p0fwhm'] for cl in clusters])
         self.outTree.fillBranch('track_lp0mean', [cl.shapes['long_p0mean'] for cl in clusters])
         self.outTree.fillBranch('track_tp0fwhm', [cl.shapes['lat_p0fwhm'] for cl in clusters])
+        self.outTree.fillBranch('track_iteration', [cl.iterations() for cl in clusters])
 
 
 

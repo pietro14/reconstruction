@@ -41,6 +41,11 @@ class Cluster:
             return len(self.hits_fr)
         else: return 0
         
+    def iterations(self):
+        if hasattr(self,'iteration'):
+            return self.iteration
+        else: return 0
+        
     def dump(self):
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)
@@ -230,6 +235,28 @@ class Cluster:
                 ret.append((k[0],k[1],v))
             self.hits_fr = np.array(ret)
             return self.hits_fr
+        
+    def getFullResTrack(self,xy,th2_fullres,pedmap_fullres):
+        if self.rebin == 1:
+            return xy
+        else:
+            ct = cameraTools()
+            fullres = []
+            print("xy size = ", len(xy))
+            for h in xy:
+                rx,ry = h
+                rxfull = list(range(int(rx-self.rebin/2),int(rx+self.rebin/2)))
+                ryfull = list(range(int(ry-self.rebin/2),int(ry+self.rebin/2)))
+                for rxf in rxfull:
+                    for ryf in ryfull:
+                        ped = pedmap_fullres.GetBinContent(rxf+1,ryf+1)
+                        noise = pedmap_fullres.GetBinError(rxf+1,ryf+1)
+                        z = th2_fullres.GetBinContent(rxf+1,ryf+1)-ped
+                        if ct.isGoodChannelFast(ped,noise) and z>1.0*noise:
+                            fullres.append((rxf,ryf,z))
+            xy_fr = np.array(fullres)
+            print("xy_fr size = ", len(xy_fr))
+            return xy_fr
     
     def plotFullResolution(self,th2_fullres,pedmap_fullres,name,option='colz'):
         # REPETITION!!!! IMPROVE...
