@@ -1,10 +1,11 @@
-trackIntegral  : track_integral: 50,0.,50000.  ; XTitle="photons in track", IncludeOverflows=True, FillColor=ROOT.kAzure+3, FillStyle=3005
-trackSize      : track_nhits: 40,0.,5000.     ; XTitle="track hits", IncludeOverflows=True, FillColor=ROOT.kAzure+3, FillStyle=3005
-trackLength    : track_length:   30,10,100.     ; XTitle="track length (mm)", IncludeOverflows=True, FillColor=ROOT.kAzure+3, FillStyle=3005
-braggIntegral  : track_lp0amplitude : 35,0,1000 ; XTitle="Amplitude in Bragg peak", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
+trackIntegral  : track_integral: 100,0.,20000.  ; XTitle="photons in track", IncludeOverflows=True, FillColor=ROOT.kAzure+3, FillStyle=3005
+trackSize      : track_nhits: 100,0.,2000.     ; XTitle="track hits", IncludeOverflows=True, FillColor=ROOT.kAzure+3, FillStyle=3005
+trackLength    : track_length:   100,0,20.     ; XTitle="track length (mm)", IncludeOverflows=True, FillColor=ROOT.kAzure+3, FillStyle=3005
+braggIntegral  : track_lp0amplitude : 35,0,2000 ; XTitle="Amplitude in Bragg peak", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
 peakFraction   : track_lp0amplitude/track_integral : 20,0.,0.2 ; XTitle="Amplitude fraction in Bragg peak", IncludeOverflows=False, FillColor=ROOT.kAzure+3, FillStyle=3005
 pWpH           : track_lp0fwhm\:track_lp0amplitude : 40,100,800,40,1,10 ; XTitle="peak amplitude (counts)", YTitle="Peak FWHM (mm)"
 pAbA           : track_lp0amplitude\:(track_integral-track_lp0amplitude) : 40,0,30000,40,0,1000 ; XTitle="amplitude before peak (counts)", YTitle="peak amplitude (counts)"
 AvsL           : track_integral\:track_length : 40,10,40,40,0,30000 ; XTitle="track length (mm)", YTitle="photons in track"
-energyDensity  : track_integral/track_nhits : 35,2,15 ; XTitle="photons/hit", FillColor=ROOT.kAzure+3, FillStyle=3005
+energyDensity  : track_integral/track_nhits : 100,0,20 ; XTitle="photons/hit", FillColor=ROOT.kAzure+3, FillStyle=3005
+dEdX           : track_integral/track_length : 50,0,2500 ; XTitle="photons/mm", FillColor=ROOT.kAzure+3, FillStyle=3005
 
