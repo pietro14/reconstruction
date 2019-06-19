@@ -145,7 +145,7 @@ class analysis:
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            iev = iobj if self.options.daq == 'btf' else iobj/2 # when PMT is present
+            iev = iobj if self.options.daq != 'midas'  else iobj/2 # when PMT is present
             #print("max entries = ",self.options.maxEntries)
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
@@ -164,8 +164,10 @@ class analysis:
                 # BTF convention
                 if self.options.daq == 'btf':
                     run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
-                else:
+                elif self.options.daq == 'h5':
                     run,event=(int(name.split('_')[0].split('run')[-1]),int(name.split('_')[-1]))
+                else:
+                    run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
                 print("Processing Run: ",run,"- Event ",event,"...")
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
@@ -275,7 +277,7 @@ if __name__ == '__main__':
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
     parser.add_option('-p', '--pedestal', dest='justPedestal', default=False, action='store_true', help='Just compute the pedestals, do not run the analysis')
     parser.add_option(      '--exclude-region', dest='pedExclRegion', default=None, type='string', help='Exclude a rectangular region for pedestals. In the form "xmin:xmax,ymin:ymax"')
-    parser.add_option(       '--daq', dest="daq", type="string", default="midas", help="DAQ type (btf/midas)");
+    parser.add_option(       '--daq', dest="daq", type="string", default="midas", help="DAQ type (btf/h5/midas)");
     parser.add_option(       '--type', dest="type", type="string", default="neutrons", help="events type (beam/cosmics/neutrons)");
     
     (options, args) = parser.parse_args()
