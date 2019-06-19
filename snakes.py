@@ -63,15 +63,51 @@ class SnakesFactory:
     def getClusters(self,maxDist=1000,minPoints=20,minPointsCore=10,plot=True):
 
         from sklearn.cluster import DBSCAN
+        from iDBSCAN import iDBSCAN
         from sklearn import metrics
         from scipy.spatial import distance
-
+        
+        tip = '3D'
+        
+        #   IDBSCAN parameters  #
+        
+        scale              = 4
+        iterative          = 4                         # number of iterations for the IDBSC
+        if tip == '3D':
+            vector_eps         = [2, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
+            vector_min_samples = [3,  50,  28, 7]            # [2, 30, 6, 2]
+        else:
+            vector_eps         = [2, 2.9, 3.2, 5]
+            vector_min_samples = [2,  18,  17, 5]
+        
+        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
+        cuts               = [0, 0]
+        
+        #-----------------------#
+        
         # make the clustering with DBSCAN algo
-        X = self.X
-        distance_matrix = distance.squareform(distance.pdist(X))
-        db = DBSCAN(eps=maxDist, min_samples=minPoints,metric='euclidean',n_jobs=-1).fit(distance_matrix)
-        core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-        core_samples_mask[db.core_sample_indices_] = True
+        X  = self.X      # EDGES right after the zs and pedmap subtraction 
+        # - - - - - - - - - - - - - -
+        # simulated third dimension
+        X1 = X[:,0:2]    # X and Y coordinates to manipulate
+        if tip == '3D':
+            Z  = X[:,2]      # Z coordinate
+            lp = len(X1)     # number of pixels that passed the threshold
+            Xl = list(X1)    # Aux variable to simulate the Z-dimension
+
+            for ii in range(0,lp):                             # Looping over the index of the coordinates
+                cor = X1[ii,:]                                 # variabel to get the coordinate
+                for count in range(0,np.int(np.round(Z[ii]))): # Looping over the number of 'photons' in that coordinate
+                    Xl.append(cor)                             # add a coordinate repeatedly 
+            X1 = np.array(Xl)                                  # Convert the list to an array
+        # - - - - - - - - - - - - - -
+        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X1)
+        # Returning to '2' dimensions
+        if tip == '3D':
+            db.labels_              = db.labels_[range(0,lp)]               # Returning theses variables to the length
+            db.tag_                 = db.tag_[range(0,lp)]                  # of the 'real' edges, to exclude the fake repetitions.
+        # - - - - - - - - - - - - - -
+        
         labels = db.labels_
         
         # Number of clusters in labels, ignoring noise if present.
@@ -101,16 +137,23 @@ class SnakesFactory:
 
             class_member_mask = (labels == k)
          
-            xy = X[class_member_mask & core_samples_mask]
-            x = xy[:, 0]; y = xy[:, 1]
+            #xy = X[class_member_mask & core_samples_mask]
+            xy = X[class_member_mask]
+            
+            x = xy[:, 0]; y = xy[:, 1]; z = xy[:, 2]
+            
             if plot:
                 plt.plot(x, y, 'o', markerfacecolor=tuple(col),
                          markeredgecolor='k', markersize=10)
 
             # only add the cores to the clusters saved in the event
-            if k>-1 and len(xy)>minPointsCore:
-                # print "Found cluster!"
+            if k>-1 and len(x)>1:
+                # GetFullResolution Cluster
+                #xy_fr = Cluster.getFullResTrack(self,xy,self.pictureHD,self.pedmapHD)
+                # --- 
+                
                 cl = Cluster(xy,self.rebin)
+                cl.iteration = db.tag_[labels == k][0]
                 clusters.append(cl)
                 if plot: cl.plotAxes(plot=plt)
                 # cl.calcProfiles(plot=None)
@@ -124,14 +167,12 @@ class SnakesFactory:
             # plot also the non-core hits            # xy = X[class_member_mask & ~core_samples_mask]
             # if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
             #                   markeredgecolor='k', markersize=6)
-
         if plot:
             plt.title('Estimated number of snakes: %d' % n_clusters_)
             #plt.show()
-            for ext in ['png','pdf']:
+            for ext in ['pdf']:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
-
         return clusters
 
     def getTracks(self,plot=True):
@@ -139,7 +180,7 @@ class SnakesFactory:
         # Classic straight-line Hough transform
         image = self.datalog
         h, theta, d = hough_line(image)
-        print "tracks found"
+        print("tracks found")
         
         tracks = []
         thr = 0.8 * np.amax(h)
@@ -147,15 +188,15 @@ class SnakesFactory:
         # loop over prominent tracks
         itrk = 0
         for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
-            print "Track # ",itrk
+            print("Track # ",itrk)
             #points_along_trk = np.zeros((self.data.shape[1],self.data.shape[0]))
             points_along_trk = []
-            for x in xrange(self.data.shape[1]):
+            for x in range(self.data.shape[1]):
                 y = min(self.data.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
                 #points_along_trk[x,y] = self.data[y,x]
                 #print "adding point: %d,%d,%f" % (x,y,self.data[y,x])
                 # add a halo fo +/- 20 pixels to calculate the lateral profile
-                for iy in xrange(int(y)-5,int(y)+5):
+                for iy in range(int(y)-5,int(y)+5):
                     if iy<0 or iy>=self.data.shape[0]: continue
                     points_along_trk.append((x,iy,self.data[iy,x]))
             xy = np.array(points_along_trk)
@@ -190,7 +231,7 @@ class SnakesFactory:
             if outname and not os.path.exists(outname):
                 os.system("mkdir -p "+outname)
                 os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
-            for ext in ['png','pdf']:
+            for ext in ['pdf']:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
 
@@ -217,7 +258,7 @@ class SnakesFactory:
                 prof = cl.getProfile(dir)
                 if prof and cl.widths[dir]>0.2: # plot the profiles only of sufficiently long snakes (>200 um)
                     prof.Draw("pe1")
-                    for ext in ['png','pdf']:
+                    for ext in ['pdf']:
                         canv.SaveAs('{pdir}/{name}_cluster{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
         
     def plotContours(self,contours):
@@ -248,7 +289,7 @@ class SnakesFactory:
         
         fig.tight_layout()
         #plt.show()
-        for ext in ['png','pdf']:
+        for ext in ['pdf']:
             plt.savefig('{name}.{ext}'.format(name=self.name,ext=ext))
 
 
@@ -270,7 +311,7 @@ class SnakesProducer:
 
     def run(self):
         ret = []
-        if any([x==None for x in self.picture,self.pictureHD,self.pedmapHD,self.name]):
+        if any([x==None for x in (self.picture,self.pictureHD,self.pedmapHD,self.name)]):
             return ret
         
         # Cluster reconstruction on 2D picture
@@ -285,12 +326,13 @@ class SnakesProducer:
 
         # print "Get light profiles..."
         snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
+        
         # snfac.calcProfiles(snakes) # this is for BTF
         
         # sort snakes by longitudinal width
         snakes = sorted(snakes, key = lambda x: x.widths['long'], reverse=True)
         # and reject discharges (round)
-        snakes = filter(lambda x: x.qualityLevel()>=self.snakeQualityLevel, snakes)
+        #snakes = [x for x in snakes if x.qualityLevel()>=self.snakeQualityLevel]
         
         # plotting
         if self.plot2D:       snfac.plotClusterFullResolution(snakes,self.pictureHD,self.pedmapHD)
