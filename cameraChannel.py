@@ -7,7 +7,17 @@ import math
 class cameraGeometry:
     def __init__(self):
         # 240 mm = major axis of the ellipse = 2048 pixels
-        self.pixelwidth = 117E-3 # mm
+        # ORANGE
+        # 1 px - 55*10-6 m
+        # 1 ph/ev - 440 V
+
+        # LEMON
+        # 1 px - 125*10-6 m
+        # 0,12 ph/ev - 460V
+        # 0,10 ph/ev - 450V
+        # 0,06 ph/ev - 440V
+        
+        self.pixelwidth = 125E-3 # mm
         
 class cameraTools:
     def __init__(self):
@@ -31,7 +41,7 @@ class cameraTools:
         return True
     
     def zs(self,th2,pedmap,nsigma=3.2,plot=False):
-        cimax = 160       # valori del cut sull'imagine
+        cimax = 200       # valori del cut sull'imagine
         #print "zero suppressing..."
         nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
         xmin,xmax=(th2.GetXaxis().GetXmin(),th2.GetXaxis().GetXmax())

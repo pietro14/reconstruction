@@ -24,11 +24,11 @@ class analysis:
         self.rebin = options.rebin        
         self.rfile = rfile
         self.options = options
-        self.pedfile_name = 'pedestals/pedmap_ex100_rebin4.root'
+        self.pedfile_name = 'pedestals/pedmap_818_rebin4.root'
         if not os.path.exists(self.pedfile_name):
             print("WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them...")
             self.calcPedestal(options)
-        self.pedfile_fullres_name = 'pedestals/pedmap_ex100_rebin1.root'
+        self.pedfile_fullres_name = 'pedestals/pedmap_818_rebin1.root'
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)

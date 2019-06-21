@@ -75,7 +75,7 @@ class SnakesFactory:
         iterative          = 4                         # number of iterations for the IDBSC
         if tip == '3D':
             vector_eps         = [2, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-            vector_min_samples = [3,  50,  28, 7]            # [2, 30, 6, 2]
+            vector_min_samples = [3,  50,  28, 13]            # [2, 30, 6, 2]
         else:
             vector_eps         = [2, 2.9, 3.2, 5]
             vector_min_samples = [2,  18,  17, 5]
