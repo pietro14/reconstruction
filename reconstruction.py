@@ -192,6 +192,12 @@ class analysis:
                 h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
                 #print "Zero-suppression done. Now clustering..."
                 
+                
+                #if iev == 3:
+                #print(obj.GetName())
+                #from root_numpy import hist2array
+                #test = hist2array(h2zs)
+                #np.savetxt('test.txt',test)
                 # ---- DEBUG ---- #
                 #if debug = True:
                 #from root_numpy import hist2array
