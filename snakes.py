@@ -75,10 +75,10 @@ class SnakesFactory:
         iterative          = 4                         # number of iterations for the IDBSC
         if tip == '3D':
             vector_eps         = [2, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-            vector_min_samples = [3,  50,  28, 7]            # [2, 30, 6, 2]
+            vector_min_samples = [3,  50,  28, 13]            # [2, 30, 6, 2]
         else:
-            vector_eps         = [2, 2.9, 3.2, 5]
-            vector_min_samples = [2,  18,  17, 5]
+            vector_eps         = [2, 2.9, 3.2, 4]
+            vector_min_samples = [2,  18,  17, 7]
         
         vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
         cuts               = [0, 0]
@@ -87,9 +87,12 @@ class SnakesFactory:
         
         # make the clustering with DBSCAN algo
         X  = self.X      # EDGES right after the zs and pedmap subtraction 
+        
         # - - - - - - - - - - - - - -
         # simulated third dimension
         X1 = X[:,0:2]    # X and Y coordinates to manipulate
+        
+        
         if tip == '3D':
             Z  = X[:,2]      # Z coordinate
             lp = len(X1)     # number of pixels that passed the threshold
@@ -97,7 +100,7 @@ class SnakesFactory:
 
             for ii in range(0,lp):                             # Looping over the index of the coordinates
                 cor = X1[ii,:]                                 # variabel to get the coordinate
-                for count in range(0,np.int(np.round(Z[ii]))): # Looping over the number of 'photons' in that coordinate
+                for count in range(0,np.int(np.round(Z[ii])-1)): # Looping over the number of 'photons' in that coordinate
                     Xl.append(cor)                             # add a coordinate repeatedly 
             X1 = np.array(Xl)                                  # Convert the list to an array
         # - - - - - - - - - - - - - -
@@ -154,6 +157,10 @@ class SnakesFactory:
                 
                 cl = Cluster(xy,self.rebin)
                 cl.iteration = db.tag_[labels == k][0]
+                cl.xmax = max(x)
+                cl.xmin = min(x)
+                cl.ymax = max(y)
+                cl.ymin = min(y)
                 clusters.append(cl)
                 if plot: cl.plotAxes(plot=plt)
                 # cl.calcProfiles(plot=None)

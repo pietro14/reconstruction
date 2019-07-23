@@ -46,6 +46,26 @@ class Cluster:
             return self.iteration
         else: return 0
         
+    def getXmax(self):
+        if hasattr(self,'xmax'):
+            return self.xmax
+        else: return 0
+        
+    def getXmin(self):
+        if hasattr(self,'xmin'):
+            return self.xmin
+        else: return 0
+        
+    def getYmax(self):
+        if hasattr(self,'ymax'):
+            return self.ymax
+        else: return 0
+       
+    def getYmin(self):
+        if hasattr(self,'ymin'):
+            return self.ymin
+        else: return 0
+        
     def dump(self):
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)
