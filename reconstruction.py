@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import ROOT
 ROOT.gROOT.SetBatch(True)
+from root_numpy import hist2array
 from cameraChannel import cameraTools
 
 from snakes import SnakesProducer
@@ -35,9 +36,12 @@ class analysis:
         if not options.justPedestal:
            print("Pulling pedestals...")
            # first the one for clustering with rebin
+           ctools = cameraTools()
            pedrf = ROOT.TFile.Open(self.pedfile_name)
            self.pedmap = pedrf.Get('pedmap').Clone()
            self.pedmap.SetDirectory(None)
+           self.pedarr = hist2array(self.pedmap)
+           self.noisearr = ctools.noisearray(self.pedmap)
            #self.pedmean = pedrf.Get('pedmean').GetMean()
            #self.pedrms = pedrf.Get('pedrms').GetMean()
            pedrf.Close()
@@ -45,6 +49,8 @@ class analysis:
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
            self.pedmap_fr.SetDirectory(None)
+           self.pedarr_fr = hist2array(self.pedmap_fr)
+           self.noisearr_fr = ctools.noisearray(self.pedmap_fr)
            pedrf_fr.Close()
 
     # the following is needed for multithreading
@@ -173,6 +179,7 @@ class analysis:
                 self.outTree.fillBranch("event",event)
 
                 pic_fullres = obj.Clone(obj.GetName()+'_fr')
+                
                 # rebin to make the cluster finding fast
                 obj.RebinX(self.rebin); obj.RebinY(self.rebin)
                 obj.Scale(1./float(math.pow(self.rebin,2)))
@@ -190,7 +197,14 @@ class analysis:
                     pedmap_fr_rs = self.pedmap_fr
                 # applying zero-suppression
                 h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
-                #print "Zero-suppression done. Now clustering..."
+                # zs on full image
+                img_fr = hist2array(pic_fullres)
+                img_fr_zs = ctools.zsfullres(img_fr,self.pedarr_fr,self.noisearr_fr,nsigma=2)
+                img_rb_zs = ctools.arrrebin(img_fr_zs,self.rebin)
+                print "zero suppressed full-resolution array: ",img_fr_zs
+                print "zero suppressed rebinned-resolution array: ",img_rb_zs
+                print "shape fr, rebin: ",img_fr_zs.shape, "   ",img_rb_zs.shape
+                print "Zero-suppression done. Now clustering..."
                 
                 
                 #if iev == 3:
@@ -241,8 +255,8 @@ class analysis:
                 # Cluster reconstruction on 2D picture
                 algo = 'DBSCAN'
                 if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
-                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': False, 'plotprofiles': True}
+                snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_zs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
+                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': True, 'plotprofiles': False}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()
                 self.autotree.fillCameraVariables(h2zs,snakes)
@@ -299,6 +313,7 @@ if __name__ == '__main__':
     nev = ana.getNEvents() if options.maxEntries == -1 else int(options.maxEntries)
     print("This run has ",nev," events.")
     print("Will save plots to ",options.plotDir)
+    os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
     if options.jobs>1:
         nj = int(nev/options.jobs)

@@ -2,7 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import ROOT,math,os
+import ROOT,math,os,sys
 
 from scipy.ndimage import gaussian_filter
 from skimage import img_as_float
@@ -18,18 +18,20 @@ from clusterTools import Cluster
 from cameraChannel import cameraTools
 import matplotlib.pyplot as plt
 
+import debug_code.tools_lib as tl
+
 class SnakesFactory:
-    def __init__(self,th2,name,options):
+    def __init__(self,img,img_fr,name,options):
         self.name = name
         self.options = options
         self.rebin = options.rebin
         ct = cameraTools()
-        self.data = ct.getData(th2)
-        self.datalog = np.zeros((self.data.shape[0],self.data.shape[1]))
-        for (x,y),value in np.ndenumerate(self.data):
+        self.image = img
+        self.imagelog = np.zeros((self.image.shape[0],self.image.shape[1]))
+        for (x,y),value in np.ndenumerate(self.image):
             if value > 3.0/math.sqrt(self.rebin): # tresholding needed for tracking
-                self.datalog[x,y] = math.log(value)
-        self.X = ct.getActiveCoords(th2)
+                self.imagelog[x,y] = math.log(value)
+        self.image_fr = img_fr
         self.contours = []
         
     def store_evolution_in(self,lst):
@@ -43,7 +45,7 @@ class SnakesFactory:
     def getContours(self,iterations,threshold=0.69):
         
         # Morphological GAC
-        image = img_as_float(self.data)
+        image = img_as_float(self.image)
         gimage = inverse_gaussian_gradient(image)
 
         # Initial level set
@@ -71,11 +73,11 @@ class SnakesFactory:
         
         #   IDBSCAN parameters  #
         
-        scale              = 4
+        scale              = 1
         iterative          = 4                         # number of iterations for the IDBSC
         if tip == '3D':
             vector_eps         = [2, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-            vector_min_samples = [3,  50,  28, 13]            # [2, 30, 6, 2]
+            vector_min_samples = [1,  15,  28, 13]            # [2, 30, 6, 2]
         else:
             vector_eps         = [2, 2.9, 3.2, 4]
             vector_min_samples = [2,  18,  17, 7]
@@ -86,25 +88,24 @@ class SnakesFactory:
         #-----------------------#
         
         # make the clustering with DBSCAN algo
-        X  = self.X      # EDGES right after the zs and pedmap subtraction 
+        # this kills all macrobins with N photons < 1
+        points = np.array(np.nonzero(np.round(self.image))).T.astype(int)
+        print "non zero points = ",points
+        print "shape = ",points.shape
+        lp = points.shape[0]
+        print "lp = ",lp
+        
+        Xl = [(iy,ix) for ix,iy in points]          # Aux variable to simulate the Z-dimension
+        X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
+        for ix,iy in points:                        # Looping over the non-empty coordinates
+            nreplicas = int(self.image[ix,iy])-1 if tip=='3D' else 1
+            for count in range(nreplicas):                                # Looping over the number of 'photons' in that coordinate
+                Xl.append((iy,ix))                              # add a coordinate repeatedly 
+        X = np.array(Xl)                                        # Convert the list to an array
+        print "X = ",X
         
         # - - - - - - - - - - - - - -
-        # simulated third dimension
-        X1 = X[:,0:2]    # X and Y coordinates to manipulate
-        
-        
-        if tip == '3D':
-            Z  = X[:,2]      # Z coordinate
-            lp = len(X1)     # number of pixels that passed the threshold
-            Xl = list(X1)    # Aux variable to simulate the Z-dimension
-
-            for ii in range(0,lp):                             # Looping over the index of the coordinates
-                cor = X1[ii,:]                                 # variabel to get the coordinate
-                for count in range(0,np.int(np.round(Z[ii])-1)): # Looping over the number of 'photons' in that coordinate
-                    Xl.append(cor)                             # add a coordinate repeatedly 
-            X1 = np.array(Xl)                                  # Convert the list to an array
-        # - - - - - - - - - - - - - -
-        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X1)
+        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X)
         # Returning to '2' dimensions
         if tip == '3D':
             db.labels_              = db.labels_[range(0,lp)]               # Returning theses variables to the length
@@ -126,29 +127,30 @@ class SnakesFactory:
         outname = self.options.plotDir
         if outname and not os.path.exists(outname):
             os.system("mkdir -p "+outname)
-            os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
+            os.system("cp utils/index.php "+outname)
 
         # Black removed and is used for noise instead.
         unique_labels = set(labels)
         colors = [plt.cm.Spectral(each)
                   for each in np.linspace(0, 1, len(unique_labels))]
         #canv = ROOT.TCanvas('c1','',600,600)
+        if plot:
+            fig = plt.figure(figsize=(10, 10))
+            vmin      = 80; vmax      = 110
+            plt.imshow(self.image,cmap='viridis', vmin=0, vmax=10, origin='lower' )
+            
         for k, col in zip(unique_labels, colors):
             if k == -1:
-                # Black used for noise.
                 col = [0, 0, 0, 1]
+                break # noise: the unclustered
 
             class_member_mask = (labels == k)
          
             #xy = X[class_member_mask & core_samples_mask]
-            xy = X[class_member_mask]
+            xy = X1[class_member_mask]
             
-            x = xy[:, 0]; y = xy[:, 1]; z = xy[:, 2]
-            
-            if plot:
-                plt.plot(x, y, 'o', markerfacecolor=tuple(col),
-                         markeredgecolor='k', markersize=10)
-
+            x = xy[:, 0]; y = xy[:, 1]
+                            
             # only add the cores to the clusters saved in the event
             if k>-1 and len(x)>1:
                 # GetFullResolution Cluster
@@ -162,7 +164,11 @@ class SnakesFactory:
                 cl.ymax = max(y)
                 cl.ymin = min(y)
                 clusters.append(cl)
-                if plot: cl.plotAxes(plot=plt)
+                if plot:
+                    xri,yri = tl.getContours(x,y)
+                    cline = {1:'r',2:'b',3:'y'}
+                    plt.plot(xri,yri,'-{lcol}'.format(lcol=cline[cl.iteration]),linewidth=1)
+                # if plot: cl.plotAxes(plot=plt,num_steps=100)
                 # cl.calcProfiles(plot=None)
                 # for dir in ['long','lat']:
                 #     prof = cl.getProfile(dir)
@@ -174,18 +180,18 @@ class SnakesFactory:
             # plot also the non-core hits            # xy = X[class_member_mask & ~core_samples_mask]
             # if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
             #                   markeredgecolor='k', markersize=6)
+        print "NUMBER OF CLUSTERS = ",len(clusters)
         if plot:
-            plt.title('Estimated number of snakes: %d' % n_clusters_)
-            #plt.show()
-            for ext in ['pdf']:
+            for ext in ['png','pdf']:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
+            
         return clusters
 
     def getTracks(self,plot=True):
         from skimage.transform import (hough_line, hough_line_peaks)
         # Classic straight-line Hough transform
-        image = self.datalog
+        image = self.imagelog
         h, theta, d = hough_line(image)
         print("tracks found")
         
@@ -196,16 +202,16 @@ class SnakesFactory:
         itrk = 0
         for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
             print("Track # ",itrk)
-            #points_along_trk = np.zeros((self.data.shape[1],self.data.shape[0]))
+            #points_along_trk = np.zeros((self.image.shape[1],self.image.shape[0]))
             points_along_trk = []
-            for x in range(self.data.shape[1]):
-                y = min(self.data.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
-                #points_along_trk[x,y] = self.data[y,x]
-                #print "adding point: %d,%d,%f" % (x,y,self.data[y,x])
+            for x in range(self.image.shape[1]):
+                y = min(self.image.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
+                #points_along_trk[x,y] = self.image[y,x]
+                #print "adding point: %d,%d,%f" % (x,y,self.image[y,x])
                 # add a halo fo +/- 20 pixels to calculate the lateral profile
                 for iy in range(int(y)-5,int(y)+5):
-                    if iy<0 or iy>=self.data.shape[0]: continue
-                    points_along_trk.append((x,iy,self.data[iy,x]))
+                    if iy<0 or iy>=self.image.shape[0]: continue
+                    points_along_trk.append((x,iy,self.image[iy,x]))
             xy = np.array(points_along_trk)
             trk = Cluster(xy,self.rebin)
             tracks.append(trk)
@@ -270,7 +276,7 @@ class SnakesFactory:
         
     def plotContours(self,contours):
 
-        image = img_as_float(self.data)
+        image = img_as_float(self.image)
         #fig, axes = plt.subplots(1, 2, figsize=(8, 4))
         #ax = axes.flatten()
         fig, ax = plt.subplots()
@@ -318,11 +324,11 @@ class SnakesProducer:
 
     def run(self):
         ret = []
-        if any([x==None for x in (self.picture,self.pictureHD,self.pedmapHD,self.name)]):
+        if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.pedmapHD,self.name)]):
             return ret
         
         # Cluster reconstruction on 2D picture
-        snfac = SnakesFactory(self.picture,self.name,self.options)
+        snfac = SnakesFactory(self.picture,self.pictureHD,self.name,self.options)
 
         # this plotting is only the pyplot representation.
         # Doesn't work on MacOS with multithreading for some reason... 

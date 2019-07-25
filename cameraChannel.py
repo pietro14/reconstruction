@@ -2,7 +2,9 @@
 import ROOT
 ROOT.gROOT.SetBatch(True)
 import numpy as np
+from root_numpy import hist2array
 import math
+import debug_code.tools_lib as tl
 
 class cameraGeometry:
     def __init__(self):
@@ -69,6 +71,16 @@ class cameraTools:
                 canv.SaveAs('{name}.{ext}'.format(name=th2.GetName()+'_zs',ext=ext))
         return (th2_zs,th2_unzs)
 
+    def zsfullres(self,img,pedarr,noisearr,nsigma=1):
+        img_sub   = img - (pedarr + nsigma * noisearr)
+        img_zs = np.where(img_sub > 0, img_sub, 0)
+        return img_zs
+        
+    def arrrebin(self,img,rebin):
+        newshape = 2048/rebin
+        img_rebin = tl.rebin(img,(newshape,newshape))
+        return img_rebin
+        
     def zshits(self,hits,pedmap,nsigma=3,plot=False):
         print("zero suppressing a subset of ",len(hits)," hits...")
         ret=[]
@@ -97,6 +109,7 @@ class cameraTools:
                 bins[x_bin,y_bin] = z
         return bins
 
+    # this returns only x,y,z after zero suppression
     def getActiveCoords(self,th2):
         ret = []
         if not th2.InheritsFrom("TH2"):
@@ -113,6 +126,17 @@ class cameraTools:
                     #ret.append((x,y,math.log(z)))
                     ret.append((x,y,z))
         return np.array(ret)
+
+    # this returns x,y,z before the zero suppression
+    def getImage(self,th2):
+        return hist2array(th2)
+
+    def noisearray(self,th2):
+        noisearr = np.zeros( (th2.GetNbinsX(),th2.GetNbinsY()) )
+        for ix in range(th2.GetNbinsX()):
+            for iy in range(th2.GetNbinsY()):
+                noisearr[ix][iy] = th2.GetBinError(ix+1,iy+1)
+        return noisearr
 
     def getRestrictedImage(self,th2,xmin,xmax,ymin,ymax):
         nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
@@ -131,3 +155,4 @@ class cameraTools:
         # for ext in ['png','pdf','root']:
         #     canv.SaveAs('{name}_rs.{ext}'.format(name=th2.GetName(),ext=ext))
         return th2_rs
+
