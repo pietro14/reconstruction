@@ -11,10 +11,12 @@ import utilities
 utilities = utilities.utils()
 
 class Cluster:
-    def __init__(self,hits,rebin):
+    def __init__(self,hits,rebin,img_fr,debug=False):
         self.hits = hits
         self.rebin = rebin
+        self.debug = debug
         self.x = hits[:, 0]; self.y = hits[:, 1]
+        self.hits_fr = self.fullResHits(img_fr)
         self.mean_point = np.array([np.mean(self.x),np.mean(self.y)])
         self.EVs = self.eigenvectors()
         self.widths = {}
@@ -95,7 +97,7 @@ class Cluster:
         for line in lines:
             plot.plot(line[0], line[1], c="r")
 
-    def calcProfiles(self,hitscalc=[],plot=None):
+    def calcProfiles(self,plot=None):
         # if they have been attached to the cluster, do not recompute them
         if len(self.profiles)>0:
             return
@@ -103,8 +105,7 @@ class Cluster:
         # rotate the hits of the cluster along the major axis
         rot_hits=[]
         # this is in case one wants to make the profile with a different resolution wrt the clustering
-        hits = hitscalc if len(hitscalc)>0 else self.hits
-        for h in hits:
+        for h in self.hits_fr:
             rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
             rh_major_axis = (rx,ry,h[-1])
             rot_hits.append(rh_major_axis)
@@ -117,14 +118,10 @@ class Cluster:
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
         xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.2)
         yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.6)
-        # rxmin = 1000; rxmax = 1500 # central 5 cm of the track
-        # xedg = range(int(rxmin),int(rxmax)) # full binning for BTF tracks
-        # yedg = range(int(rymin),int(rymax)) # full binning for BTF tracks
-        geo = cameraGeometry()
-        xedg = [(x-int(rxmin))*geo.pixelwidth for x in xedg]
-        yedg = [(y-int(rymin))*geo.pixelwidth for y in yedg]
+        xedg = [(x-int(rxmin)) for x in xedg]
+        yedg = [(y-int(rymin)) for y in yedg]
 
-        length=(rxmax-rxmin)*geo.pixelwidth; width=(rymax-rymin)*geo.pixelwidth
+        length=(rxmax-rxmin); width=(rymax-rymin)
         if len(xedg)>1:
             longprof = ROOT.TH1F('longprof','longitudinal profile',len(xedg)-1,array('f',xedg))
             longprof.SetDirectory(None)
@@ -136,8 +133,8 @@ class Cluster:
         
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
-            if longprof: longprof.Fill((x-rxmin)*geo.pixelwidth,z)
-            if latprof: latprof.Fill((y-rymin)*geo.pixelwidth,z)
+            if longprof: longprof.Fill((x-rxmin),z)
+            if latprof: latprof.Fill((y-rymin),z)
 
         profiles = [longprof,latprof]
         titles = ['longitudinal','transverse']
@@ -218,80 +215,35 @@ class Cluster:
         prof.SetMarkerSize(1)
         prof.SetMarkerColor(ROOT.kBlack)
         prof.SetLineColor(ROOT.kGray)
-        prof.SetLineWidth(1)
+        prof.SetLineWidth(1)        
         
-    def hitsFullResolution(self,th2_fullres,pedmap_fullres,zs=False):
+    def fullResHits(self,img_fullres):
         if hasattr(self,'hits_fr'):
             return self.hits_fr
-        else:
-            ct = cameraTools() 
-            retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
-            #latmargin = 15 # in pixels
-            #longmargin = 100 # in pixels
-            latmargin = 3 # in pixels
-            longmargin = 5 # in pixels
-            for h in self.hits:
-                rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
-                rxfull = list(range(int(rx-longmargin),int(rx+longmargin)))
-                ryfull = list(range(int(ry-latmargin),int(ry+latmargin)))
-                fullres = []
-                for rxf in rxfull:
-                    for ryf in ryfull:
-                        rhf = (rxf,ryf,-1)
-                        xfull,yfull = utilities.rotate_around_point(rhf,self.EVs[0],self.mean_point,inverse=True)
-                        # these for are to ensure that one includes all bins after rounding/rotation
-                        for xfullint in range(int(xfull-1),int(xfull+1)):
-                            for yfullint in range(int(yfull-1),int(yfull+1)):
-                                ped = pedmap_fullres.GetBinContent(xfullint+1,yfullint+1)
-                                noise = pedmap_fullres.GetBinError(xfullint+1,yfullint+1)
-                                z = th2_fullres.GetBinContent(xfullint+1,yfullint+1)-ped
-                                if ct.isGoodChannelFast(ped,noise) and z>1.0*noise:
-                                    fullres.append((xfullint,yfullint,z))
-                for hfr in fullres:
-                    x = hfr[0]; y=hfr[1]
-                    retdict[(x,y)]=hfr[2]
-            ret=[]
-            for k,v in retdict.items():
-                ret.append((k[0],k[1],v))
-            self.hits_fr = np.array(ret)
-            return self.hits_fr
-        
-    def getFullResTrack(self,xy,th2_fullres,pedmap_fullres):
         if self.rebin == 1:
-            return xy
+            self.hits_fr = self.hits
+            return self.hits
         else:
-            ct = cameraTools()
-            fullres = []
-            print("xy size = ", len(xy))
-            for h in xy:
-                rx,ry = h
-                rxfull = list(range(int(rx-self.rebin/2),int(rx+self.rebin/2)))
-                ryfull = list(range(int(ry-self.rebin/2),int(ry+self.rebin/2)))
-                for rxf in rxfull:
-                    for ryf in ryfull:
-                        ped = pedmap_fullres.GetBinContent(rxf+1,ryf+1)
-                        noise = pedmap_fullres.GetBinError(rxf+1,ryf+1)
-                        z = th2_fullres.GetBinContent(rxf+1,ryf+1)-ped
-                        if ct.isGoodChannelFast(ped,noise) and z>1.0*noise:
-                            fullres.append((rxf,ryf,z))
-            xy_fr = np.array(fullres)
-            print("xy_fr size = ", len(xy_fr))
-            return xy_fr
+            allhits = []
+            if self.debug: print "X rebinned by ",self.rebin," = ",self.hits
+            for X in self.hits:
+                for rxf in range(int(X[0]*self.rebin), int((X[0]+1)*self.rebin)):
+                    for ryf in range(int(X[1]*self.rebin), int((X[1]+1)*self.rebin)):
+                        allhits.append((rxf,ryf,img_fullres[rxf,ryf]))
+            self.hits_fr = np.array(allhits)
+            if self.debug: print "X fullres = ",self.hits_fr
+            return self.hits_fr
     
-    def plotFullResolution(self,th2_fullres,pedmap_fullres,name,option='colz'):
-        # REPETITION!!!! IMPROVE...
-        if self.rebin==1:
-            hits_fr = self.hits
-        else:
-            hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
+    def plotFullResolution(self,name,option='colz'):
+
         border = 15
-        xmin,xmax = (min(hits_fr[:,0])-border, max(hits_fr[:,0])+border)
-        ymin,ymax = (min(hits_fr[:,1])-border, max(hits_fr[:,1])+border)
-        zmax = max(hits_fr[:,2])
+        xmin,xmax = (min(self.hits_fr[:,0])-border, max(self.hits_fr[:,0])+border)
+        ymin,ymax = (min(self.hits_fr[:,1])-border, max(self.hits_fr[:,1])+border)
+        zmax = max(self.hits_fr[:,2])
         nbinsx = int(xmax-xmin)
         nbinsy = int(ymax-ymin)
         snake_fr = ROOT.TH2D(name,'',nbinsx,xmin,xmax,nbinsy,ymin,ymax)
-        for (x,y,z) in hits_fr:
+        for (x,y,z) in self.hits_fr:
             xb = snake_fr.GetXaxis().FindBin(x)
             yb = snake_fr.GetYaxis().FindBin(y)
             snake_fr.SetBinContent(xb,yb,z)

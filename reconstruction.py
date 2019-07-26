@@ -179,32 +179,15 @@ class analysis:
                 self.outTree.fillBranch("event",event)
 
                 pic_fullres = obj.Clone(obj.GetName()+'_fr')
-                
-                # rebin to make the cluster finding fast
-                obj.RebinX(self.rebin); obj.RebinY(self.rebin)
-                obj.Scale(1./float(math.pow(self.rebin,2)))
-
-                # restrict to a subrange
-                if self.options.pedExclRegion:
-                    xmin,xmax = self.options.pedExclRegion.split(',')[0].split(':')
-                    ymin,ymax = self.options.pedExclRegion.split(',')[1].split(':')
-                    h2rs           = ctools.getRestrictedImage(obj,int(xmin),int(xmax),int(ymin),int(ymax))
-                    pic_fullres_rs = ctools.getRestrictedImage(pic_fullres,int(xmin),int(xmax),int(ymin),int(ymax))
-                    pedmap_fr_rs   = ctools.getRestrictedImage(self.pedmap_fr,int(xmin),int(xmax),int(ymin),int(ymax))
-                else:
-                    h2rs = obj
-                    pic_fullres_rs = pic_fullres
-                    pedmap_fr_rs = self.pedmap_fr
-                # applying zero-suppression
-                h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
-                # zs on full image
                 img_fr = hist2array(pic_fullres)
-                img_fr_zs = ctools.zsfullres(img_fr,self.pedarr_fr,self.noisearr_fr,nsigma=2)
+
+                # zs on full image
+                img_fr_zs = ctools.zsfullres(img_fr,self.pedarr_fr,self.noisearr_fr,nsigma=1.5)
                 img_rb_zs = ctools.arrrebin(img_fr_zs,self.rebin)
-                print "zero suppressed full-resolution array: ",img_fr_zs
-                print "zero suppressed rebinned-resolution array: ",img_rb_zs
-                print "shape fr, rebin: ",img_fr_zs.shape, "   ",img_rb_zs.shape
-                print "Zero-suppression done. Now clustering..."
+                # print "zero suppressed full-resolution array: ",img_fr_zs
+                # print "zero suppressed rebinned-resolution array: ",img_rb_zs
+                # print "shape fr, rebin: ",img_fr_zs.shape, "   ",img_rb_zs.shape
+                # print "Zero-suppression done. Now clustering..."
                 
                 
                 #if iev == 3:
@@ -255,11 +238,11 @@ class analysis:
                 # Cluster reconstruction on 2D picture
                 algo = 'DBSCAN'
                 if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_zs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
-                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': True, 'plotprofiles': False}
+                snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_zs, 'name': name, 'algo': algo}
+                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': True, 'plotprofiles': False}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()
-                self.autotree.fillCameraVariables(h2zs,snakes)
+                self.autotree.fillCameraVariables(img_fr_zs,snakes)
                 
                 if False: #self.options.daq != 'btf':
                    # PMT waveform reconstruction
@@ -322,6 +305,10 @@ if __name__ == '__main__':
         from multiprocessing import Pool
         pool = Pool(options.jobs)
         ret = pool.map(ana, chunks)
+        print "Now hadding the chunks..."
+        base = self.options.outFile.split('.')[0]
+        os.system('hadd -f {base} {base}_chunk*.root'.format(base=base))
+        os.system('rm {base}_chunk*.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
         ana.reconstruct()

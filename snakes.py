@@ -90,19 +90,15 @@ class SnakesFactory:
         # make the clustering with DBSCAN algo
         # this kills all macrobins with N photons < 1
         points = np.array(np.nonzero(np.round(self.image))).T.astype(int)
-        print "non zero points = ",points
-        print "shape = ",points.shape
         lp = points.shape[0]
-        print "lp = ",lp
         
-        Xl = [(iy,ix) for ix,iy in points]          # Aux variable to simulate the Z-dimension
+        Xl = [(ix,iy) for ix,iy in points]          # Aux variable to simulate the Z-dimension
         X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
         for ix,iy in points:                        # Looping over the non-empty coordinates
             nreplicas = int(self.image[ix,iy])-1 if tip=='3D' else 1
             for count in range(nreplicas):                                # Looping over the number of 'photons' in that coordinate
-                Xl.append((iy,ix))                              # add a coordinate repeatedly 
+                Xl.append((ix,iy))                              # add a coordinate repeatedly 
         X = np.array(Xl)                                        # Convert the list to an array
-        print "X = ",X
         
         # - - - - - - - - - - - - - -
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X)
@@ -136,8 +132,7 @@ class SnakesFactory:
         #canv = ROOT.TCanvas('c1','',600,600)
         if plot:
             fig = plt.figure(figsize=(10, 10))
-            vmin      = 80; vmax      = 110
-            plt.imshow(self.image,cmap='viridis', vmin=0, vmax=10, origin='lower' )
+            plt.imshow(self.image.T,cmap='viridis', vmin=1, vmax=10, origin='lower' )
             
         for k, col in zip(unique_labels, colors):
             if k == -1:
@@ -153,11 +148,7 @@ class SnakesFactory:
                             
             # only add the cores to the clusters saved in the event
             if k>-1 and len(x)>1:
-                # GetFullResolution Cluster
-                #xy_fr = Cluster.getFullResTrack(self,xy,self.pictureHD,self.pedmapHD)
-                # --- 
-                
-                cl = Cluster(xy,self.rebin)
+                cl = Cluster(xy,self.rebin,self.image_fr,debug=False)
                 cl.iteration = db.tag_[labels == k][0]
                 cl.xmax = max(x)
                 cl.xmin = min(x)
@@ -167,7 +158,7 @@ class SnakesFactory:
                 if plot:
                     xri,yri = tl.getContours(x,y)
                     cline = {1:'r',2:'b',3:'y'}
-                    plt.plot(xri,yri,'-{lcol}'.format(lcol=cline[cl.iteration]),linewidth=1)
+                    plt.plot(xri,yri,'-{lcol}'.format(lcol=cline[cl.iteration]),linewidth=0.5)
                 # if plot: cl.plotAxes(plot=plt,num_steps=100)
                 # cl.calcProfiles(plot=None)
                 # for dir in ['long','lat']:
@@ -177,14 +168,11 @@ class SnakesFactory:
                 #         for ext in ['png','pdf']:
                 #             canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
 
-            # plot also the non-core hits            # xy = X[class_member_mask & ~core_samples_mask]
-            # if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
-            #                   markeredgecolor='k', markersize=6)
-        print "NUMBER OF CLUSTERS = ",len(clusters)
         if plot:
             for ext in ['png','pdf']:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
+            plt.close('all')
             
         return clusters
 
@@ -250,18 +238,14 @@ class SnakesFactory:
 
         return tracks
         
-    def plotClusterFullResolution(self,clusters,th2_fullres,pedmap_fullres):
+    def plotClusterFullResolution(self,clusters):
         outname = self.options.plotDir
         for k,cl in enumerate(clusters):
-            cl.plotFullResolution(th2_fullres,pedmap_fullres,'{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
+            cl.plotFullResolution('{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
 
-    def calcProfiles(self,clusters,th2_fullres=None,pedmap_fullres=None):
+    def calcProfiles(self,clusters):
         for k,cl in enumerate(clusters):
-            if self.rebin==1 or not th2_fullres or not pedmap_fullres:
-                hits = cl.hits
-            else:
-                hits = cl.hitsFullResolution(th2_fullres,pedmap_fullres) if (th2_fullres and pedmap_fullres) else cl.hits
-            cl.calcProfiles(hitscalc=hits,plot=None)
+            cl.calcProfiles(plot=None)
                              
     def plotProfiles(self,clusters):
         outname = self.options.plotDir
@@ -311,20 +295,19 @@ class SnakesProducer:
     def __init__(self,sources,params,options):
         self.picture   = sources['picture']   if 'picture' in sources else None
         self.pictureHD = sources['pictureHD'] if 'pictureHD' in sources else None
-        self.pedmapHD  = sources['pedmapHD']  if 'pedmapHD' in sources else None
         self.name      = sources['name']      if 'name' in sources else None
         self.algo      = sources['algo']      if 'algo' in sources else 'DBSCAN'
         
         self.snakeQualityLevel = params['snake_qual']   if 'snake_qual' in params else 3
-        self.plot2D            = params['plot2D']       if 'plot2D' in params else True
+        self.plot2D            = params['plot2D']       if 'plot2D' in params else False
         self.plotpy            = params['plotpy']       if 'plotpy' in params else False
-        self.plotprofiles      = params['plotprofiles'] if 'plotprofiles' in params else True
+        self.plotprofiles      = params['plotprofiles'] if 'plotprofiles' in params else False
 
         self.options = options
 
     def run(self):
         ret = []
-        if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.pedmapHD,self.name)]):
+        if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.name)]):
             return ret
         
         # Cluster reconstruction on 2D picture
@@ -338,17 +321,17 @@ class SnakesProducer:
             snakes = snfac.getTracks(plot=self.plotpy)            
 
         # print "Get light profiles..."
-        snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
+        snfac.calcProfiles(snakes)
         
         # snfac.calcProfiles(snakes) # this is for BTF
         
-        # sort snakes by longitudinal width
-        snakes = sorted(snakes, key = lambda x: x.widths['long'], reverse=True)
+        # sort snakes by light integral
+        snakes = sorted(snakes, key = lambda x: x.integral(), reverse=True)
         # and reject discharges (round)
         #snakes = [x for x in snakes if x.qualityLevel()>=self.snakeQualityLevel]
         
         # plotting
-        if self.plot2D:       snfac.plotClusterFullResolution(snakes,self.pictureHD,self.pedmapHD)
+        if self.plot2D:       snfac.plotClusterFullResolution(snakes)
         if self.plotprofiles: snfac.plotProfiles(snakes)
 
         return snakes
