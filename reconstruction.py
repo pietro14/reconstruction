@@ -306,9 +306,9 @@ if __name__ == '__main__':
         pool = Pool(options.jobs)
         ret = pool.map(ana, chunks)
         print "Now hadding the chunks..."
-        base = self.options.outFile.split('.')[0]
-        os.system('hadd -f {base} {base}_chunk*.root'.format(base=base))
-        os.system('rm {base}_chunk*.root'.format(base=base))
+        base = options.outFile.split('.')[0]
+        os.system('hadd -f {base}.root {base}_chunk*.root'.format(base=base))
+        #os.system('rm {base}_chunk*.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
         ana.reconstruct()
