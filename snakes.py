@@ -75,13 +75,15 @@ class SnakesFactory:
         #   IDBSCAN parameters  #
         
         scale              = 1
-        iterative          = 1                         # number of iterations for the IDBSC
+        iterative          = 4                         # number of iterations for the IDBSC
         if tip == '3D':
-            vector_eps         = [2.26, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-            vector_min_samples = [30,    15, 28, 13]            # [2, 30, 6, 2]
+#            vector_eps         = [2.26, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
+#            vector_min_samples = [30,    15, 28, 13]            # [2, 30, 6, 2]
+            vector_eps         = [2.26,  3, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
+            vector_min_samples = [30,    55, 28, 13]            # [2, 30, 6, 2]
         else:
             vector_eps         = [2, 2.9, 3.2, 4]
-            vector_min_samples = [2,  18,  17, 7]
+            vector_min_samples = [8,  18,  17, 7]
         
         vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
         cuts               = [0, 0]
@@ -92,15 +94,19 @@ class SnakesFactory:
         # this kills all macrobins with N photons < 1
         points = np.array(np.nonzero(np.round(self.image))).T.astype(int)
         lp = points.shape[0]
-        
-        Xl = [(ix,iy) for ix,iy in points]          # Aux variable to simulate the Z-dimension
-        X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
-        for ix,iy in points:                        # Looping over the non-empty coordinates
-            nreplicas = int(self.image[ix,iy])-1 if tip=='3D' else 1
-            for count in range(nreplicas):                                # Looping over the number of 'photons' in that coordinate
-                Xl.append((ix,iy))                              # add a coordinate repeatedly 
-        X = np.array(Xl)                                        # Convert the list to an array
-        
+
+        if tip=='3D':
+            Xl = [(ix,iy) for ix,iy in points]          # Aux variable to simulate the Z-dimension
+            X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
+            for ix,iy in points:                        # Looping over the non-empty coordinates
+                nreplicas = int(self.image[ix,iy])-1
+                for count in range(nreplicas):                                # Looping over the number of 'photons' in that coordinate
+                    Xl.append((ix,iy))                              # add a coordinate repeatedly 
+            X = np.array(Xl)                                        # Convert the list to an array
+        else:
+            X = points.copy()
+            X1 = X       
+            
         # - - - - - - - - - - - - - -
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X)
         # Returning to '2' dimensions
@@ -132,8 +138,11 @@ class SnakesFactory:
                   for each in np.linspace(0, 1, len(unique_labels))]
         #canv = ROOT.TCanvas('c1','',600,600)
         if plot:
+            #fig_edges = plt.figure(figsize=(10, 10))
+            #plt.imshow(self.image.T, cmap='gray', vmin=0, vmax=1, origin='lower' ) 
+            #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
             fig = plt.figure(figsize=(10, 10))
-            plt.imshow(self.image.T,cmap='viridis', vmin=1, vmax=10, interpolation=None, origin='lower' )
+            plt.imshow(self.image.T,cmap='viridis', vmin=1, vmax=10, interpolation=None, origin='lower' ) 
             
         for k, col in zip(unique_labels, colors):
             if k == -1:

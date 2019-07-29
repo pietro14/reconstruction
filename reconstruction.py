@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
-import matplotlib
-matplotlib.use('Agg')
-
 import os,math,sys,random
 import numpy as np
-import matplotlib.pyplot as plt
 import ROOT
 ROOT.gROOT.SetBatch(True)
 from root_numpy import hist2array
@@ -183,7 +179,7 @@ class analysis:
 
                 # zs on full image
                 img_fr_sub = ctools.pedsub(img_fr,self.pedarr_fr)
-                img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=1.5)
+                img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=2)
                 img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
                 #print "zero suppressed full-resolution array: ",img_fr_zs
                 #print "zero suppressed rebinned-resolution array: ",img_rb_zs
@@ -240,7 +236,7 @@ class analysis:
                 algo = 'DBSCAN'
                 if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
                 snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'name': name, 'algo': algo}
-                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': True, 'plotprofiles': False}
+                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()
                 self.autotree.fillCameraVariables(img_fr_zs,snakes)
@@ -306,7 +302,7 @@ if __name__ == '__main__':
         from multiprocessing import Pool
         pool = Pool(options.jobs)
         ret = pool.map(ana, chunks)
-        print "Now hadding the chunks..."
+        print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         os.system('hadd -f {base}.root {base}_chunk*.root'.format(base=base))
         #os.system('rm {base}_chunk*.root'.format(base=base))
