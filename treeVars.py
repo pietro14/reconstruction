@@ -1,3 +1,5 @@
+import numpy as np
+
 class AutoFillTreeProducer:
     def __init__(self,tree):
         self.outTree = tree
@@ -28,6 +30,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('cmos_integral', 'F')
         self.outTree.branch('cmos_mean', 'F')
         self.outTree.branch('cmos_rms', 'F')
+        self.outTree.branch('track_size', 'F', lenVar='nTrack')
         self.outTree.branch('track_nhits', 'F', lenVar='nTrack')
         self.outTree.branch('track_integral', 'F', lenVar='nTrack')
         self.outTree.branch('track_length', 'F', lenVar='nTrack')
@@ -46,10 +49,11 @@ class AutoFillTreeProducer:
         self.outTree.branch('track_ymin', 'F', lenVar='nTrack')
 
     def fillCameraVariables(self,pic,clusters):
-        self.outTree.fillBranch('cmos_integral',pic.Integral())
-        self.outTree.fillBranch('cmos_mean',pic.GetMean())
-        self.outTree.fillBranch('cmos_rms',pic.GetRMS())
-        self.outTree.fillBranch('track_nhits', [cl.size() for cl in clusters])
+        self.outTree.fillBranch('cmos_integral',np.sum(pic))
+        self.outTree.fillBranch('cmos_mean',np.mean(pic))
+        self.outTree.fillBranch('cmos_rms',np.std(pic))
+        self.outTree.fillBranch('track_size', [cl.size() for cl in clusters])
+        self.outTree.fillBranch('track_nhits', [cl.sizeActive() for cl in clusters])
         self.outTree.fillBranch('track_integral', [cl.integral() for cl in clusters])
         self.outTree.fillBranch('track_length', [cl.shapes['long_width'] for cl in clusters])
         self.outTree.fillBranch('track_width', [cl.shapes['lat_width'] for cl in clusters])

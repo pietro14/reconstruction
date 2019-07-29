@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 
-import matplotlib
-matplotlib.use('Agg')
-
 import os,math,sys,random
 import numpy as np
-import matplotlib.pyplot as plt
 import ROOT
 ROOT.gROOT.SetBatch(True)
+from root_numpy import hist2array
 from cameraChannel import cameraTools
 
 from snakes import SnakesProducer
@@ -35,9 +32,12 @@ class analysis:
         if not options.justPedestal:
            print("Pulling pedestals...")
            # first the one for clustering with rebin
+           ctools = cameraTools()
            pedrf = ROOT.TFile.Open(self.pedfile_name)
            self.pedmap = pedrf.Get('pedmap').Clone()
            self.pedmap.SetDirectory(None)
+           self.pedarr = hist2array(self.pedmap)
+           self.noisearr = ctools.noisearray(self.pedmap)
            #self.pedmean = pedrf.Get('pedmean').GetMean()
            #self.pedrms = pedrf.Get('pedrms').GetMean()
            pedrf.Close()
@@ -45,6 +45,8 @@ class analysis:
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
            self.pedmap_fr.SetDirectory(None)
+           self.pedarr_fr = hist2array(self.pedmap_fr)
+           self.noisearr_fr = ctools.noisearray(self.pedmap_fr)
            pedrf_fr.Close()
 
     # the following is needed for multithreading
@@ -173,23 +175,15 @@ class analysis:
                 self.outTree.fillBranch("event",event)
 
                 pic_fullres = obj.Clone(obj.GetName()+'_fr')
-                # rebin to make the cluster finding fast
-                obj.RebinX(self.rebin); obj.RebinY(self.rebin)
-                obj.Scale(1./float(math.pow(self.rebin,2)))
+                img_fr = hist2array(pic_fullres)
 
-                # restrict to a subrange
-                if self.options.pedExclRegion:
-                    xmin,xmax = self.options.pedExclRegion.split(',')[0].split(':')
-                    ymin,ymax = self.options.pedExclRegion.split(',')[1].split(':')
-                    h2rs           = ctools.getRestrictedImage(obj,int(xmin),int(xmax),int(ymin),int(ymax))
-                    pic_fullres_rs = ctools.getRestrictedImage(pic_fullres,int(xmin),int(xmax),int(ymin),int(ymax))
-                    pedmap_fr_rs   = ctools.getRestrictedImage(self.pedmap_fr,int(xmin),int(xmax),int(ymin),int(ymax))
-                else:
-                    h2rs = obj
-                    pic_fullres_rs = pic_fullres
-                    pedmap_fr_rs = self.pedmap_fr
-                # applying zero-suppression
-                h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
+                # zs on full image
+                img_fr_sub = ctools.pedsub(img_fr,self.pedarr_fr)
+                img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=2)
+                img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                #print "zero suppressed full-resolution array: ",img_fr_zs
+                #print "zero suppressed rebinned-resolution array: ",img_rb_zs
+                #print "shape fr, rebin: ",img_fr_zs.shape, "   ",img_rb_zs.shape
                 #print "Zero-suppression done. Now clustering..."
                 
                 
@@ -241,11 +235,11 @@ class analysis:
                 # Cluster reconstruction on 2D picture
                 algo = 'DBSCAN'
                 if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
-                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': False, 'plotprofiles': True}
+                snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'name': name, 'algo': algo}
+                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()
-                self.autotree.fillCameraVariables(h2zs,snakes)
+                self.autotree.fillCameraVariables(img_fr_zs,snakes)
                 
                 if False: #self.options.daq != 'btf':
                    # PMT waveform reconstruction
@@ -299,6 +293,7 @@ if __name__ == '__main__':
     nev = ana.getNEvents() if options.maxEntries == -1 else int(options.maxEntries)
     print("This run has ",nev," events.")
     print("Will save plots to ",options.plotDir)
+    os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
     if options.jobs>1:
         nj = int(nev/options.jobs)
@@ -307,6 +302,10 @@ if __name__ == '__main__':
         from multiprocessing import Pool
         pool = Pool(options.jobs)
         ret = pool.map(ana, chunks)
+        print("Now hadding the chunks...")
+        base = options.outFile.split('.')[0]
+        os.system('hadd -f {base}.root {base}_chunk*.root'.format(base=base))
+        #os.system('rm {base}_chunk*.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
         ana.reconstruct()

@@ -55,3 +55,4 @@ class utils:
         else:
             y = random.choice([top, bottom])
         return x, y 
+
