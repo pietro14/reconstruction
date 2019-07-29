@@ -24,10 +24,12 @@ class cameraGeometry:
 class cameraTools:
     def __init__(self):
         pass
-        
-    def zsfullres(self,img,pedarr,noisearr,nsigma=1):
-        img_sub   = img - (pedarr + nsigma * noisearr)
-        img_zs = np.where(img_sub > 0, img_sub, 0)
+
+    def pedsub(self,img,pedarr):
+        return img - pedarr
+    
+    def zsfullres(self,img_sub,noisearr,nsigma=1):
+        img_zs = np.where(img_sub > nsigma * noisearr, img_sub, 0)
         return img_zs
         
     def arrrebin(self,img,rebin):

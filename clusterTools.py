@@ -11,12 +11,12 @@ import utilities
 utilities = utilities.utils()
 
 class Cluster:
-    def __init__(self,hits,rebin,img_fr,debug=False):
+    def __init__(self,hits,rebin,img_fr,img_fr_zs,debug=False):
         self.hits = hits
         self.rebin = rebin
         self.debug = debug
         self.x = hits[:, 0]; self.y = hits[:, 1]
-        self.hits_fr = self.fullResHits(img_fr)
+        self.hits_fr,self.hits_fr_zs = self.fullResHits(img_fr,img_fr_zs)
         self.mean_point = np.array([np.mean(self.x),np.mean(self.y)])
         self.EVs = self.eigenvectors()
         self.widths = {}
@@ -42,7 +42,12 @@ class Cluster:
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)
         else: return 0
-        
+
+    def sizeActive(self):
+        if hasattr(self,'hits_fr_zs'):
+            return len(self.hits_fr_zs)
+        else: return 0
+
     def iterations(self):
         if hasattr(self,'iteration'):
             return self.iteration
@@ -217,22 +222,23 @@ class Cluster:
         prof.SetLineColor(ROOT.kGray)
         prof.SetLineWidth(1)        
         
-    def fullResHits(self,img_fullres):
-        if hasattr(self,'hits_fr'):
-            return self.hits_fr
-        if self.rebin == 1:
-            self.hits_fr = self.hits
-            return self.hits
-        else:
-            allhits = []
-            if self.debug: print "X rebinned by ",self.rebin," = ",self.hits
-            for X in self.hits:
-                for rxf in range(int(X[0]*self.rebin), int((X[0]+1)*self.rebin)):
-                    for ryf in range(int(X[1]*self.rebin), int((X[1]+1)*self.rebin)):
-                        allhits.append((rxf,ryf,img_fullres[rxf,ryf]))
-            self.hits_fr = np.array(allhits)
-            if self.debug: print "X fullres = ",self.hits_fr
-            return self.hits_fr
+    def fullResHits(self,img_fullres,img_fullres_zs):
+        if hasattr(self,'hits_fr') and  hasattr(self,'hits_fr_zs'):
+            return self.hits_fr,self.hits_fr_zs
+        allhits = []
+        activehits = []
+        if self.debug: print "X rebinned by ",self.rebin," = ",self.hits
+        for X in self.hits:
+            for rxf in range(int(X[0]*self.rebin), int((X[0]+1)*self.rebin)):
+                for ryf in range(int(X[1]*self.rebin), int((X[1]+1)*self.rebin)):
+                    allhits.append((rxf,ryf,img_fullres[rxf,ryf]))
+                    # this has the zero-suppression done with the right pixel n*sigma
+                    if img_fullres_zs[rxf,ryf]>0:
+                        activehits.append((rxf,ryf,img_fullres_zs[rxf,ryf]))
+        hits_fr    = np.array(allhits)
+        hits_fr_zs = np.array(activehits)
+        if self.debug: print "X fullres = ",hits_fr
+        return hits_fr,hits_fr_zs
     
     def plotFullResolution(self,name,option='colz'):
 

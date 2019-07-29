@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import debug_code.tools_lib as tl
 
 class SnakesFactory:
-    def __init__(self,img,img_fr,name,options):
+    def __init__(self,img,img_fr,img_fr_zs,name,options):
         self.name = name
         self.options = options
         self.rebin = options.rebin
@@ -31,7 +31,8 @@ class SnakesFactory:
         for (x,y),value in np.ndenumerate(self.image):
             if value > 3.0/math.sqrt(self.rebin): # tresholding needed for tracking
                 self.imagelog[x,y] = math.log(value)
-        self.image_fr = img_fr
+        self.image_fr    = img_fr
+        self.image_fr_zs = img_fr_zs
         self.contours = []
         
     def store_evolution_in(self,lst):
@@ -62,7 +63,7 @@ class SnakesFactory:
         self.contours = ls
         return ls
 
-    def getClusters(self,maxDist=1000,minPoints=20,minPointsCore=10,plot=True):
+    def getClusters(self,plot=True):
 
         from sklearn.cluster import DBSCAN
         from iDBSCAN import iDBSCAN
@@ -74,10 +75,10 @@ class SnakesFactory:
         #   IDBSCAN parameters  #
         
         scale              = 1
-        iterative          = 4                         # number of iterations for the IDBSC
+        iterative          = 1                         # number of iterations for the IDBSC
         if tip == '3D':
             vector_eps         = [2.26, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-            vector_min_samples = [2,  15,  28, 13]            # [2, 30, 6, 2]
+            vector_min_samples = [30,    15, 28, 13]            # [2, 30, 6, 2]
         else:
             vector_eps         = [2, 2.9, 3.2, 4]
             vector_min_samples = [2,  18,  17, 7]
@@ -132,7 +133,7 @@ class SnakesFactory:
         #canv = ROOT.TCanvas('c1','',600,600)
         if plot:
             fig = plt.figure(figsize=(10, 10))
-            plt.imshow(self.image.T,cmap='viridis', vmin=1, vmax=10, origin='lower' )
+            plt.imshow(self.image.T,cmap='viridis', vmin=1, vmax=10, interpolation=None, origin='lower' )
             
         for k, col in zip(unique_labels, colors):
             if k == -1:
@@ -148,7 +149,7 @@ class SnakesFactory:
                             
             # only add the cores to the clusters saved in the event
             if k>-1 and len(x)>1:
-                cl = Cluster(xy,self.rebin,self.image_fr,debug=False)
+                cl = Cluster(xy,self.rebin,self.image_fr,self.image_fr_zs,debug=False)
                 cl.iteration = db.tag_[labels == k][0]
                 cl.xmax = max(x)
                 cl.xmin = min(x)
@@ -293,10 +294,11 @@ class SnakesFactory:
 
 class SnakesProducer:
     def __init__(self,sources,params,options):
-        self.picture   = sources['picture']   if 'picture' in sources else None
-        self.pictureHD = sources['pictureHD'] if 'pictureHD' in sources else None
-        self.name      = sources['name']      if 'name' in sources else None
-        self.algo      = sources['algo']      if 'algo' in sources else 'DBSCAN'
+        self.picture     = sources['picture']     if 'picture' in sources else None
+        self.pictureHD   = sources['pictureHD']   if 'pictureHD' in sources else None
+        self.picturezsHD = sources['picturezsHD'] if 'picturezsHD' in sources else None
+        self.name        = sources['name']        if 'name' in sources else None
+        self.algo        = sources['algo']        if 'algo' in sources else 'DBSCAN'
         
         self.snakeQualityLevel = params['snake_qual']   if 'snake_qual' in params else 3
         self.plot2D            = params['plot2D']       if 'plot2D' in params else False
@@ -307,11 +309,11 @@ class SnakesProducer:
 
     def run(self):
         ret = []
-        if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.name)]):
+        if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.picturezsHD.any(),self.name)]):
             return ret
         
         # Cluster reconstruction on 2D picture
-        snfac = SnakesFactory(self.picture,self.pictureHD,self.name,self.options)
+        snfac = SnakesFactory(self.picture,self.pictureHD,self.picturezsHD,self.name,self.options)
 
         # this plotting is only the pyplot representation.
         # Doesn't work on MacOS with multithreading for some reason... 
