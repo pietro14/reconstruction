@@ -310,3 +310,9 @@ if __name__ == '__main__':
         ana.beginJob(options.outFile)
         ana.reconstruct()
         ana.endJob()
+
+    # now add the git commit hash to track the version in the ROOT file
+    tf = ROOT.TFile.Open(options.outFile,'update')
+    githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
+    githash.Write()
+    tf.Close()
