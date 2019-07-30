@@ -136,10 +136,13 @@ class Cluster:
             latprof.SetDirectory(None)
         else: latprof = None
         
+        cluth2d = ROOT.TH2D('cluth2d','',int(length)+2,0,int(length)+2, int(width)+2,0,int(width)+2)
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
             if longprof: longprof.Fill((x-rxmin),z)
             if latprof: latprof.Fill((y-rymin),z)
+            # if a neighbor (rounded) has 0 or little, do not kill a good illuminated pixel for that, at a cost of a little shape bias
+            cluth2d.SetBinContent(int(np.round(x-rxmin))+1,int(np.round(y-rymin))+1,z)
 
         profiles = [longprof,latprof]
         titles = ['longitudinal','transverse']
@@ -156,6 +159,12 @@ class Cluster:
         # just used as the starting values in clusterShapes()
         self.widths['long'] = length
         self.widths['lat'] = width
+        # variances along major/minor axis
+        self.shapes['longrms'] = cluth2d.ProjectionX().GetRMS()
+        self.shapes['latrms'] = cluth2d.ProjectionY().GetRMS()
+
+        self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+        self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
 
         # get the peaks inside the profile
         for direction in ['lat','long']:
