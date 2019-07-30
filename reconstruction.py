@@ -238,7 +238,7 @@ if __name__ == '__main__':
     
     for k,v in params.items():
         setattr(options,k,v)
-    setattr(options,'outFile','reco_run%s_%s' % (options.run, options.tip))
+    setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
     setattr(options,'pedfile_name', 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure, options.rebin))
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_ex%d_rebin1.root' % (options.pedexposure))
     inputf = inputFile(options.run, options.dir, options.daq)
