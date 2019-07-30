@@ -70,23 +70,19 @@ class SnakesFactory:
         from sklearn import metrics
         from scipy.spatial import distance
         
-        tip = '3D'
+        tip = self.options.tip
         
         #   IDBSCAN parameters  #
         
         scale              = 1
-        iterative          = 4                         # number of iterations for the IDBSC
-        if tip == '3D':
-#            vector_eps         = [2.26, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-#            vector_min_samples = [30,    15, 28, 13]            # [2, 30, 6, 2]
-            vector_eps         = [2.26,  3, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-            vector_min_samples = [30,    55, 28, 13]            # [2, 30, 6, 2]
-        else:
-            vector_eps         = [2, 2.9, 3.2, 4]
-            vector_min_samples = [8,  18,  17, 7]
+        iterative          = self.options.iterative                         # number of iterations for the IDBSC
         
-        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
-        cuts               = [0, 0]
+        vector_eps         = self.options.vector_eps
+        vector_min_samples = self.options.vector_min_samples
+
+        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)
+        vector_min_samples = list(np.array(vector_min_samples, dtype=float)*scale)
+        cuts               = self.options.cuts
         
         #-----------------------#
         

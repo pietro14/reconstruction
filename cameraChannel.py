@@ -33,7 +33,7 @@ class cameraTools:
         return img_zs
         
     def arrrebin(self,img,rebin):
-        newshape = 2048/rebin
+        newshape = int(2048/rebin)
         img_rebin = tl.rebin(img,(newshape,newshape))
         return img_rebin
         

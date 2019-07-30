@@ -23,3 +23,15 @@ def getContours(xbox,ybox):
 def rebin(a, shape):
     sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
     return a.reshape(sh).mean(-1).mean(1)
+
+def inputFile(numrun,filedir,formattype):
+
+    ## Loading image for analysis
+    # otherwise use 'mid'
+    if formattype == 'h5':
+        imagename     = 'histogram_Run'
+    else:
+        imagename     = 'histograms_Run'
+
+    filename = '%s%s%s.root' % (filedir,imagename,numrun)
+    return filename

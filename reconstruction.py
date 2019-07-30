@@ -21,11 +21,13 @@ class analysis:
         self.rebin = options.rebin        
         self.rfile = rfile
         self.options = options
-        self.pedfile_name = 'pedestals/pedmap_818_rebin4.root'
+        #self.pedfile_name = 'pedestals/pedmap_818_rebin4.root'
+        self.pedfile_name = options.pedfile_name
         if not os.path.exists(self.pedfile_name):
             print("WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them...")
             self.calcPedestal(options)
-        self.pedfile_fullres_name = 'pedestals/pedmap_818_rebin1.root'
+        self.pedfile_fullres_name = options.pedfile_fullres_name    
+        #self.pedfile_fullres_name = 'pedestals/pedmap_818_rebin1.root'
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
@@ -186,52 +188,6 @@ class analysis:
                 #print "shape fr, rebin: ",img_fr_zs.shape, "   ",img_rb_zs.shape
                 #print "Zero-suppression done. Now clustering..."
                 
-                
-                #if iev == 3:
-                #print(obj.GetName())
-                #from root_numpy import hist2array
-                #test = hist2array(h2zs)
-                #np.savetxt('test.txt',test)
-                # ---- DEBUG ---- #
-                #if debug = True:
-                #from root_numpy import hist2array
-                #X1 = hist2array(pic_fullres)
-                #X2 = hist2array(pedmap_fr_rs)
-                #X3 = hist2array(h2rs)
-                #X4 = hist2array(self.pedmap)
-                
-                #fig, ax = plt.subplots(2,2,figsize=(30, 30))
-                #ax[0,0].imshow(X1,cmap="viridis", vmin=85,vmax=110,origin='lower' )
-                #ax[0,0].set_title("Pic_fullres")
-                #ax[0,1].imshow(X2,cmap="viridis", vmin=85,vmax=110,origin='lower' )
-                #ax[0,1].set_title("Pedmap Fullres")
-                #ax[1,0].imshow(X3,cmap="viridis", vmin=85,vmax=110,origin='lower' )
-                #ax[1,0].set_title("h2 Rescaled")
-                #ax[1,1].imshow(X4,cmap="viridis", vmin=85,vmax=110,origin='lower' )
-                #ax[1,1].set_title("Pedmap Rescaled")
-                #plt.savefig('./Debug1.png', format='png')
-                #plt.close('all')
-               # 
-                #X5 = hist2array(h2zs)
-               # print('min: ', np.min(X5))
-               # print('max: ', np.max(X5))
-               # X6 = hist2array(h2unzs)
-               # print('min: ', np.min(X6))
-               # print('max: ', np.max(X6))
-               # print('Shape: ', np.shape(X6))
-               # 
-               # fig, ax = plt.subplots(1,2,figsize=(20, 10))
-               # ax[0].imshow(X5,cmap="viridis", vmin=0,vmax=10,origin='lower' )
-               # ax[0].set_title("Hist Zero-suppression")
-               # ax[1].imshow(X6,cmap="viridis", vmin=-5.5,vmax=15,origin='lower' )
-               # ax[1].set_title("Hist UN Zero-suppression")
-               # plt.savefig('./Debug2.png', format='png')
-               # plt.close('all')
-               # 
-                
-                # ^^^^ DEBUG ^^^^ #
-                #print("nX,nY={nx},{ny}".format(nx=h2zs.GetNbinsX(),ny=h2zs.GetNbinsY()))
-                
                 # Cluster reconstruction on 2D picture
                 algo = 'DBSCAN'
                 if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
@@ -266,23 +222,26 @@ class analysis:
 
                 
 if __name__ == '__main__':
-
+    
     from optparse import OptionParser
+    from debug_code.tools_lib import inputFile
+    
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
-    parser.add_option("-o","--out", dest="outFile", type="string", default="reco.root", help="name of the output root file");
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel')
-    parser.add_option('-r', '--rebin', dest='rebin', default=4, type='int', help='Rebin factor (same in x and y)')
-    parser.add_option(      '--numPedEvents', dest='numPedEvents', default=-1, type='float', help='Use the last n events to calculate the pedestal. Default is all events')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
-    parser.add_option('-p', '--pedestal', dest='justPedestal', default=False, action='store_true', help='Just compute the pedestals, do not run the analysis')
-    parser.add_option(      '--exclude-region', dest='pedExclRegion', default=None, type='string', help='Exclude a rectangular region for pedestals. In the form "xmin:xmax,ymin:ymax"')
-    parser.add_option(       '--daq', dest="daq", type="string", default="midas", help="DAQ type (btf/h5/midas)");
-    parser.add_option(       '--type', dest="type", type="string", default="neutrons", help="events type (beam/cosmics/neutrons)");
     
     (options, args) = parser.parse_args()
-
-    inputf = args[0]
+    
+    f = open(args[0], "r")
+    params = eval(f.read())
+    
+    for k,v in params.items():
+        setattr(options,k,v)
+    setattr(options,'outFile','reco_run%s_%s' % (options.run, options.tip))
+    setattr(options,'pedfile_name', 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure, options.rebin))
+    setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_ex%d_rebin1.root' % (options.pedexposure))
+    inputf = inputFile(options.run, options.dir, options.daq)
 
     if options.justPedestal:
         ana = analysis(inputf,options)
