@@ -145,23 +145,37 @@ def addPlotterOptions(parser):
 if __name__ == '__main__':
 
     from optparse import OptionParser
-    parser = OptionParser(usage="%prog [options] tree*.root plotfile.txt")
+    parser = OptionParser(usage="%prog [options] tree.root cutfile.txt plotfile.txt")
     addPlotterOptions(parser)
     (options, args) = parser.parse_args()
-    if len(args) == 0:
-        print "You must specify at least one tree to fit"
-    ROOT.gROOT.SetBatch(True)
-    ROOT.gROOT.ProcessLine(".x ~/cpp/tdrstyle.cc")
+
+    if len(args)<3:
+        print "You need to give at least tree.root cutfile.txt plotfile.txt. Exiting."
+        sys.exit(0)
+
+    inputf   = args[0]
+    cutfile  = args[1] 
+    plotfile = args[2]
+    
+    tf = ROOT.TFile(inputf)
+    tree = tf.Get('Events')
+
+    fileo = open(cutfile,'r')
+    cuts = eval(fileo.read())
+    cut = ' && '.join([c for k,c in cuts.iteritems()])
+    
+    if options.cut:
+        cut += ' && '+options.cut
+    print "Full cut applied = ",cut
+        
     if not os.path.exists(options.printDir):
         os.system("mkdir -p "+options.printDir)
-        if os.path.exists("~/cernbox/www"): os.system("cp ~/cernbox/www/Analysis/WMass/13TeV/plots/fit/index.php "+options.printDir)
-    tree = ROOT.TChain("Events")
-    for fname in args: tree.Add(fname)
-
-    plots = PlotFile(args[1],options)
+        os.system('cp ../utils/index.php '+options.printDir)
+        
+    plots = PlotFile(plotfile,options)
 
     outname = 'fngplots.root'
     outfile  = ROOT.TFile(outname,"recreate")
     plotter = PlotMaker(tree,outfile,options)
-    plotter.run(options.cut,plots)
+    plotter.run(cut,plots)
     outfile.Close()
