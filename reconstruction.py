@@ -163,6 +163,8 @@ class analysis:
             if iev<2: continue
             ######################
             
+            if self.options.debug_mode == 1 and iev != self.options.ev: continue
+            
             if obj.InheritsFrom('TH2'):
                 # DAQ convention
                 # BTF convention
@@ -238,7 +240,11 @@ if __name__ == '__main__':
     
     for k,v in params.items():
         setattr(options,k,v)
-    setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
+    if options.debug_mode == 1:
+        setattr(options,'outFile','reco_run%s_%s_debug.root' % (options.run, options.tip))
+        if options.nclu: options.maxEntries = options.nclu + 1
+    else:
+        setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
     setattr(options,'pedfile_name', 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure, options.rebin))
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_ex%d_rebin1.root' % (options.pedexposure))
     inputf = inputFile(options.run, options.dir, options.daq)

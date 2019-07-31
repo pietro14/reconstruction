@@ -1,6 +1,8 @@
 {
 # DEBUG plots
 'debug_mode'          : 1,
+'ev'                  : 2,
+'nclu'                : 2,        # None
 # Plots that will be made if debug_mode = 1
 'flag_full_image'     : 1,
 'flag_rebin_image'    : 1,

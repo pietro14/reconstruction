@@ -73,6 +73,11 @@ class Cluster:
             return self.ymin
         else: return 0
         
+    def getNclu(self):
+        if hasattr(self,'nclu'):
+            return self.nclu
+        else: return 0
+        
     def dump(self):
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)

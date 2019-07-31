@@ -161,6 +161,7 @@ class SnakesFactory:
                 cl.xmin = min(x)
                 cl.ymax = max(y)
                 cl.ymin = min(y)
+                cl.nclu = k
                 clusters.append(cl)
                 if plot:
                     xri,yri = tl.getContours(x,y)
@@ -338,7 +339,28 @@ class SnakesFactory:
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='all', ext=ext, tip=self.options.tip))
                 plt.gcf().clear()
-                plt.close('all')           
+                plt.close('all')
+                
+            if self.options.nclu:
+                print('[Plotting just the cluster %d]' % (self.options.nclu))
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.title('Plotting just the cluster %d' % (self.options.nclu))
+                
+                cl_mask = (db.labels_ == self.options.nclu)
+         
+                xy = X1[cl_mask]
+                xbox = xy[:, 1] 
+                ybox = xy[:, 0]
+
+                if (len(ybox) > 0) and (len(xbox) > 0):
+                    xri,yri = tl.getContours(xbox,ybox)
+                    plt.plot(xri,yri, '-r',linewidth=0.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{tip}_{nclu}.{ext}'.format(pdir=outname, name=self.name, ext=ext, tip = self.options.tip, nclu = self.options.nclu))
+                plt.gcf().clear()
+                plt.close('all')
             
         return clusters
 
