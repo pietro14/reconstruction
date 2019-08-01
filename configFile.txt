@@ -1,8 +1,8 @@
 {
 # DEBUG plots
 'debug_mode'          : 1,
-'ev'                  : 2,
-'nclu'                : 2,        # None
+'ev'                  : 86,
+'nclu'                : None,        # None
 # Plots that will be made if debug_mode = 1
 'flag_full_image'     : 1,
 'flag_rebin_image'    : 1,
@@ -12,6 +12,7 @@
 'flag_third_it'       : 1,
 'flag_stats'          : 1,
 'flag_all_it'         : 1,
+'flag_plot_noise'     : 1,
 
 # Parameters of the plots
 'cmapcolor'           : 'gray',
@@ -27,8 +28,8 @@
 'pedexposure'         : 100,
 'justPedestal'        : False,
 'dir'                 : '',
-'run'                 : '00815',                 # uses always 5 characters
-'daq'                 : 'h5',                    # DAQ type (btf/h5/midas)
+'run'                 : '00048',                 # uses always 5 characters
+'daq'                 : 'midas',                    # DAQ type (btf/h5/midas)
 'type'                : 'neutrons',              # events type (beam/cosmics/neutrons)
 
 
@@ -36,7 +37,7 @@
 
 'iterative'           : 4,
 'tip'                 : '3D',
-'vector_eps'          : [2.26, 3, 3.5, 4],
-'vector_min_samples'  : [30,  55,  28, 13],
+'vector_eps'          : [2.26, 3, 4, 5],
+'vector_min_samples'  : [25,  45,  30, 15],
 'cuts'                : [0, 0]
 }
