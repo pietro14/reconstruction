@@ -37,7 +37,7 @@
 
 'iterative'           : 4,
 'tip'                 : '3D',
-'vector_eps'          : [2.26, 3, 4, 5],
-'vector_min_samples'  : [25,  45,  30, 15],
+'vector_eps'          : [2.26, 3, 3.5, 4],
+'vector_min_samples'  : [30,  55,  28, 13],
 'cuts'                : [0, 0]
 }
