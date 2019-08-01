@@ -73,6 +73,11 @@ class Cluster:
             return self.ymin
         else: return 0
         
+    def getNclu(self):
+        if hasattr(self,'nclu'):
+            return self.nclu
+        else: return 0
+        
     def dump(self):
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)
@@ -236,7 +241,7 @@ class Cluster:
             return self.hits_fr,self.hits_fr_zs
         allhits = []
         activehits = []
-        if self.debug: print "X rebinned by ",self.rebin," = ",self.hits
+        if self.debug: print("X rebinned by ",self.rebin," = ",self.hits)
         for X in self.hits:
             for rxf in range(int(X[0]*self.rebin), int((X[0]+1)*self.rebin)):
                 for ryf in range(int(X[1]*self.rebin), int((X[1]+1)*self.rebin)):
@@ -246,7 +251,7 @@ class Cluster:
                         activehits.append((rxf,ryf,img_fullres_zs[rxf,ryf]))
         hits_fr    = np.array(allhits)
         hits_fr_zs = np.array(activehits)
-        if self.debug: print "X fullres = ",hits_fr
+        if self.debug: print("X fullres = ",hits_fr)
         return hits_fr,hits_fr_zs
     
     def plotFullResolution(self,name,option='colz'):

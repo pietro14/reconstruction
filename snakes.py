@@ -70,29 +70,25 @@ class SnakesFactory:
         from sklearn import metrics
         from scipy.spatial import distance
         
-        tip = '3D'
+        tip = self.options.tip
         
         #   IDBSCAN parameters  #
         
         scale              = 1
-        iterative          = 4                         # number of iterations for the IDBSC
-        if tip == '3D':
-#            vector_eps         = [2.26, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-#            vector_min_samples = [30,    15, 28, 13]            # [2, 30, 6, 2]
-            vector_eps         = [2.26,  3, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-            vector_min_samples = [30,    55, 28, 13]            # [2, 30, 6, 2]
-        else:
-            vector_eps         = [2, 2.9, 3.2, 4]
-            vector_min_samples = [8,  18,  17, 7]
+        iterative          = self.options.iterative                         # number of iterations for the IDBSC
         
-        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
-        cuts               = [0, 0]
+        vector_eps         = self.options.vector_eps
+        vector_min_samples = self.options.vector_min_samples
+
+        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)
+        vector_min_samples = list(np.array(vector_min_samples, dtype=float)*scale)
+        cuts               = self.options.cuts
         
         #-----------------------#
         
         # make the clustering with DBSCAN algo
         # this kills all macrobins with N photons < 1
-        points = np.array(np.nonzero(np.round(self.image))).T.astype(int)
+        points = np.array(np.nonzero(np.round(self.image))).astype(int).T
         lp = points.shape[0]
 
         if tip=='3D':
@@ -142,7 +138,8 @@ class SnakesFactory:
             #plt.imshow(self.image.T, cmap='gray', vmin=0, vmax=1, origin='lower' ) 
             #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
             fig = plt.figure(figsize=(10, 10))
-            plt.imshow(self.image.T,cmap='viridis', vmin=1, vmax=10, interpolation=None, origin='lower' ) 
+            plt.imshow(self.image,cmap='viridis', vmin=1, vmax=10, interpolation=None, origin='lower' ) 
+            #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
             
         for k, col in zip(unique_labels, colors):
             if k == -1:
@@ -164,6 +161,7 @@ class SnakesFactory:
                 cl.xmin = min(x)
                 cl.ymax = max(y)
                 cl.ymin = min(y)
+                cl.nclu = k
                 clusters.append(cl)
                 if plot:
                     xri,yri = tl.getContours(x,y)
@@ -183,6 +181,186 @@ class SnakesFactory:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
             plt.gcf().clear()
             plt.close('all')
+            
+        ## DEBUG MODE
+        if self.options.debug_mode == 1:
+            print('[DEBUG-MODE ON]')
+            print('[%s Method]' % (self.options.tip))
+            
+            if self.options.flag_full_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image_fr,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.title("Original Image")
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext))
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_rebin_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.title("Rebin Image")
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='rebinIma',ext=ext))
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_edges_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=0,vmax=1,origin='lower' )
+                plt.title("Edges Image")
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='edgesIma',ext=ext))
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_stats == 1:
+                print('[Statistics]')
+                n_clusters_ = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
+                print("Total number of Clusters: %d" % (n_clusters_))
+                u,indices = np.unique(db.labels_,return_index = True)
+                print("Clusters found in iteration 1: %d" % (sum(db.tag_[indices] == 1)))
+                print("Clusters found in iteration 2: %d" % (sum(db.tag_[indices] == 2)))
+                print("Clusters found in iteration 3: %d" % (sum(db.tag_[indices] == 3)))
+                
+            if self.options.flag_first_it == 1:
+                print('[Plotting 1st iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in list(np.where(db.tag_[indices] == 1)[0])]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.title("Clusters found in iteration 1")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        xri,yri = tl.getContours(xbox,ybox)
+                        plt.plot(xri,yri, '-r',linewidth=0.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip))
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_second_it == 1:
+                print('[Plotting 2nd iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in list(np.where(db.tag_[indices] == 2)[0])]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.title("Clusters found in iteration 2")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        xri,yri = tl.getContours(xbox,ybox)
+                        plt.plot(xri,yri, '-b',linewidth=0.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='2nd', ext=ext, tip=self.options.tip))
+                plt.gcf().clear()
+                plt.close('all')
+                    
+                    
+            if self.options.flag_third_it == 1:
+                print('[Plotting 3rd iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in list(np.where(db.tag_[indices] == 3)[0])]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.title("Clusters found in iteration 3")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        xri,yri = tl.getContours(xbox,ybox)
+                        plt.plot(xri,yri, '-y',linewidth=0.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='3rd', ext=ext, tip=self.options.tip))
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_all_it == 1:
+                print('[Plotting ALL iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in list(np.where(db.tag_[indices] == 1)[0])]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.title("Final Image")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        xri,yri = tl.getContours(xbox,ybox)
+                        line, = plt.plot(xri,yri, '-r',linewidth=0.5)
+                        if j == 0:
+                            line.set_label('1st Iteration')
+
+                clu = [X1[db.labels_ == i] for i in list(np.where(db.tag_[indices] == 2)[0])]
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+                    
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        xri,yri = tl.getContours(xbox,ybox)
+                        line, = plt.plot(xri,yri, '-b',linewidth=0.5)
+                        if j == 0:
+                            line.set_label('2nd Iteration')
+
+                clu = [X1[db.labels_ == i] for i in list(np.where(db.tag_[indices] == 3)[0])]
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        xri,yri = tl.getContours(xbox,ybox)
+                        line, = plt.plot(xri,yri, '-y',linewidth=0.5)
+                        if j == 0:
+                            line.set_label('3rd Iteration')
+                plt.legend()
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='all', ext=ext, tip=self.options.tip))
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.nclu:
+                print('[Plotting just the cluster %d]' % (self.options.nclu))
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.title('Plotting just the cluster %d' % (self.options.nclu))
+                
+                cl_mask = (db.labels_ == self.options.nclu)
+         
+                xy = X1[cl_mask]
+                xbox = xy[:, 1] 
+                ybox = xy[:, 0]
+
+                if (len(ybox) > 0) and (len(xbox) > 0):
+                    xri,yri = tl.getContours(xbox,ybox)
+                    plt.plot(xri,yri, '-r',linewidth=0.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{tip}_{nclu}.{ext}'.format(pdir=outname, name=self.name, ext=ext, tip = self.options.tip, nclu = self.options.nclu))
+                plt.gcf().clear()
+                plt.close('all')
             
         return clusters
 
