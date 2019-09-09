@@ -5,9 +5,9 @@ from root_numpy import hist2array
 
 def showPic(filen,run,event):
      tf = ROOT.TFile(filen)
-     th2name = "run{run}_{event:05}".format(run=run,event=event)
+     th2name = "pic_run{run:05}_ev{event}".format(run=run,event=event)
      print "--> ",th2name
-     th2 = tf.Get("run{run}_{event:05}".format(run=run,event=event))
+     th2 = tf.Get(th2name)
      arr = hist2array(th2)
      fig = plt.figure(figsize=(10, 10))
      plt.imshow(arr.T,cmap='viridis', vmin=85, vmax=110, origin='lower' )
