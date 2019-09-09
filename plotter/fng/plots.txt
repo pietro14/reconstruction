@@ -1,7 +1,11 @@
-uncalibEnergy  : track_integral             : 100,0.,50000.  ; XTitle="Cluster light (photons)", IncludeOverflows=True, FillColor=ROOT.kAzure+3, Logy=True
-energy         : track_integral*5.9/832.    : 100,0.,300.    ; XTitle="Cluster energy (keV)",    IncludeOverflows=True, FillColor=ROOT.kAzure+3, Logy=True
-nhits          : track_nhits                : 100,0.,4000.   ; XTitle="Cluster active pixels",   IncludeOverflows=True, FillColor=ROOT.kAzure+3, Logy=True
-length         : track_length*0.125         : 100,0.,60.     ; XTitle="Cluster length (mm)",     IncludeOverflows=True, FillColor=ROOT.kAzure+3, Logy=True
-width          : track_width*0.125          : 100,0.,15.     ; XTitle="Cluster width (mm)",      IncludeOverflows=True, FillColor=ROOT.kAzure+3, Logy=True
-dedx           : track_integral*5.9/832./(track_length*0.125) : 100,0.,35.             ; XTitle="dE/dx (keV/mm)",      IncludeOverflows=True, FillColor=ROOT.kAzure+3, Logy=True
-EnergyVsLength : track_integral*5.9/832.\:track_length*0.125  : 320,0.,40.,1000,0.,200. ; XTitle="Cluster length (mm)", YTitle="Cluster energy (keV)", Wide=True
+uncalibEnergy  : track_integral             : 60,0.,15000.  ; XTitle="Cluster light (photons)", IncludeOverflows=True, FillColor=ROOT.kAzure+3
+energy         : track_integral*5.9/832.    : 60,0.,100.    ; XTitle="Cluster energy (keV)",    IncludeOverflows=True, FillColor=ROOT.kAzure+3
+nhits          : track_nhits                : 60,0.,1000.   ; XTitle="Cluster active pixels",   IncludeOverflows=True, FillColor=ROOT.kAzure+3
+length         : track_length*0.130         : 60,0.,10.     ; XTitle="Cluster length (mm)",     IncludeOverflows=True, FillColor=ROOT.kAzure+3
+lengthsub      : (track_length-track_width)*0.130         : 60,-1.,5.     ; XTitle="Cluster length sub (mm)",     IncludeOverflows=True, FillColor=ROOT.kAzure+3
+width          : track_width*0.130          : 60,2.,10.     ; XTitle="Cluster width (mm)",      IncludeOverflows=True, FillColor=ROOT.kAzure+3
+dedx           : track_integral*5.9/832./(track_length*0.130) : 60,0.,10.             ; XTitle="dE/dx (keV/mm)",      IncludeOverflows=True, FillColor=ROOT.kAzure+3
+EnergyVsLengthSub : track_integral*5.9/832.\:(track_length-track_width)*0.130  : 320,-1.,40.,1000,0.,200. ; XTitle="Cluster length sub (mm)", YTitle="Cluster energy (keV)", Wide=True
+EnergyVsLength : track_integral*5.9/832.\:track_length*0.130  : 320,0.,40.,1000,0.,200. ; XTitle="Cluster length (mm)", YTitle="Cluster energy (keV)", Wide=True
+xy             : track_xmean\:track_ymean  : 500,0,2000,500,0,2000; XTitle="X", YTitle="Y"
+
