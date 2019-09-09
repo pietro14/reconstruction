@@ -70,6 +70,11 @@ class SnakesFactory:
         from sklearn import metrics
         from scipy.spatial import distance
         
+        outname = self.options.plotDir
+        if outname and not os.path.exists(outname):
+            os.system("mkdir -p "+outname)
+            os.system("cp utils/index.php "+outname)
+        
         tip = self.options.tip
         
         #   IDBSCAN parameters  #
@@ -104,7 +109,14 @@ class SnakesFactory:
             X1 = X       
             
         # - - - - - - - - - - - - - -
-        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X)
+        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts, flag_plot_noise = self.options.flag_plot_noise).fit(X)
+        
+        if self.options.debug_mode == 1 and self.options.flag_plot_noise == 1:         
+            for ext in ['png','pdf']:
+                plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='0th',ext=ext))
+            plt.gcf().clear()
+            plt.close('all')
+        
         # Returning to '2' dimensions
         if tip == '3D':
             db.labels_              = db.labels_[range(0,lp)]               # Returning theses variables to the length
@@ -122,11 +134,6 @@ class SnakesFactory:
         # plt.axes().set_aspect('equal','box')
         # plt.ylim(0,2040)
         # plt.xlim(0,2040)
-
-        outname = self.options.plotDir
-        if outname and not os.path.exists(outname):
-            os.system("mkdir -p "+outname)
-            os.system("cp utils/index.php "+outname)
 
         # Black removed and is used for noise instead.
         unique_labels = set(labels)

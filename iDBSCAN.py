@@ -4,9 +4,10 @@ iDBSCAN: Iterative Density-Based Spatial Clustering of Applications with Noise
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
 
-def idbscan(X, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_samples = [2, 30, 6, 2], cuts = [900, 150], flag_noise = True):
+def idbscan(X, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_samples = [2, 30, 6, 2], cuts = [900, 150], flag_noise = True, flag_plot_noise = 0):
     """
     Parameters
     ----------
@@ -75,6 +76,13 @@ def idbscan(X, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_sampl
         db      = DBSCAN(eps=vector_eps[auxIti], min_samples=vector_min_samples[auxIti]).fit(X)
         labels  = db.labels_
         indgood = db.labels_ != -1
+        
+        if flag_plot_noise == 1:
+            f,ax = plt.subplots(1,2,figsize=(40,20))
+            ax[0].scatter(X[:, 1], X[:, 0], alpha = 0.5, s = 10, linewidths = 0)
+            ax[0].set_title('Edges after pedestal substraction')
+            ax[1].scatter(X[indgood, 1], X[indgood, 0], alpha = 0.5, s = 10, linewidths = 0)
+            ax[1].set_title('Edges after removing "noise"')
 
         ## ----- Salve the clusters and labels
         Fcluster[db.labels_ == -1] = -1
@@ -172,16 +180,17 @@ def idbscan(X, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_sampl
 
 class iDBSCAN:
     
-    def __init__(self, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_samples = [2, 30, 6, 2], cuts = [900, 150], flag_noise = True):
+    def __init__(self, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_samples = [2, 30, 6, 2], cuts = [900, 150], flag_noise = True, flag_plot_noise = 0):
         self.iterative = iterative
         self.vector_eps = vector_eps
         self.vector_min_samples = vector_min_samples
         self.cuts = cuts
         self.flag_noise = flag_noise
+        self.flag_plot_noise = flag_plot_noise
 
     def fit(self, X):
         
-        clust = idbscan(X, self.iterative, self.vector_eps, self.vector_min_samples, self.cuts, self.flag_noise)
+        clust = idbscan(X, self.iterative, self.vector_eps, self.vector_min_samples, self.cuts, self.flag_noise, self.flag_plot_noise)
         self.labels_, self.core_sample_indices_, self.tag_  = clust
         
         return self

@@ -242,7 +242,8 @@ if __name__ == '__main__':
         setattr(options,k,v)
     if options.debug_mode == 1:
         setattr(options,'outFile','reco_run%s_%s_debug.root' % (options.run, options.tip))
-        if options.nclu: options.maxEntries = options.nclu + 1
+        if options.ev: options.maxEntries = options.ev + 1
+        if options.daq == 'midas': options.ev +=0.5 
     else:
         setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
     setattr(options,'pedfile_name', 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure, options.rebin))
