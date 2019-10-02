@@ -52,6 +52,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('track_ymax', 'F', lenVar='nTrack')
         self.outTree.branch('track_ymin', 'F', lenVar='nTrack')
         self.outTree.branch('track_nclu', 'F', lenVar='nTrack')
+        self.outTree.branch('track_pearson', 'F', lenVar='nTrack')
 
     def fillCameraVariables(self,pic,clusters):
         self.outTree.fillBranch('cmos_integral',np.sum(pic))
@@ -79,6 +80,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('track_ymax', [cl.getYmax() for cl in clusters])
         self.outTree.fillBranch('track_ymin', [cl.getYmin() for cl in clusters])
         self.outTree.fillBranch('track_nclu', [cl.getNclu() for cl in clusters])
+        self.outTree.fillBranch('track_pearson', [cl.getPearson() for cl in clusters])
 
 
 

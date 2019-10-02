@@ -161,7 +161,11 @@ class analysis:
             ###### DEBUG #########
             # if iev!=9 and iev!=4 and iev!=162: continue
             if iev<2: continue
+            #if iev<80: continue
             ######################
+            
+            # Routine to skip some images if needed
+            if iev in self.options.excImages: continue
             
             if self.options.debug_mode == 1 and iev != self.options.ev: continue
             
@@ -181,9 +185,11 @@ class analysis:
                 pic_fullres = obj.Clone(obj.GetName()+'_fr')
                 img_fr = hist2array(pic_fullres)
 
+                # Upper Threshold full image
+                img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
                 # zs on full image
-                img_fr_sub = ctools.pedsub(img_fr,self.pedarr_fr)
-                img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=2)
+                img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=self.options.nsigma)
                 img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
                 #print "zero suppressed full-resolution array: ",img_fr_zs
                 #print "zero suppressed rebinned-resolution array: ",img_rb_zs
