@@ -78,6 +78,11 @@ class Cluster:
             return self.nclu
         else: return 0
         
+    def getPearson(self):
+        if hasattr(self,'pearson'):
+            return self.pearson
+        else: return 0
+        
     def dump(self):
         if hasattr(self,'hits_fr'):
             return len(self.hits_fr)
