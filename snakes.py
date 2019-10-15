@@ -76,9 +76,14 @@ class SnakesFactory:
             os.system("mkdir -p "+outname)
             os.system("cp utils/index.php "+outname)
         
-        tip = self.options.tip
+        #   Plot parameters  #
+        
+        vmin=1
+        vmax=25
         
         #   IDBSCAN parameters  #
+        
+        tip = self.options.tip
         
         scale              = 1
         iterative          = self.options.iterative                         # number of iterations for the IDBSC
@@ -149,7 +154,7 @@ class SnakesFactory:
             #plt.imshow(self.image.T, cmap='gray', vmin=0, vmax=1, origin='lower' ) 
             #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
             fig = plt.figure(figsize=(10, 10))
-            plt.imshow(self.image,cmap='viridis', vmin=1, vmax=10, interpolation=None, origin='lower' ) 
+            plt.imshow(self.image,cmap='viridis', vmin=vmin, vmax=vmax, interpolation=None, origin='lower' ) 
             #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
             
         for k, col in zip(unique_labels, colors):
@@ -204,7 +209,7 @@ class SnakesFactory:
             
             if self.options.flag_full_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image_fr,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.imshow(self.image_fr,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Original Image")
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
@@ -213,7 +218,7 @@ class SnakesFactory:
                 
             if self.options.flag_rebin_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax, origin='lower' )
                 plt.title("Rebin Image")
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='rebinIma',ext=ext), bbox_inches='tight', pad_inches=0)
@@ -244,7 +249,7 @@ class SnakesFactory:
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Clusters found in iteration 1")
 
                 for j in range(0,np.shape(clu)[0]):
@@ -266,7 +271,7 @@ class SnakesFactory:
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Clusters found in iteration 2")
 
                 for j in range(0,np.shape(clu)[0]):
@@ -289,7 +294,7 @@ class SnakesFactory:
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 3)[0])].tolist()]
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Clusters found in iteration 3")
 
                 for j in range(0,np.shape(clu)[0]):
@@ -311,7 +316,7 @@ class SnakesFactory:
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Final Image")
 
                 for j in range(0,np.shape(clu)[0]):
@@ -356,11 +361,11 @@ class SnakesFactory:
                 plt.gcf().clear()
                 plt.close('all')
                 
-            if self.options.nclu:
+            if self.options.nclu >= 0:
                 print('[Plotting just the cluster %d]' % (self.options.nclu))
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1,vmax=8,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title('Plotting just the cluster %d' % (self.options.nclu))
                 
                 cl_mask = (db.labels_ == self.options.nclu)

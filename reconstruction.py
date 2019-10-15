@@ -166,7 +166,7 @@ class analysis:
             
             # Routine to skip some images if needed
             if iev in self.options.excImages: continue
-            
+
             if self.options.debug_mode == 1 and iev != self.options.ev: continue
             
             if obj.InheritsFrom('TH2'):
@@ -201,7 +201,7 @@ class analysis:
                 if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
                 snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'name': name, 'algo': algo}
                 plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
-                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': plotpy, 'plotprofiles': False}
+                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()
                 self.autotree.fillCameraVariables(img_fr_zs,snakes)
