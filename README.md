@@ -25,7 +25,7 @@ or *histograms_Run01515.root* if it was already a root file.
 - *j* is the number of cores you want to use.
 
 
-# Dependences
+# Prerequisite to run:
 - Python 3.X
 - Root 6.X
 - root-numpy
