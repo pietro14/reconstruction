@@ -35,3 +35,28 @@ def inputFile(numrun,filedir,formattype):
 
     filename = '%s%s%s.root' % (filedir,imagename,numrun)
     return filename
+
+def findedges(ybox,xbox,rebin):
+    from skimage.measure import find_contours
+    from numpy import zeros
+    from scipy.ndimage import uniform_filter
+    
+    rescale = int(2048/rebin)
+    mm = zeros([rescale,rescale],dtype=int)
+    mm[ybox,xbox]=10000
+    mm = uniform_filter(mm, size=5)
+    contours = find_contours(mm, 0.9)
+    return contours
+
+def noisereductor(edges,rescale):
+    tpx = 10
+
+    for i in range(1,rescale-2):
+        for j in range(1,rescale-2):
+            spx = edges[i,j]
+            mpx = (np.sum(edges[i-1:i+2,j-1:j+2])-spx)/8.
+            if np.abs(spx - mpx) > tpx :
+                edges[i,j] = mpx
+            if (mpx < 0.45):
+                edges[i,j] = 0
+    return edges
