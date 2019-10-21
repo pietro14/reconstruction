@@ -57,7 +57,7 @@ def noisereductor(edges,rescale):
                 edges[i,j] = 0
     return edges
 
-def clusters_neighborood(clusters,data,rescale,radius=25):
+def clusters_neighborood(clusters,data,rescale,radius=3):
     Xtot_clusters = np.vstack(clusters)
     neighboroods = np.zeros([rescale,rescale],dtype=float)
     for pointInCluster in Xtot_clusters:
@@ -98,7 +98,30 @@ def supercluster(clustered_data):
                                                iter_callback=callback)
     return ls
 
+def supercluster_points(levels):
+    from scipy import ndimage as ndi
+    # fill the contours of the superclusters
+    fill_contours = ndi.binary_fill_holes(levels)
+    # remove the smallest superclusters
+    label_objects, nb_labels = ndi.label(fill_contours)
+    sizes = np.bincount(label_objects.ravel())
+    mask_sizes = sizes > 3
+    mask_sizes[0] = 0
+    contours_cleaned = mask_sizes[label_objects]
+    labeled_pixels, nb_labels = ndi.label(contours_cleaned)
 
+    superclusters = [None]*nb_labels
+
+    for ix in range(512):
+        for iy in range(512):
+            lbl = labeled_pixels[ix,iy]
+            if lbl>0: # super-clustered pixel
+                if superclusters[lbl-1]: superclusters[lbl-1].append((ix,iy))
+                else: superclusters[lbl-1] = [(ix,iy)]
+    for isc in range(nb_labels):
+        print "Supercluster # ",isc," has these pixels:"
+        print superclusters[isc]
+                
 if __name__ == '__main__':
 
     ## Setting plotting parameters
@@ -107,7 +130,7 @@ if __name__ == '__main__':
     sns.set_style('white')
     sns.set_color_codes()
     plot_kwds = {'alpha' : 0.5, 's' : 30, 'linewidths':0}
-    cmapcolor = 'gray' # or 'viridis'
+    cmapcolor = 'viridis' # or 'viridis'
     vmin      = 99
     vmax      = 125
     figsizeX  = 12 
@@ -151,8 +174,8 @@ if __name__ == '__main__':
     cuts = list(np.array(cuts, dtype=float)/scale)
 
     ## File folder
-    evt               = '00040'#'00016'         # Use always FIVE caracters
-    numrun            = '00738'#'00724'         # Use always FIVE caracters
+    evt               = '00046'#'00016'         # Use always FIVE caracters
+    numrun            = '00723'#'00724'         # Use always FIVE caracters
     formattype        = 'h5'            # If the root files comes from h5 conversion use = 'h5'
     filedir           = '../'   # Folder where the root file is placed
     peddir            = '../pedestals/'   # Folder where the pedestal file is placed
@@ -293,9 +316,12 @@ if __name__ == '__main__':
     print('[i2DBSCAN Calculated]')
 
     u,indices = np.unique(clusters.labels_,return_index = True)
-    clu_it3 = [X[clusters.labels_ == i] for i in u[list(np.where(clusters.tag_[indices] == 3)[0])].tolist()]
-    custers_neighborood_it3 = clusters_neighborood(clu_it3,edges,rescale)
-    superclusters = supercluster(custers_neighborood_it3)
+    clu_it1 = [X[clusters.labels_ == i] for i in u[list(np.where(clusters.tag_[indices]==1)[0])].tolist()]
+    clu_it2 = [X[clusters.labels_ == i] for i in u[list(np.where(clusters.tag_[indices]==2)[0])].tolist()]
+    clu_it3 = [X[clusters.labels_ == i] for i in u[list(np.where(clusters.tag_[indices]==3)[0])].tolist()]
+    clu_anyit = clu_it1 + clu_it2
+    custers_neighborood_it2 = clusters_neighborood(clu_anyit,edges,rescale)
+    superclusters = supercluster(custers_neighborood_it2)
     
     if flag_stats == 1:
         print('[Statistics]')
@@ -413,10 +439,12 @@ if __name__ == '__main__':
                 if j == 0:
                     line.set_label('3rd Iteration')
 
-        plt.contour(superclusters, [0.5], colors='g')
-
+        supercluster_contour = plt.contour(superclusters, [0.5], colors='g')
+        supercluster_contour.collections[0].set_label('supercluster')
+        
         plt.legend(loc='upper left')
         #plt.axis([175, 190, 275, 295])
         plt.savefig('allclusters.png', bbox_inches='tight', pad_inches=0)
 
         
+        supercluster_points(superclusters)
