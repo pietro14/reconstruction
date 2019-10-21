@@ -180,10 +180,6 @@ class SnakesFactory:
             if k>-1 and len(x)>1:
                 cl = Cluster(xy,self.rebin,self.image_fr,self.image_fr_zs,debug=False)
                 cl.iteration = db.tag_[labels == k][0]
-                cl.xmax = max(x)
-                cl.xmin = min(x)
-                cl.ymax = max(y)
-                cl.ymin = min(y)
                 cl.nclu = k
                 
                 corr, p_value = pearsonr(x, y)

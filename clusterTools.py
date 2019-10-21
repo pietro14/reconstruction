@@ -175,6 +175,10 @@ class Cluster:
 
         self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
         self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+        self.shapes['xmin'] = np.min(np.array(self.hits_fr[:,0]))
+        self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,1]))
+        self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,0]))
+        self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,1]))
 
         # get the peaks inside the profile
         for direction in ['lat','long']:
