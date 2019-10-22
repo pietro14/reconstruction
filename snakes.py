@@ -17,6 +17,7 @@ from morphsnakes import(morphological_chan_vese,
 from clusterTools import Cluster
 from cameraChannel import cameraTools
 import matplotlib.pyplot as plt
+from iDBSCAN import iDBSCAN
 
 import debug_code.tools_lib as tl
 

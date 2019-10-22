@@ -76,6 +76,7 @@ def idbscan(X, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_sampl
         db      = DBSCAN(eps=vector_eps[auxIti], min_samples=vector_min_samples[auxIti]).fit(X)
         labels  = db.labels_
         indgood = db.labels_ != -1
+
         
         if flag_plot_noise == 1:
             f,ax = plt.subplots(1,2,figsize=(40,20))
