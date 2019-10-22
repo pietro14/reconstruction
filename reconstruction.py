@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 
-import matplotlib
-matplotlib.use('Agg')
-
 import os,math,sys,random
 import numpy as np
-import matplotlib.pyplot as plt
 import ROOT
 ROOT.gROOT.SetBatch(True)
+from root_numpy import hist2array
 from cameraChannel import cameraTools
 
 from snakes import SnakesProducer
@@ -24,20 +21,25 @@ class analysis:
         self.rebin = options.rebin        
         self.rfile = rfile
         self.options = options
-        self.pedfile_name = 'pedestals/pedmap_818_rebin4.root'
+        #self.pedfile_name = 'pedestals/pedmap_818_rebin4.root'
+        self.pedfile_name = options.pedfile_name
         if not os.path.exists(self.pedfile_name):
             print("WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them...")
             self.calcPedestal(options)
-        self.pedfile_fullres_name = 'pedestals/pedmap_818_rebin1.root'
+        self.pedfile_fullres_name = options.pedfile_fullres_name    
+        #self.pedfile_fullres_name = 'pedestals/pedmap_818_rebin1.root'
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
         if not options.justPedestal:
            print("Pulling pedestals...")
            # first the one for clustering with rebin
+           ctools = cameraTools()
            pedrf = ROOT.TFile.Open(self.pedfile_name)
            self.pedmap = pedrf.Get('pedmap').Clone()
            self.pedmap.SetDirectory(None)
+           self.pedarr = hist2array(self.pedmap)
+           self.noisearr = ctools.noisearray(self.pedmap)
            #self.pedmean = pedrf.Get('pedmean').GetMean()
            #self.pedrms = pedrf.Get('pedrms').GetMean()
            pedrf.Close()
@@ -45,6 +47,8 @@ class analysis:
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
            self.pedmap_fr.SetDirectory(None)
+           self.pedarr_fr = hist2array(self.pedmap_fr)
+           self.noisearr_fr = ctools.noisearray(self.pedmap_fr)
            pedrf_fr.Close()
 
     # the following is needed for multithreading
@@ -157,7 +161,13 @@ class analysis:
             ###### DEBUG #########
             # if iev!=9 and iev!=4 and iev!=162: continue
             if iev<2: continue
+            #if iev<80: continue
             ######################
+            
+            # Routine to skip some images if needed
+            if iev in self.options.excImages: continue
+
+            if self.options.debug_mode == 1 and iev != self.options.ev: continue
             
             if obj.InheritsFrom('TH2'):
                 # DAQ convention
@@ -173,79 +183,24 @@ class analysis:
                 self.outTree.fillBranch("event",event)
 
                 pic_fullres = obj.Clone(obj.GetName()+'_fr')
-                # rebin to make the cluster finding fast
-                obj.RebinX(self.rebin); obj.RebinY(self.rebin)
-                obj.Scale(1./float(math.pow(self.rebin,2)))
+                img_fr = hist2array(pic_fullres)
 
-                # restrict to a subrange
-                if self.options.pedExclRegion:
-                    xmin,xmax = self.options.pedExclRegion.split(',')[0].split(':')
-                    ymin,ymax = self.options.pedExclRegion.split(',')[1].split(':')
-                    h2rs           = ctools.getRestrictedImage(obj,int(xmin),int(xmax),int(ymin),int(ymax))
-                    pic_fullres_rs = ctools.getRestrictedImage(pic_fullres,int(xmin),int(xmax),int(ymin),int(ymax))
-                    pedmap_fr_rs   = ctools.getRestrictedImage(self.pedmap_fr,int(xmin),int(xmax),int(ymin),int(ymax))
-                else:
-                    h2rs = obj
-                    pic_fullres_rs = pic_fullres
-                    pedmap_fr_rs = self.pedmap_fr
-                # applying zero-suppression
-                h2zs,h2unzs = ctools.zs(h2rs,self.pedmap,plot=False)
-                #print "Zero-suppression done. Now clustering..."
-                
-                
-                #if iev == 3:
-                #print(obj.GetName())
-                #from root_numpy import hist2array
-                #test = hist2array(h2zs)
-                #np.savetxt('test.txt',test)
-                # ---- DEBUG ---- #
-                #if debug = True:
-                #from root_numpy import hist2array
-                #X1 = hist2array(pic_fullres)
-                #X2 = hist2array(pedmap_fr_rs)
-                #X3 = hist2array(h2rs)
-                #X4 = hist2array(self.pedmap)
-                
-                #fig, ax = plt.subplots(2,2,figsize=(30, 30))
-                #ax[0,0].imshow(X1,cmap="viridis", vmin=85,vmax=110,origin='lower' )
-                #ax[0,0].set_title("Pic_fullres")
-                #ax[0,1].imshow(X2,cmap="viridis", vmin=85,vmax=110,origin='lower' )
-                #ax[0,1].set_title("Pedmap Fullres")
-                #ax[1,0].imshow(X3,cmap="viridis", vmin=85,vmax=110,origin='lower' )
-                #ax[1,0].set_title("h2 Rescaled")
-                #ax[1,1].imshow(X4,cmap="viridis", vmin=85,vmax=110,origin='lower' )
-                #ax[1,1].set_title("Pedmap Rescaled")
-                #plt.savefig('./Debug1.png', format='png')
-                #plt.close('all')
-               # 
-                #X5 = hist2array(h2zs)
-               # print('min: ', np.min(X5))
-               # print('max: ', np.max(X5))
-               # X6 = hist2array(h2unzs)
-               # print('min: ', np.min(X6))
-               # print('max: ', np.max(X6))
-               # print('Shape: ', np.shape(X6))
-               # 
-               # fig, ax = plt.subplots(1,2,figsize=(20, 10))
-               # ax[0].imshow(X5,cmap="viridis", vmin=0,vmax=10,origin='lower' )
-               # ax[0].set_title("Hist Zero-suppression")
-               # ax[1].imshow(X6,cmap="viridis", vmin=-5.5,vmax=15,origin='lower' )
-               # ax[1].set_title("Hist UN Zero-suppression")
-               # plt.savefig('./Debug2.png', format='png')
-               # plt.close('all')
-               # 
-                
-                # ^^^^ DEBUG ^^^^ #
-                #print("nX,nY={nx},{ny}".format(nx=h2zs.GetNbinsX(),ny=h2zs.GetNbinsY()))
+                # Upper Threshold full image
+                img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
+                # zs on full image
+                img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=self.options.nsigma)
+                img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
                 
                 # Cluster reconstruction on 2D picture
                 algo = 'DBSCAN'
                 if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                snprod_inputs = {'picture': h2zs, 'pictureHD': pic_fullres_rs, 'pedmapHD': pedmap_fr_rs, 'name': name, 'algo': algo}
-                snprod_params = {'snake_qual': 3, 'plot2D': True, 'plotpy': False, 'plotprofiles': True}
+                snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
+                plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
+                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
                 snakes = snprod.run()
-                self.autotree.fillCameraVariables(h2zs,snakes)
+                self.autotree.fillCameraVariables(img_fr_zs,snakes)
                 
                 if False: #self.options.daq != 'btf':
                    # PMT waveform reconstruction
@@ -272,23 +227,31 @@ class analysis:
 
                 
 if __name__ == '__main__':
-
+    
     from optparse import OptionParser
+    from debug_code.tools_lib import inputFile
+    
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
-    parser.add_option("-o","--out", dest="outFile", type="string", default="reco.root", help="name of the output root file");
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel')
-    parser.add_option('-r', '--rebin', dest='rebin', default=4, type='int', help='Rebin factor (same in x and y)')
-    parser.add_option(      '--numPedEvents', dest='numPedEvents', default=-1, type='float', help='Use the last n events to calculate the pedestal. Default is all events')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
-    parser.add_option('-p', '--pedestal', dest='justPedestal', default=False, action='store_true', help='Just compute the pedestals, do not run the analysis')
-    parser.add_option(      '--exclude-region', dest='pedExclRegion', default=None, type='string', help='Exclude a rectangular region for pedestals. In the form "xmin:xmax,ymin:ymax"')
-    parser.add_option(       '--daq', dest="daq", type="string", default="midas", help="DAQ type (btf/h5/midas)");
-    parser.add_option(       '--type', dest="type", type="string", default="neutrons", help="events type (beam/cosmics/neutrons)");
     
     (options, args) = parser.parse_args()
-
-    inputf = args[0]
+    
+    f = open(args[0], "r")
+    params = eval(f.read())
+    
+    for k,v in params.items():
+        setattr(options,k,v)
+    if options.debug_mode == 1:
+        setattr(options,'outFile','reco_run%s_%s_debug.root' % (options.run, options.tip))
+        if options.ev: options.maxEntries = options.ev + 1
+        if options.daq == 'midas': options.ev +=0.5 
+    else:
+        setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
+    setattr(options,'pedfile_name', 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure, options.rebin))
+    setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_ex%d_rebin1.root' % (options.pedexposure))
+    inputf = inputFile(options.run, options.dir, options.daq)
 
     if options.justPedestal:
         ana = analysis(inputf,options)
@@ -299,6 +262,7 @@ if __name__ == '__main__':
     nev = ana.getNEvents() if options.maxEntries == -1 else int(options.maxEntries)
     print("This run has ",nev," events.")
     print("Will save plots to ",options.plotDir)
+    os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
     if options.jobs>1:
         nj = int(nev/options.jobs)
@@ -307,7 +271,17 @@ if __name__ == '__main__':
         from multiprocessing import Pool
         pool = Pool(options.jobs)
         ret = pool.map(ana, chunks)
+        print("Now hadding the chunks...")
+        base = options.outFile.split('.')[0]
+        os.system('{rootsys}/bin/hadd -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
+        os.system('rm {base}_chunk*.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
         ana.reconstruct()
         ana.endJob()
+
+    # now add the git commit hash to track the version in the ROOT file
+    tf = ROOT.TFile.Open(options.outFile,'update')
+    githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
+    githash.Write()
+    tf.Close()

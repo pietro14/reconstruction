@@ -1,0 +1,7 @@
+{
+"run_range" : "run>=46 && run<=72",
+"iteration" : "track_iteration==1",
+"nhits"     : "track_nhits>100",
+"outers"    : "TMath::Sqrt(TMath::Power(track_xmean-1024,2)+TMath::Power((track_ymean-1024),2))<1000",
+}
+

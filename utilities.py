@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import subprocess
 
 class utils:
     def __init__(self):
@@ -55,3 +56,6 @@ class utils:
         else:
             y = random.choice([top, bottom])
         return x, y 
+
+    def get_git_revision_hash(self):
+        return subprocess.check_output(['git', 'rev-parse', 'HEAD'])

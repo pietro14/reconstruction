@@ -2,9 +2,9 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import ROOT,math,os
+import ROOT,math,os,sys
 
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, median_filter
 from skimage import img_as_float
 from skimage.morphology import reconstruction
 from skimage import measure
@@ -17,19 +17,24 @@ from morphsnakes import(morphological_chan_vese,
 from clusterTools import Cluster
 from cameraChannel import cameraTools
 import matplotlib.pyplot as plt
+from iDBSCAN import iDBSCAN
+
+import debug_code.tools_lib as tl
 
 class SnakesFactory:
-    def __init__(self,th2,name,options):
+    def __init__(self,img,img_fr,img_fr_zs,img_ori,name,options):
         self.name = name
         self.options = options
         self.rebin = options.rebin
         ct = cameraTools()
-        self.data = ct.getData(th2)
-        self.datalog = np.zeros((self.data.shape[0],self.data.shape[1]))
-        for (x,y),value in np.ndenumerate(self.data):
+        self.image = img
+        self.img_ori = img_ori
+        self.imagelog = np.zeros((self.image.shape[0],self.image.shape[1]))
+        for (x,y),value in np.ndenumerate(self.image):
             if value > 3.0/math.sqrt(self.rebin): # tresholding needed for tracking
-                self.datalog[x,y] = math.log(value)
-        self.X = ct.getActiveCoords(th2)
+                self.imagelog[x,y] = math.log(value)
+        self.image_fr    = img_fr
+        self.image_fr_zs = img_fr_zs
         self.contours = []
         
     def store_evolution_in(self,lst):
@@ -43,7 +48,7 @@ class SnakesFactory:
     def getContours(self,iterations,threshold=0.69):
         
         # Morphological GAC
-        image = img_as_float(self.data)
+        image = img_as_float(self.image)
         gimage = inverse_gaussian_gradient(image)
 
         # Initial level set
@@ -60,51 +65,75 @@ class SnakesFactory:
         self.contours = ls
         return ls
 
-    def getClusters(self,maxDist=1000,minPoints=20,minPointsCore=10,plot=True):
+    def getClusters(self,plot=False):
 
         from sklearn.cluster import DBSCAN
         from iDBSCAN import iDBSCAN
         from sklearn import metrics
         from scipy.spatial import distance
+        from scipy.stats import pearsonr
         
-        tip = '3D'
+        outname = self.options.plotDir
+        if outname and not os.path.exists(outname):
+            os.system("mkdir -p "+outname)
+            os.system("cp utils/index.php "+outname)
+        
+        #   Plot parameters  #
+        
+        vmin=99
+        vmax=125
         
         #   IDBSCAN parameters  #
         
-        scale              = 4
-        iterative          = 4                         # number of iterations for the IDBSC
-        if tip == '3D':
-            vector_eps         = [2, 2.9, 3.5, 4]          #[2.26, 3.5, 2.8, 6]
-            vector_min_samples = [3,  50,  28, 13]            # [2, 30, 6, 2]
-        else:
-            vector_eps         = [2, 2.9, 3.2, 4]
-            vector_min_samples = [2,  18,  17, 7]
+        tip = self.options.tip
         
-        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)    
-        cuts               = [0, 0]
+        scale              = 1
+        iterative          = self.options.iterative                         # number of iterations for the IDBSC
         
-        #-----------------------#
+        vector_eps         = self.options.vector_eps
+        vector_min_samples = self.options.vector_min_samples
+
+        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)
+        vector_min_samples = list(np.array(vector_min_samples, dtype=float)*scale)
+        cuts               = self.options.cuts
+        
+        #-----Pre-Processing----------------#
+        rescale=int(2048/self.rebin)
+        rebin_image     = tl.rebin(self.img_ori, (rescale, rescale))
+
+        edges = tl.noisereductor(self.image,rescale)
+        edcopy = edges.copy()
+        edcopyMedian = median_filter(edcopy, size=4)
         
         # make the clustering with DBSCAN algo
-        X  = self.X      # EDGES right after the zs and pedmap subtraction 
-        
-        # - - - - - - - - - - - - - -
-        # simulated third dimension
-        X1 = X[:,0:2]    # X and Y coordinates to manipulate
-        
-        
-        if tip == '3D':
-            Z  = X[:,2]      # Z coordinate
-            lp = len(X1)     # number of pixels that passed the threshold
-            Xl = list(X1)    # Aux variable to simulate the Z-dimension
+        # this kills all macrobins with N photons < 1
+        points = np.array(np.nonzero(np.round(edcopyMedian))).astype(int).T
+        lp = points.shape[0]
 
-            for ii in range(0,lp):                             # Looping over the index of the coordinates
-                cor = X1[ii,:]                                 # variabel to get the coordinate
-                for count in range(0,np.int(np.round(Z[ii])-1)): # Looping over the number of 'photons' in that coordinate
-                    Xl.append(cor)                             # add a coordinate repeatedly 
-            X1 = np.array(Xl)                                  # Convert the list to an array
+        if tip=='3D':
+            Xl = [(ix,iy) for ix,iy in points]          # Aux variable to simulate the Z-dimension
+            X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
+            for ix,iy in points:                        # Looping over the non-empty coordinates
+                nreplicas = int(self.image[ix,iy])-1
+                for count in range(nreplicas):                                # Looping over the number of 'photons' in that coordinate
+                    Xl.append((ix,iy))                              # add a coordinate repeatedly 
+            X = np.array(Xl)                                        # Convert the list to an array
+        else:
+            X = points.copy()
+            X1 = X       
+        
+        if self.options.debug_mode == 0:
+            self.options.flag_plot_noise = 0
+            
         # - - - - - - - - - - - - - -
-        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts).fit(X1)
+        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts, flag_plot_noise = self.options.flag_plot_noise).fit(X)
+        
+        if self.options.debug_mode == 1 and self.options.flag_plot_noise == 1:         
+            for ext in ['png','pdf']:
+                plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='0th',ext=ext), bbox_inches='tight', pad_inches=0)
+            plt.gcf().clear()
+            plt.close('all')
+        
         # Returning to '2' dimensions
         if tip == '3D':
             db.labels_              = db.labels_[range(0,lp)]               # Returning theses variables to the length
@@ -123,46 +152,46 @@ class SnakesFactory:
         # plt.ylim(0,2040)
         # plt.xlim(0,2040)
 
-        outname = self.options.plotDir
-        if outname and not os.path.exists(outname):
-            os.system("mkdir -p "+outname)
-            os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
-
         # Black removed and is used for noise instead.
         unique_labels = set(labels)
         colors = [plt.cm.Spectral(each)
                   for each in np.linspace(0, 1, len(unique_labels))]
         #canv = ROOT.TCanvas('c1','',600,600)
+        if plot:
+            #fig_edges = plt.figure(figsize=(10, 10))
+            #plt.imshow(self.image.T, cmap='gray', vmin=0, vmax=1, origin='lower' ) 
+            #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
+            fig = plt.figure(figsize=(10, 10))
+            plt.imshow(self.image,cmap='viridis', vmin=1, vmax=25, interpolation=None, origin='lower' ) 
+            #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
+            
         for k, col in zip(unique_labels, colors):
             if k == -1:
-                # Black used for noise.
                 col = [0, 0, 0, 1]
+                break # noise: the unclustered
 
             class_member_mask = (labels == k)
          
             #xy = X[class_member_mask & core_samples_mask]
-            xy = X[class_member_mask]
+            xy = X1[class_member_mask]
             
-            x = xy[:, 0]; y = xy[:, 1]; z = xy[:, 2]
-            
-            if plot:
-                plt.plot(x, y, 'o', markerfacecolor=tuple(col),
-                         markeredgecolor='k', markersize=10)
-
+            x = xy[:, 0]; y = xy[:, 1]
+                            
             # only add the cores to the clusters saved in the event
             if k>-1 and len(x)>1:
-                # GetFullResolution Cluster
-                #xy_fr = Cluster.getFullResTrack(self,xy,self.pictureHD,self.pedmapHD)
-                # --- 
-                
-                cl = Cluster(xy,self.rebin)
+                cl = Cluster(xy,self.rebin,self.image_fr,self.image_fr_zs,debug=False)
                 cl.iteration = db.tag_[labels == k][0]
-                cl.xmax = max(x)
-                cl.xmin = min(x)
-                cl.ymax = max(y)
-                cl.ymin = min(y)
+                cl.nclu = k
+                
+                corr, p_value = pearsonr(x, y)
+                cl.pearson = p_value
+                
                 clusters.append(cl)
-                if plot: cl.plotAxes(plot=plt)
+                if plot:
+                    xri,yri = tl.getContours(y,x)
+                    cline = {1:'r',2:'b',3:'y'}
+                    plt.plot(xri,yri,'-{lcol}'.format(lcol=cline[cl.iteration]),linewidth=0.5)
+                # if plot: cl.plotAxes(plot=plt,num_steps=100)
                 # cl.calcProfiles(plot=None)
                 # for dir in ['long','lat']:
                 #     prof = cl.getProfile(dir)
@@ -171,21 +200,205 @@ class SnakesFactory:
                 #         for ext in ['png','pdf']:
                 #             canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
 
-            # plot also the non-core hits            # xy = X[class_member_mask & ~core_samples_mask]
-            # if plot: plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
-            #                   markeredgecolor='k', markersize=6)
         if plot:
-            plt.title('Estimated number of snakes: %d' % n_clusters_)
-            #plt.show()
-            for ext in ['pdf']:
-                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
+            for ext in ['png','pdf']:
+                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext), bbox_inches='tight', pad_inches=0)
             plt.gcf().clear()
+            plt.close('all')
+            
+        ## DEBUG MODE
+        if self.options.debug_mode == 1:
+            print('[DEBUG-MODE ON]')
+            print('[%s Method]' % (self.options.tip))
+            
+            if self.options.flag_full_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image_fr,cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='lower' )
+                plt.title("Original Image")
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_rebin_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax, origin='lower' )
+                plt.title("Rebin Image")
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='rebinIma',ext=ext), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_edges_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(edcopyMedian, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
+                plt.title('Edges after Filtering')
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='edgesIma',ext=ext), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_stats == 1:
+                print('[Statistics]')
+                n_clusters_ = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
+                print("Total number of Clusters: %d" % (n_clusters_))
+                u,indices = np.unique(db.labels_,return_index = True)
+                print("Clusters found in iteration 1: %d" % (sum(db.tag_[indices] == 1)))
+                print("Clusters found in iteration 2: %d" % (sum(db.tag_[indices] == 2)))
+                print("Clusters found in iteration 3: %d" % (sum(db.tag_[indices] == 3)))
+                
+            if self.options.flag_first_it == 1:
+                print('[Plotting 1st iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                plt.title("Clusters found in iteration 1")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        for n, contour in enumerate(contours):
+                            plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_second_it == 1:
+                print('[Plotting 2nd iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
+                plt.title("Clusters found in iteration 2")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        for n, contour in enumerate(contours):
+                            plt.plot(contour[:, 1],contour[:, 0], '-b',linewidth=2.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='2nd', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                    
+                    
+            if self.options.flag_third_it == 1:
+                print('[Plotting 3rd iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 3)[0])].tolist()]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
+                plt.title("Clusters found in iteration 3")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        for n, contour in enumerate(contours):
+                            plt.plot(contour[:, 1],contour[:, 0], '-y',linewidth=2.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='3rd', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_all_it == 1:
+                print('[Plotting ALL iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
+                plt.title("Final Image")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        for n, contour in enumerate(contours):
+                            line, = plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
+                        if j == 0:
+                            line.set_label('1st Iteration')
+
+                clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+                    
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        for n, contour in enumerate(contours):
+                            line, = plt.plot(contour[:, 1],contour[:, 0], '-b',linewidth=2.5)
+                        if j == 0:
+                            line.set_label('2nd Iteration')
+
+                clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 3)[0])].tolist()]
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        for n, contour in enumerate(contours):
+                            line, = plt.plot(contour[:, 1],contour[:, 0], '-y',linewidth=2.5)
+                        if j == 0:
+                            line.set_label('3rd Iteration')
+                plt.legend(loc='upper left')
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='all', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.nclu >= 0:
+                print('[Plotting just the cluster %d]' % (self.options.nclu))
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
+                plt.title('Plotting just the cluster %d' % (self.options.nclu))
+                
+                cl_mask = (db.labels_ == self.options.nclu)
+         
+                xy = X1[cl_mask]
+                xbox = xy[:, 1] 
+                ybox = xy[:, 0]
+
+                if (len(ybox) > 0) and (len(xbox) > 0):
+                    contours = tl.findedges(ybox,xbox,self.rebin)
+                    for n, contour in enumerate(contours):
+                        line, = plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{tip}_{nclu}.{ext}'.format(pdir=outname, name=self.name, ext=ext, tip = self.options.tip, nclu = self.options.nclu), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+            
         return clusters
 
     def getTracks(self,plot=True):
         from skimage.transform import (hough_line, hough_line_peaks)
         # Classic straight-line Hough transform
-        image = self.datalog
+        image = self.imagelog
         h, theta, d = hough_line(image)
         print("tracks found")
         
@@ -196,16 +409,16 @@ class SnakesFactory:
         itrk = 0
         for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
             print("Track # ",itrk)
-            #points_along_trk = np.zeros((self.data.shape[1],self.data.shape[0]))
+            #points_along_trk = np.zeros((self.image.shape[1],self.image.shape[0]))
             points_along_trk = []
-            for x in range(self.data.shape[1]):
-                y = min(self.data.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
-                #points_along_trk[x,y] = self.data[y,x]
-                #print "adding point: %d,%d,%f" % (x,y,self.data[y,x])
+            for x in range(self.image.shape[1]):
+                y = min(self.image.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
+                #points_along_trk[x,y] = self.image[y,x]
+                #print "adding point: %d,%d,%f" % (x,y,self.image[y,x])
                 # add a halo fo +/- 20 pixels to calculate the lateral profile
                 for iy in range(int(y)-5,int(y)+5):
-                    if iy<0 or iy>=self.data.shape[0]: continue
-                    points_along_trk.append((x,iy,self.data[iy,x]))
+                    if iy<0 or iy>=self.image.shape[0]: continue
+                    points_along_trk.append((x,iy,self.image[iy,x]))
             xy = np.array(points_along_trk)
             trk = Cluster(xy,self.rebin)
             tracks.append(trk)
@@ -244,18 +457,14 @@ class SnakesFactory:
 
         return tracks
         
-    def plotClusterFullResolution(self,clusters,th2_fullres,pedmap_fullres):
+    def plotClusterFullResolution(self,clusters):
         outname = self.options.plotDir
         for k,cl in enumerate(clusters):
-            cl.plotFullResolution(th2_fullres,pedmap_fullres,'{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
+            cl.plotFullResolution('{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
 
-    def calcProfiles(self,clusters,th2_fullres=None,pedmap_fullres=None):
+    def calcProfiles(self,clusters):
         for k,cl in enumerate(clusters):
-            if self.rebin==1 or not th2_fullres or not pedmap_fullres:
-                hits = cl.hits
-            else:
-                hits = cl.hitsFullResolution(th2_fullres,pedmap_fullres) if (th2_fullres and pedmap_fullres) else cl.hits
-            cl.calcProfiles(hitscalc=hits,plot=None)
+            cl.calcProfiles(plot=None)
                              
     def plotProfiles(self,clusters):
         outname = self.options.plotDir
@@ -270,7 +479,7 @@ class SnakesFactory:
         
     def plotContours(self,contours):
 
-        image = img_as_float(self.data)
+        image = img_as_float(self.image)
         #fig, axes = plt.subplots(1, 2, figsize=(8, 4))
         #ax = axes.flatten()
         fig, ax = plt.subplots()
@@ -303,26 +512,27 @@ class SnakesFactory:
 
 class SnakesProducer:
     def __init__(self,sources,params,options):
-        self.picture   = sources['picture']   if 'picture' in sources else None
-        self.pictureHD = sources['pictureHD'] if 'pictureHD' in sources else None
-        self.pedmapHD  = sources['pedmapHD']  if 'pedmapHD' in sources else None
-        self.name      = sources['name']      if 'name' in sources else None
-        self.algo      = sources['algo']      if 'algo' in sources else 'DBSCAN'
+        self.picture     = sources['picture']     if 'picture' in sources else None
+        self.pictureHD   = sources['pictureHD']   if 'pictureHD' in sources else None
+        self.picturezsHD = sources['picturezsHD'] if 'picturezsHD' in sources else None
+        self.pictureOri  = sources['pictureOri'] if 'pictureOri' in sources else None
+        self.name        = sources['name']        if 'name' in sources else None
+        self.algo        = sources['algo']        if 'algo' in sources else 'DBSCAN'
         
         self.snakeQualityLevel = params['snake_qual']   if 'snake_qual' in params else 3
-        self.plot2D            = params['plot2D']       if 'plot2D' in params else True
+        self.plot2D            = params['plot2D']       if 'plot2D' in params else False
         self.plotpy            = params['plotpy']       if 'plotpy' in params else False
-        self.plotprofiles      = params['plotprofiles'] if 'plotprofiles' in params else True
+        self.plotprofiles      = params['plotprofiles'] if 'plotprofiles' in params else False
 
         self.options = options
 
     def run(self):
         ret = []
-        if any([x==None for x in (self.picture,self.pictureHD,self.pedmapHD,self.name)]):
+        if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.picturezsHD.any(),self.name)]):
             return ret
         
         # Cluster reconstruction on 2D picture
-        snfac = SnakesFactory(self.picture,self.name,self.options)
+        snfac = SnakesFactory(self.picture,self.pictureHD,self.picturezsHD,self.pictureOri,self.name,self.options)
 
         # this plotting is only the pyplot representation.
         # Doesn't work on MacOS with multithreading for some reason... 
@@ -332,17 +542,17 @@ class SnakesProducer:
             snakes = snfac.getTracks(plot=self.plotpy)            
 
         # print "Get light profiles..."
-        snfac.calcProfiles(snakes,self.pictureHD,self.pedmapHD)
+        snfac.calcProfiles(snakes)
         
         # snfac.calcProfiles(snakes) # this is for BTF
         
-        # sort snakes by longitudinal width
-        snakes = sorted(snakes, key = lambda x: x.widths['long'], reverse=True)
+        # sort snakes by light integral
+        snakes = sorted(snakes, key = lambda x: x.integral(), reverse=True)
         # and reject discharges (round)
         #snakes = [x for x in snakes if x.qualityLevel()>=self.snakeQualityLevel]
         
         # plotting
-        if self.plot2D:       snfac.plotClusterFullResolution(snakes,self.pictureHD,self.pedmapHD)
+        if self.plot2D:       snfac.plotClusterFullResolution(snakes)
         if self.plotprofiles: snfac.plotProfiles(snakes)
 
         return snakes
