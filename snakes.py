@@ -95,6 +95,7 @@ class SnakesFactory:
         vector_eps         = list(np.array(vector_eps, dtype=float)*scale)
         vector_min_samples = list(np.array(vector_min_samples, dtype=float)*scale)
         cuts               = self.options.cuts
+        nb_it              = 3
         
         #-----Pre-Processing----------------#
         rescale=int(2048/self.rebin)
@@ -199,6 +200,16 @@ class SnakesFactory:
                 #         for ext in ['png','pdf']:
                 #             canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
 
+        ## SUPERCLUSTERING
+        from supercluster import SuperClusterAlgorithm
+        superclusters = [None]*nb_it; superclusterContours = [None]*nb_it
+        scAlgo = SuperClusterAlgorithm(shape=rescale)
+        u,indices = np.unique(db.labels_,return_index = True)
+        for it in range(nb_it):
+            allclusters_it = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == it+1)[0])].tolist()]
+            # note: passing the edges, not the filtered ones for deeper information
+            superclusters[it],superclusterContours[it] = scAlgo.findSuperClusters(allclusters_it,edges,self.image_fr,self.image_fr_zs,it+1)
+                
         if plot:
             for ext in ['png','pdf']:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext), bbox_inches='tight', pad_inches=0)
@@ -264,6 +275,78 @@ class SnakesFactory:
                         contours = tl.findedges(ybox,xbox,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
+
+                
+        if plot:
+            for ext in ['png','pdf']:
+                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext), bbox_inches='tight', pad_inches=0)
+            plt.gcf().clear()
+            plt.close('all')
+            
+        ## DEBUG MODE
+        if self.options.debug_mode == 1:
+            print('[DEBUG-MODE ON]')
+            print('[%s Method]' % (self.options.tip))
+            
+            if self.options.flag_full_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image_fr,cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='lower' )
+                plt.title("Original Image")
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_rebin_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax, origin='lower' )
+                plt.title("Rebin Image")
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='rebinIma',ext=ext), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_edges_image == 1:
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(edcopyMedian, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
+                plt.title('Edges after Filtering')
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='edgesIma',ext=ext), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+                
+            if self.options.flag_stats == 1:
+                print('[Statistics]')
+                n_clusters_ = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
+                print("Total number of Clusters: %d" % (n_clusters_))
+                u,indices = np.unique(db.labels_,return_index = True)
+                print("Clusters found in iteration 1: %d" % (sum(db.tag_[indices] == 1)))
+                print("Clusters found in iteration 2: %d" % (sum(db.tag_[indices] == 2)))
+                print("Clusters found in iteration 3: %d" % (sum(db.tag_[indices] == 3)))
+                
+            if self.options.flag_first_it == 1:
+                print('[Plotting 1st iteration]')
+                u,indices = np.unique(db.labels_,return_index = True)
+                clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
+
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                plt.title("Clusters found in iteration 1")
+
+                for j in range(0,np.shape(clu)[0]):
+
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        for n, contour in enumerate(contours):
+                            plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
+
+                if len(superclusters[0]):
+                       supercluster_contour = plt.contour(superclusterContours[0], [0.5], colors='firebrick', linewidths=4)
+                       supercluster_contour.collections[0].set_label('supercluster it 1')
+                
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
@@ -287,6 +370,11 @@ class SnakesFactory:
                         contours = tl.findedges(ybox,xbox,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-b',linewidth=2.5)
+
+                if len(superclusters[1]):
+                       supercluster_contour = plt.contour(superclusterContours[1], [0.5], colors='royalblue', linewidths=4)
+                       supercluster_contour.collections[0].set_label('supercluster it 2')
+
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='2nd', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
@@ -311,6 +399,11 @@ class SnakesFactory:
                         contours = tl.findedges(ybox,xbox,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-y',linewidth=2.5)
+
+                if len(superclusters[2]):
+                       supercluster_contour = plt.contour(superclusterContours[2], [0.5], colors='gold', linewidths=4)
+                       supercluster_contour.collections[0].set_label('supercluster it 3')
+                            
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='3rd', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
@@ -391,9 +484,12 @@ class SnakesFactory:
                     plt.savefig('{pdir}/{name}_{tip}_{nclu}.{ext}'.format(pdir=outname, name=self.name, ext=ext, tip = self.options.tip, nclu = self.options.nclu), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
                 plt.close('all')
-            
-        return clusters
 
+        allSuperClusters = []
+        for it in range(3):
+            allSuperClusters += superclusters[it]
+        return clusters,allSuperClusters
+        
     def getTracks(self,plot=True):
         from skimage.transform import (hough_line, hough_line_peaks)
         # Classic straight-line Hough transform
@@ -536,12 +632,15 @@ class SnakesProducer:
         # this plotting is only the pyplot representation.
         # Doesn't work on MacOS with multithreading for some reason... 
         if self.algo=='DBSCAN':
-            snakes = snfac.getClusters(plot=self.plotpy)
+            clusters,snakes = snfac.getClusters(plot=self.plotpy)
+            
         elif self.algo=='HOUGH':
+            clusters = []
             snakes = snfac.getTracks(plot=self.plotpy)            
 
         # print "Get light profiles..."
         snfac.calcProfiles(snakes)
+        snfac.calcProfiles(clusters)
         
         # snfac.calcProfiles(snakes) # this is for BTF
         
@@ -554,4 +653,4 @@ class SnakesProducer:
         if self.plot2D:       snfac.plotClusterFullResolution(snakes)
         if self.plotprofiles: snfac.plotProfiles(snakes)
 
-        return snakes
+        return clusters,snakes
