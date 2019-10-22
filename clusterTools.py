@@ -4,7 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math,itertools
 import ROOT
-from cameraChannel import cameraGeometry
+from array import array
+from cameraChannel import cameraGeometry, cameraTools
+
+import utilities
+utilities = utilities.utils()
 
 class Cluster:
     def __init__(self,hits,rebin):
@@ -15,12 +19,60 @@ class Cluster:
         self.EVs = self.eigenvectors()
         self.widths = {}
         self.profiles = {}
+        self.shapes = {}
+        
     def integral(self):
-        return sum([z for (x,y,z) in self.hits])
+        if hasattr(self,'hits_fr'):
+            return sum([z for (x,y,z) in self.hits_fr])
+        else:
+            print("WARNING: Hits with full resolution map not available. Returning 0 integral!")
+            return 0
+
+    def getSize(self,name='long'):
+        if len(self.profiles)==0:
+            self.calcProfiles()
+        if name in self.widths: return self.widths[name]
+        else:
+            print("ERROR! You can only get 'long' or 'lat' sizes!")
+            return -999
+
     def size(self):
-        return len(self.hits)
+        if hasattr(self,'hits_fr'):
+            return len(self.hits_fr)
+        else: return 0
+        
+    def iterations(self):
+        if hasattr(self,'iteration'):
+            return self.iteration
+        else: return 0
+        
+    def getXmax(self):
+        if hasattr(self,'xmax'):
+            return self.xmax
+        else: return 0
+        
+    def getXmin(self):
+        if hasattr(self,'xmin'):
+            return self.xmin
+        else: return 0
+        
+    def getYmax(self):
+        if hasattr(self,'ymax'):
+            return self.ymax
+        else: return 0
+       
+    def getYmin(self):
+        if hasattr(self,'ymin'):
+            return self.ymin
+        else: return 0
+        
     def dump(self):
-        print self.hits
+        if hasattr(self,'hits_fr'):
+            return len(self.hits_fr)
+        else:
+            print("DUMPING rebinned hits in absence of full res ones")
+            print(self.hits)
+
     def eigenvectors(self):
         covmat = np.cov([self.x,self.y])
         eig_values, eig_vecs = np.linalg.eig(covmat)
@@ -48,20 +100,12 @@ class Cluster:
         if len(self.profiles)>0:
             return
 
-        def rotate_around_point(hit, dir, pivot):
-            x,y = hit[:-1]
-            ox, oy = pivot
-            cos,sin = dir        
-            qx = ox + cos * (x - ox) + sin * (y - oy)
-            qy = oy - sin * (x - ox) + cos * (y - oy)
-            return qx, qy
-
         # rotate the hits of the cluster along the major axis
         rot_hits=[]
         # this is in case one wants to make the profile with a different resolution wrt the clustering
         hits = hitscalc if len(hitscalc)>0 else self.hits
         for h in hits:
-            rx,ry = rotate_around_point(h,self.EVs[0],self.mean_point)
+            rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
             rh_major_axis = (rx,ry,h[-1])
             rot_hits.append(rh_major_axis)
         if plot!=None:
@@ -71,89 +115,185 @@ class Cluster:
         # now compute the length along major axis, long profile, etc
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
-
+        xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.2)
+        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.6)
+        # rxmin = 1000; rxmax = 1500 # central 5 cm of the track
+        # xedg = range(int(rxmin),int(rxmax)) # full binning for BTF tracks
+        # yedg = range(int(rymin),int(rymax)) # full binning for BTF tracks
         geo = cameraGeometry()
-        bwidth=3*geo.pixelwidth
+        xedg = [(x-int(rxmin))*geo.pixelwidth for x in xedg]
+        yedg = [(y-int(rymin))*geo.pixelwidth for y in yedg]
+
         length=(rxmax-rxmin)*geo.pixelwidth; width=(rymax-rymin)*geo.pixelwidth
-        nbinsx = int(length/float(bwidth))
-        nbinsy = int(width/float(bwidth))
-        if nbinsx>1:
-            longprof = ROOT.TProfile('longprof','longitudinal profile',nbinsx,0,length,'i')
+        if len(xedg)>1:
+            longprof = ROOT.TH1F('longprof','longitudinal profile',len(xedg)-1,array('f',xedg))
             longprof.SetDirectory(None)
         else: longprof = None
-        if nbinsy>1:
-            latprof = ROOT.TProfile('latprof','lateral profile',nbinsy,0,width,'i')
+        if len(yedg)>1:
+            latprof = ROOT.TH1F('latprof','lateral profile',len(yedg)-1,array('f',yedg))
             latprof.SetDirectory(None)
         else: latprof = None
-
+        
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
             if longprof: longprof.Fill((x-rxmin)*geo.pixelwidth,z)
             if latprof: latprof.Fill((y-rymin)*geo.pixelwidth,z)
 
         profiles = [longprof,latprof]
-        for p in profiles:
+        titles = ['longitudinal','transverse']
+        for ip,p in enumerate(profiles):
             if p:
-                p.GetXaxis().SetTitle('X (mm)')
-                p.GetYaxis().SetTitle('Average photons per {bwidth} #mum'.format(bwidth=bwidth * 1E+3))
+                p.GetXaxis().SetTitle('X_{%s} (mm)' % titles[ip])
+                p.GetYaxis().SetTitle('Number of photons per slice')
                 self.applyProfileStyle(p)
                 
         # now set the cluster shapes and profiles
         self.profiles['long'] = longprof
         self.profiles['lat'] = latprof
+        # those are not used, since they include the "margins" at 0
+        # just used as the starting values in clusterShapes()
         self.widths['long'] = length
         self.widths['lat'] = width
+
+        # get the peaks inside the profile
+        for direction in ['lat','long']:
+            self.clusterShapes(direction)
         
     def getProfile(self,name='long'):
         if len(self.profiles)==0:
             self.calcProfiles()
         return self.profiles[name] if name in self.profiles else None
-    
+
+    def clusterShapes(self,name='long'):
+        # ensure the cluster profiles are ready
+        if name not in ['lat','long']:
+            print("ERROR! Requested profile along the ",name," direction. Should be either 'long' or 'lat'. Exiting clusterShapes().")
+            return
+        self.getProfile(name)
+
+        from waveform import PeakFinder,simplePeak
+
+        # find first the length/width with intersection of the base of the large peak
+        # threshold = 3
+        # min_distance_peaks = 5 # number of bins of the profile, to be converted in mm later... TO DO
+        # prominence = 2 # noise seems <1
+        # width = 10  # find only 1 big peak
+        # pf = PeakFinder(self.profiles[name])        
+        # pf.findPeaks(threshold,min_distance_peaks,prominence,width)
+        # self.widths[name] = pf.getFWHMs()[0] if len(pf.getFWHMs()) else 0 # first should be the only big peak
+        self.shapes['%s_width' % name] = self.widths[name]
+        
+        # find the peaks and store their properties
+        # thresholds on the light. Should be configurable...
+        threshold = 3
+        min_distance_peaks = 3 # number of bins of the profile, to be converted in mm later... TO DO
+        prominence = 2 # noise seems <1
+        width = 1 # minimal width of the signal
+        pf = PeakFinder(self.profiles[name])        
+        pf.findPeaks(threshold,min_distance_peaks,prominence,width)
+
+        amplitudes = pf.getAmplitudes()
+        prominences = pf.getProminences()
+        fwhms = pf.getFWHMs()
+        peakPositions = pf.getPeakTimes()
+        
+        peaksInProfile = [simplePeak(amplitudes[i],prominences[i],peakPositions[i],fwhms[i]) for i in range(len(amplitudes))]
+        peaksInProfile = sorted(peaksInProfile, key = lambda x: x.mean, reverse=True)
+
+        self.shapes[name+'_fullrms']          = self.profiles[name].GetRMS()
+        if len(peaksInProfile):
+            mainPeak = peaksInProfile[0]
+            self.shapes[name+'_p0amplitude']  = mainPeak.amplitude
+            self.shapes[name+'_p0prominence'] = mainPeak.prominence
+            self.shapes[name+'_p0mean']       = mainPeak.mean
+            self.shapes[name+'_p0fwhm']       = mainPeak.fwhm
+        else:
+            self.shapes[name+'_p0amplitude']  = -999
+            self.shapes[name+'_p0prominence'] = -999
+            self.shapes[name+'_p0mean']       = -999
+            self.shapes[name+'_p0fwhm']       = -999
+            
     def applyProfileStyle(self,prof):
         prof.SetMarkerStyle(ROOT.kFullCircle)
         prof.SetMarkerSize(1)
         prof.SetMarkerColor(ROOT.kBlack)
-        prof.SetLineColor(ROOT.kBlack)
-        prof.SetMinimum(0)
-                
-    def hitsFullResolution(self,th2_fullres,pedmap_fullres):
+        prof.SetLineColor(ROOT.kGray)
+        prof.SetLineWidth(1)
+        
+    def hitsFullResolution(self,th2_fullres,pedmap_fullres,zs=False):
         if hasattr(self,'hits_fr'):
             return self.hits_fr
         else:
-            ret = []
-            halfbw = self.rebin/2.
+            ct = cameraTools() 
+            retdict={} # need dict not to duplicate hits after rotation (non integers x,y)
+            #latmargin = 15 # in pixels
+            #longmargin = 100 # in pixels
+            latmargin = 3 # in pixels
+            longmargin = 5 # in pixels
             for h in self.hits:
-                xfull = range(int(h[0]-halfbw-0.5),int(h[0]+halfbw+0.5))
-                yfull = range(int(h[1]-halfbw-0.5),int(h[1]+halfbw+0.5))
+                rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
+                rxfull = list(range(int(rx-longmargin),int(rx+longmargin)))
+                ryfull = list(range(int(ry-latmargin),int(ry+latmargin)))
                 fullres = []
-                for x in xfull:
-                    for y in yfull:
-                       xbfull = th2_fullres.GetXaxis().FindBin(x)
-                       ybfull = th2_fullres.GetYaxis().FindBin(y)
-                       ped = pedmap_fullres.GetBinContent(xbfull,ybfull)
-                       z = th2_fullres.GetBinContent(xbfull,ybfull)-ped
-                       fullres.append((x,y,z))
-                for hfr in fullres: ret.append(hfr)
+                for rxf in rxfull:
+                    for ryf in ryfull:
+                        rhf = (rxf,ryf,-1)
+                        xfull,yfull = utilities.rotate_around_point(rhf,self.EVs[0],self.mean_point,inverse=True)
+                        # these for are to ensure that one includes all bins after rounding/rotation
+                        for xfullint in range(int(xfull-1),int(xfull+1)):
+                            for yfullint in range(int(yfull-1),int(yfull+1)):
+                                ped = pedmap_fullres.GetBinContent(xfullint+1,yfullint+1)
+                                noise = pedmap_fullres.GetBinError(xfullint+1,yfullint+1)
+                                z = th2_fullres.GetBinContent(xfullint+1,yfullint+1)-ped
+                                if ct.isGoodChannelFast(ped,noise) and z>1.0*noise:
+                                    fullres.append((xfullint,yfullint,z))
+                for hfr in fullres:
+                    x = hfr[0]; y=hfr[1]
+                    retdict[(x,y)]=hfr[2]
+            ret=[]
+            for k,v in retdict.items():
+                ret.append((k[0],k[1],v))
             self.hits_fr = np.array(ret)
             return self.hits_fr
+        
+    def getFullResTrack(self,xy,th2_fullres,pedmap_fullres):
+        if self.rebin == 1:
+            return xy
+        else:
+            ct = cameraTools()
+            fullres = []
+            print("xy size = ", len(xy))
+            for h in xy:
+                rx,ry = h
+                rxfull = list(range(int(rx-self.rebin/2),int(rx+self.rebin/2)))
+                ryfull = list(range(int(ry-self.rebin/2),int(ry+self.rebin/2)))
+                for rxf in rxfull:
+                    for ryf in ryfull:
+                        ped = pedmap_fullres.GetBinContent(rxf+1,ryf+1)
+                        noise = pedmap_fullres.GetBinError(rxf+1,ryf+1)
+                        z = th2_fullres.GetBinContent(rxf+1,ryf+1)-ped
+                        if ct.isGoodChannelFast(ped,noise) and z>1.0*noise:
+                            fullres.append((rxf,ryf,z))
+            xy_fr = np.array(fullres)
+            print("xy_fr size = ", len(xy_fr))
+            return xy_fr
     
     def plotFullResolution(self,th2_fullres,pedmap_fullres,name,option='colz'):
-        hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
-        border = 20
+        # REPETITION!!!! IMPROVE...
+        if self.rebin==1:
+            hits_fr = self.hits
+        else:
+            hits_fr = self.hitsFullResolution(th2_fullres,pedmap_fullres)
+        border = 15
         xmin,xmax = (min(hits_fr[:,0])-border, max(hits_fr[:,0])+border)
         ymin,ymax = (min(hits_fr[:,1])-border, max(hits_fr[:,1])+border)
         zmax = max(hits_fr[:,2])
         nbinsx = int(xmax-xmin)
         nbinsy = int(ymax-ymin)
         snake_fr = ROOT.TH2D(name,'',nbinsx,xmin,xmax,nbinsy,ymin,ymax)
-        for (x,y,zrebin) in hits_fr:
+        for (x,y,z) in hits_fr:
             xb = snake_fr.GetXaxis().FindBin(x)
             yb = snake_fr.GetYaxis().FindBin(y)
-            xb_fr = th2_fullres.GetXaxis().FindBin(x)
-            yb_fr = th2_fullres.GetYaxis().FindBin(y)
-            ped = pedmap_fullres.GetBinContent(xb_fr,yb_fr)
-            z = th2_fullres.GetBinContent(xb_fr,yb_fr) - ped
-            #print "Filling xb,yb =",xb," ",yb," xb_fr,yb_fr",xb_fr," ",yb_fr," with ",x," "," ",y," ",z,"   zrebin = ",zrebin
             snake_fr.SetBinContent(xb,yb,z)
             
         ROOT.gStyle.SetOptStat(0)
@@ -163,8 +303,25 @@ class Cluster:
         snake_fr.GetXaxis().SetTitle('x (pixels)')
         snake_fr.GetYaxis().SetTitle('y (pixels)')
         snake_fr.GetZaxis().SetTitle('counts')
-        snake_fr.GetZaxis().SetRangeUser(0,(zmax*1.05))
+        snake_fr.GetXaxis().SetNdivisions(505,ROOT.kTRUE)
+        snake_fr.GetYaxis().SetNdivisions(505,ROOT.kTRUE)
+        # just for the 2D plotting, cut at 1.5 (mean of the RMS of all the pixels)
+        snake_fr.GetZaxis().SetRangeUser(.0,(zmax*1.05))
         snake_fr.Draw(option)
-        for ext in ['png','pdf']:
+        #print "cluster integral = ",snake_fr.Integral()
+        #cFR.SetRightMargin(0.2); cFR.SetLeftMargin(0.1); cFR.SetBottomMargin(0.1);
+        cFR.SetBottomMargin(0.3); cFR.SetLeftMargin(0.2); cFR.SetRightMargin(0.2); 
+        for ext in ['pdf']:
             cFR.SaveAs('{name}.{ext}'.format(name=name,ext=ext))
-        
+
+
+    def qualityLevel(self):
+        # result: 1=loose, 2=medium, 3=tight, 4=very tight
+        kGood = 0
+        # sanity (they are not sparse points clustered)
+        if self.shapes['lat_p0fwhm']>-999: kGood += 1
+        # sphericity
+        if self.shapes['lat_width']>0 and self.shapes['long_width']/self.shapes['lat_width']>2.0: kGood += 1
+        # minimal length (1 cm for neutrons is good)
+        if self.shapes['long_width']>10: kGood += 1
+        return kGood

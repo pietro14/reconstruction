@@ -1,0 +1,14 @@
+CALIBRATION
+
+ORANGE
+1 px - 55*10-6 m
+440V - 1 ph/ev
+
+LEMON
+1 px - 125*10-6 m
+
+440V - 0,06 ph/ev
+450V - 0,10 ph/ev
+460V - 0,12 ph/ev
+
+#460V, for a muon the calibration is 1 keV / 5 photons
