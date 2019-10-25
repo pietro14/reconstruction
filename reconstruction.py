@@ -156,7 +156,7 @@ class analysis:
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
                 if iev<evrange[1] or iev>evrange[2]: continue
-                
+
             name=key.GetName()
             obj=key.ReadObj()
 
@@ -250,7 +250,7 @@ if __name__ == '__main__':
     if options.debug_mode == 1:
         setattr(options,'outFile','reco_run%s_%s_debug.root' % (options.run, options.tip))
         if options.ev: options.maxEntries = options.ev + 1
-        if options.daq == 'midas': options.ev +=0.5 
+        #if options.daq == 'midas': options.ev +=0.5 
     else:
         setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
     setattr(options,'pedfile_name', 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure, options.rebin))
