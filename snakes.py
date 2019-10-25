@@ -101,13 +101,13 @@ class SnakesFactory:
         rescale=int(2048/self.rebin)
         rebin_image     = tl.rebin(self.img_ori, (rescale, rescale))
 
-        edges = tl.noisereductor(self.image,rescale)
+        edges = median_filter(self.image, size=4)
         edcopy = edges.copy()
-        edcopyMedian = median_filter(edcopy, size=4)
-        
+        edcopyTight = tl.noisereductor(edcopy,rescale)
+
         # make the clustering with DBSCAN algo
         # this kills all macrobins with N photons < 1
-        points = np.array(np.nonzero(np.round(edcopyMedian))).astype(int).T
+        points = np.array(np.nonzero(np.round(edcopyTight))).astype(int).T
         lp = points.shape[0]
 
         if tip=='3D':
@@ -241,7 +241,7 @@ class SnakesFactory:
                 
             if self.options.flag_edges_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(edcopyMedian, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
+                plt.imshow(edcopyTight, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
                 plt.title('Edges after Filtering')
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='edgesIma',ext=ext), bbox_inches='tight', pad_inches=0)
@@ -308,7 +308,7 @@ class SnakesFactory:
                 
             if self.options.flag_edges_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(edcopyMedian, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
+                plt.imshow(edcopyTight, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
                 plt.title('Edges after Filtering')
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='edgesIma',ext=ext), bbox_inches='tight', pad_inches=0)
