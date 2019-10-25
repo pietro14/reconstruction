@@ -51,12 +51,26 @@ def findedges(ybox,xbox,rebin):
 def noisereductor(edges,rescale):
     tpx = 10
 
+    for i in range(rescale):
+        for j in range(2):
+            edges[j,i]=0
+            edges[i,j]=0
+            edges[rescale-1-j,i]=0
+            edges[i,rescale-1-j]=0
+    
     for i in range(1,rescale-2):
         for j in range(1,rescale-2):
             spx = edges[i,j]
-            mpx = (np.sum(edges[i-1:i+2,j-1:j+2])-spx)/8.
+            frame = edges[i-1:i+2,j-1:j+2]
+            mpx = (np.sum(frame)-spx)/8.
+            # put very noisy pixels at the average value of the frame around
             if np.abs(spx - mpx) > tpx :
                 edges[i,j] = mpx
+            # filter the pixels with no sufficient energy around
             if (mpx < 0.45):
+                edges[i,j] = 0
+            # require at least two neighbors above threshold
+            neighbors = len(frame[frame>0])
+            if neighbors<3:
                 edges[i,j] = 0
     return edges
