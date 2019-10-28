@@ -73,6 +73,8 @@ class analysis:
         self.outTree.branch("event", "I")
         #if self.options.daq == 'midas': self.autotree.createPMTVariables()
         self.autotree.createCameraVariables()
+        self.autotree.createClusterVariables('cl')
+        self.autotree.createClusterVariables('sc')
 
     def endJob(self):
         self.outTree.write()
@@ -154,7 +156,7 @@ class analysis:
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
                 if iev<evrange[1] or iev>evrange[2]: continue
-                
+
             name=key.GetName()
             obj=key.ReadObj()
 
@@ -199,8 +201,10 @@ class analysis:
                 plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
                 snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                 snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
-                snakes = snprod.run()
-                self.autotree.fillCameraVariables(img_fr_zs,snakes)
+                clusters,snakes = snprod.run()
+                self.autotree.fillCameraVariables(img_fr_zs)
+                self.autotree.fillClusterVariables(snakes,'sc')
+                self.autotree.fillClusterVariables(clusters,'cl')
                 
                 if False: #self.options.daq != 'btf':
                    # PMT waveform reconstruction
@@ -246,7 +250,7 @@ if __name__ == '__main__':
     if options.debug_mode == 1:
         setattr(options,'outFile','reco_run%s_%s_debug.root' % (options.run, options.tip))
         if options.ev: options.maxEntries = options.ev + 1
-        if options.daq == 'midas': options.ev +=0.5 
+        #if options.daq == 'midas': options.ev +=0.5 
     else:
         setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
     setattr(options,'pedfile_name', 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure, options.rebin))
