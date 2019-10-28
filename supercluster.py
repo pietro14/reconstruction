@@ -41,7 +41,7 @@ class SuperClusterAlgorithm:
         # List with intermediate results for plotting the evolution
         evolution = []
         callback = self.store_evolution_in(evolution)
-        ls = morphological_geodesic_active_contour(gimage, 230, init_ls,
+        ls = morphological_geodesic_active_contour(gimage, 300, init_ls,
                                                    smoothing=1, balloon=-1,
                                                    threshold=0.69,
                                                    iter_callback=callback)
@@ -80,7 +80,7 @@ class SuperClusterAlgorithm:
             # i.e. open a window to get back unclustered points with low light
             seedsAndNeighbors = self.clusters_neighborood(basic_clusters,raw_data)
           
-            # run the superclustering algorithm (GAC with 230 iterations)
+            # run the superclustering algorithm (GAC with 300 iterations)
             superClusterContours = self.supercluster(seedsAndNeighbors)
           
             # get the superclusters with the list of points of each one
