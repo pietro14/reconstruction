@@ -1,7 +1,7 @@
 {
 # DEBUG plots
-'debug_mode'          : 1,
-'ev'                  : 13,
+'debug_mode'          : 0,
+'ev'                  : 9,
 'nclu'                : -1,        # -1
 # Plots that will be made if debug_mode = 1
 'flag_full_image'     : 1,
@@ -24,17 +24,17 @@
 'numPedEvents'        : -1,
 'pedExclRegion'       : None,
 'rebin'               : 4,
-'nsigma'              : 2.3,
+'nsigma'              : 1.5,
 'cimax'               : 200,                     # Upper threshold
-'pedexposure'         : 1000,
+'pedexposure'         : 100,
 'justPedestal'        : False,
 'dir'                 : '',
-'run'                 : '00738',                 # uses always 5 characters
-'daq'                 : 'h5',                    # DAQ type (btf/h5/midas)
+'run'                 : '01725',                 # uses always 5 characters
+'daq'                 : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                : 'neutrons',              # events type (beam/cosmics/neutrons)
 
-'excImages'           : [],#[41, 42, 82, 83, 92, 93, 94, 95],                      # To exlude some images of the analysis
-
+'excImages'           : range(5)+[],#[41, 42, 82, 83, 92, 93, 94, 95],                      # To exlude some images of the analysis. Always exclude the first 5 which are messy
+'min_neighbors_average' : 3.5,     # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 
 # Setting i2DBSCAN parameters
 

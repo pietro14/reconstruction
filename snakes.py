@@ -103,7 +103,7 @@ class SnakesFactory:
 
         edges = median_filter(self.image, size=4)
         edcopy = edges.copy()
-        edcopyTight = tl.noisereductor(edcopy,rescale)
+        edcopyTight = tl.noisereductor(edcopy,rescale,self.options.min_neighbors_average)
 
         # make the clustering with DBSCAN algo
         # this kills all macrobins with N photons < 1
@@ -215,74 +215,7 @@ class SnakesFactory:
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext), bbox_inches='tight', pad_inches=0)
             plt.gcf().clear()
             plt.close('all')
-            
-        ## DEBUG MODE
-        if self.options.debug_mode == 1:
-            print('[DEBUG-MODE ON]')
-            print('[%s Method]' % (self.options.tip))
-            
-            if self.options.flag_full_image == 1:
-                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image_fr,cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='lower' )
-                plt.title("Original Image")
-                for ext in ['png','pdf']:
-                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
-                plt.gcf().clear()
-                plt.close('all')
-                
-            if self.options.flag_rebin_image == 1:
-                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax, origin='lower' )
-                plt.title("Rebin Image")
-                for ext in ['png','pdf']:
-                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='rebinIma',ext=ext), bbox_inches='tight', pad_inches=0)
-                plt.gcf().clear()
-                plt.close('all')
-                
-            if self.options.flag_edges_image == 1:
-                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(edcopyTight, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
-                plt.title('Edges after Filtering')
-                for ext in ['png','pdf']:
-                    plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='edgesIma',ext=ext), bbox_inches='tight', pad_inches=0)
-                plt.gcf().clear()
-                plt.close('all')
-                
-            if self.options.flag_stats == 1:
-                print('[Statistics]')
-                n_clusters_ = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
-                print("Total number of Clusters: %d" % (n_clusters_))
-                u,indices = np.unique(db.labels_,return_index = True)
-                print("Clusters found in iteration 1: %d" % (sum(db.tag_[indices] == 1)))
-                print("Clusters found in iteration 2: %d" % (sum(db.tag_[indices] == 2)))
-                print("Clusters found in iteration 3: %d" % (sum(db.tag_[indices] == 3)))
-                
-            if self.options.flag_first_it == 1:
-                print('[Plotting 1st iteration]')
-                u,indices = np.unique(db.labels_,return_index = True)
-                clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
-
-                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
-                plt.title("Clusters found in iteration 1")
-
-                for j in range(0,np.shape(clu)[0]):
-
-                    ybox = clu[j][:,0]
-                    xbox = clu[j][:,1]
-
-                    if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
-                        for n, contour in enumerate(contours):
-                            plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
-
-                
-        if plot:
-            for ext in ['png','pdf']:
-                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext), bbox_inches='tight', pad_inches=0)
-            plt.gcf().clear()
-            plt.close('all')
-            
+                        
         ## DEBUG MODE
         if self.options.debug_mode == 1:
             print('[DEBUG-MODE ON]')
