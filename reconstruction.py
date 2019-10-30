@@ -86,57 +86,70 @@ class analysis:
         tf.Close()
         return ret
 
-    def calcPedestal(self,options,alternativeRebin=-1):
-        maxImages=options.numPedEvents
+        def calcPedestal(self,options,alternativeRebin=-1):
+        maxImages=options.maxEntries
         nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
-        pedfile = ROOT.TFile.Open(self.pedfile_name,'recreate')
-        pedmap = ROOT.TProfile2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax,'s')
+        pedfilename = 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure,rebin)
+        pedfile = ROOT.TFile.Open(pedfilename,'recreate')
+        pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax)
+
+        pedsum = np.zeros((nx,ny))
+        
         tf = ROOT.TFile.Open(self.rfile)
-        if options.pedExclRegion:
-            print("Excluding the following region from the calculation of pedestals:")
-            xmin,xmax = options.pedExclRegion.split(',')[0].split(':')
-            ymin,ymax = options.pedExclRegion.split(',')[1].split(':')
-            print("xrange excl = ({xmin},{xmax})".format(xmin=xmin,xmax=xmax))
-            print("yrange excl = ({ymin},{ymax})".format(ymin=ymin,ymax=ymax))
-            
+
+        # first calculate the mean 
+        numev = 0
         for i,e in enumerate(tf.GetListOfKeys()):
             if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
             name=e.GetName()
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
-            print("Calc pedestal with event: ",name)
+            print("Calc pedestal mean with event: ",name)
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
-            for ix in range(nx+1):
-                for iy in range(ny+1):
-                    x = obj.GetXaxis().GetBinCenter(ix+1)
-                    y = obj.GetYaxis().GetBinCenter(iy+1)
-                    if options.pedExclRegion and x>int(xmin) and x<int(xmax) and y>int(ymin) and y<int(ymax):
-                        ix_rnd = iy_rnd = 0
-                        # need to take only hits within the ellipse not to bias pedestals
-                        while math.hypot(ix_rnd-self.xmax/2, iy_rnd-self.xmax/2)>600:
-                            ix_rnd,iy_rnd = utilities.gen_rand_limit(int(xmin)/rebin,int(xmax)/rebin,
-                                                                     int(ymin)/rebin,int(ymax)/rebin,
-                                                                     maxx=self.xmax/rebin,maxy=self.xmax/rebin)
-                        pedmap.Fill(x,y,obj.GetBinContent(ix_rnd+1,iy_rnd+1)/float(math.pow(self.rebin,2)))                        
-                    else:
-                        pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
-        tf.Close()
-        pedfile.cd()
-        pedmap.Write()
-        pedmean = ROOT.TH1D('pedmean','pedestal mean',500,97,103)
-        pedrms = ROOT.TH1D('pedrms','pedestal RMS',500,0,5)
+            arr = hist2array(obj)
+            pedsum = np.add(pedsum,arr)
+            numev += 1
+        pedmean = pedsum / float(numev)
+
+        # now compute the rms (two separate loops is faster than one, yes)
+        pedsqdiff = np.zeros((nx,ny))
+        for i,e in enumerate(tf.GetListOfKeys()):
+            if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
+            name=e.GetName()
+            obj=e.ReadObj()
+            if not obj.InheritsFrom('TH2'): continue
+            print("Calc pedestal rms with event: ",name)
+            if rebin>1:
+                obj.RebinX(rebin);
+                obj.RebinY(rebin); 
+            arr = hist2array(obj)
+            pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
+        pedrms = np.sqrt(pedsqdiff/float(numev-1))
+
+        # now save in a persistent ROOT object
         for ix in range(nx):
             for iy in range(ny):
-               pedmean.Fill(pedmap.GetBinContent(ix,iy)) 
-               pedrms.Fill(pedmap.GetBinError(ix,iy)) 
-        pedmean.Write()
-        pedrms.Write()
+                pedmap.SetBinContent(ix+1,iy+1,pedmean[ix,iy]);
+                pedmap.SetBinError(ix+1,iy+1,pedrms[ix,iy]);
+        tf.Close()
+
+        pedfile.cd()
+        pedmap.Write()
+        pedmean1D = ROOT.TH1D('pedmean','pedestal mean',500,97,103)
+        pedrms1D = ROOT.TH1D('pedrms','pedestal RMS',500,0,5)
+        for ix in range(nx):
+            for iy in range(ny):
+               pedmean1D.Fill(pedmap.GetBinContent(ix,iy)) 
+               pedrms1D.Fill(pedmap.GetBinError(ix,iy)) 
+        pedmean1D.Write()
+        pedrms1D.Write()
         pedfile.Close()
-        print("Pedestal calculated and saved into ",self.pedfile_name)
+        print("Pedestal calculated and saved into ",pedfilename)
+
 
     def reconstruct(self,evrange=(-1,-1,-1)):
 
