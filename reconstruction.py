@@ -86,7 +86,7 @@ class analysis:
         tf.Close()
         return ret
 
-        def calcPedestal(self,options,alternativeRebin=-1):
+    def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
         nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
