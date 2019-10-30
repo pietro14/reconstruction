@@ -124,7 +124,15 @@ class SnakesFactory:
         
         if self.options.debug_mode == 0:
             self.options.flag_plot_noise = 0
-            
+
+        # returned collections
+        clusters = []
+        allSuperClusters = []
+
+        # clustering will crash if the vector of pixels is empty (it may happen after the zero-suppression + noise filtering)
+        if len(X)==0:
+            return clusters,allSuperClusters
+        
         # - - - - - - - - - - - - - -
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts, flag_plot_noise = self.options.flag_plot_noise).fit(X)
         
@@ -145,7 +153,6 @@ class SnakesFactory:
         # Number of clusters in labels, ignoring noise if present.
         n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
 
-        clusters = []
         ##################### plot
         # the following is to preserve the square aspect ratio with all the camera pixels
         # plt.axes().set_aspect('equal','box')
@@ -418,7 +425,6 @@ class SnakesFactory:
                 plt.gcf().clear()
                 plt.close('all')
 
-        allSuperClusters = []
         for it in range(3):
             allSuperClusters += superclusters[it]
         return clusters,allSuperClusters

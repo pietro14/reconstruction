@@ -21,13 +21,7 @@ class analysis:
         self.rebin = options.rebin        
         self.rfile = rfile
         self.options = options
-        #self.pedfile_name = 'pedestals/pedmap_818_rebin4.root'
-        self.pedfile_name = options.pedfile_name
-        if not os.path.exists(self.pedfile_name):
-            print("WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them...")
-            self.calcPedestal(options)
         self.pedfile_fullres_name = options.pedfile_fullres_name    
-        #self.pedfile_fullres_name = 'pedestals/pedmap_818_rebin1.root'
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
@@ -35,14 +29,6 @@ class analysis:
            print("Pulling pedestals...")
            # first the one for clustering with rebin
            ctools = cameraTools()
-           pedrf = ROOT.TFile.Open(self.pedfile_name)
-           self.pedmap = pedrf.Get('pedmap').Clone()
-           self.pedmap.SetDirectory(None)
-           self.pedarr = hist2array(self.pedmap)
-           self.noisearr = ctools.noisearray(self.pedmap)
-           #self.pedmean = pedrf.Get('pedmean').GetMean()
-           #self.pedrms = pedrf.Get('pedrms').GetMean()
-           pedrf.Close()
            # then the full resolution one
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
@@ -272,7 +258,7 @@ if __name__ == '__main__':
 
     if options.justPedestal:
         ana = analysis(inputf,options)
-        print("Pedestals with rebin factor = ",options.rebin, "done. Exiting.")
+        print("Pedestals done. Exiting.")
         sys.exit(0)
         
     ana = analysis(inputf,options)
