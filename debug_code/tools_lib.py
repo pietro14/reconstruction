@@ -48,7 +48,7 @@ def findedges(ybox,xbox,rebin):
     contours = find_contours(mm, 0.9)
     return contours
 
-def noisereductor(edges,rescale):
+def noisereductor(edges,rescale,meancut=0.35):
     tpx = 10
 
     for i in range(rescale):
@@ -67,7 +67,7 @@ def noisereductor(edges,rescale):
             if np.abs(spx - mpx) > tpx :
                 edges[i,j] = mpx
             # filter the pixels with no sufficient energy around
-            if (mpx < 0.45):
+            if (mpx < 0.35):
                 edges[i,j] = 0
             # require at least two neighbors above threshold
             neighbors = len(frame[frame>0])
