@@ -1,4 +1,5 @@
 import os, math, optparse, ROOT
+from array import array
 
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
@@ -113,7 +114,7 @@ def plotNClusters(iteration=1):
     c.SaveAs("nclusters_iter1_run70_71.pdf")
 
 
-def withinFC(x,y,ax=800,ay=670,shape=2048):
+def withinFC(x,y,ax=500,ay=500,shape=2048):
     center = shape/2.
     x1 = x-center
     y1 = (y-center)*ax/ay
@@ -215,7 +216,7 @@ def drawOne(histo_sr,histo_cr,plotdir='./'):
     line.SetLineStyle(3)
     line.SetLineColor(ROOT.kBlack)
     
-    for ext in ['png','pdf']:
+    for ext in ['png','pdf','root']:
         c.SaveAs("{plotdir}/{var}.{ext}".format(plotdir=plotdir,var=histo_sr.GetName(),ext=ext))
     
     
@@ -229,12 +230,71 @@ def drawSpectra(histos,plotdir):
         histos[('cosm',var)].Scale(histos[('fe',var)].Integral()/histos[('cosm',var)].Integral())
         drawOne(histos[('fe',var)],histos[('cosm',var)],plotdir)
 
-        
+def plotEnergyVsDistance(plotdir):
+
+    tf_fe55 = ROOT.TFile('runs/reco_run01740_3D.root')
+    tree = tf_fe55.Get('Events')
+
+    np = 9 # number of points
+    dist = 100 # distance from center in pixels
+    x = [dist*i for i in range(np+1)]
+    y_mean = []; y_res = []
+
+    cut_base = 'cl_iteration==2'
+    integral = ROOT.TH1F('integral','',100,600,3000)
+    
+    for p in range(np):
+        cut = "{base} && TMath::Hypot(cl_xmean-1024,cl_ymean-1024)>{r_min} && TMath::Hypot(cl_xmean-1024,cl_ymean-1024)<{r_max}".format(base=cut_base,r_min=x[p],r_max=x[p+1])
+        tree.Draw('cl_integral>>integral',cut)
+        mean = integral.GetMean()
+        rms  = integral.GetRMS()
+        y_mean.append(mean)
+        y_res.append(rms/mean)
+        integral.Reset()
+
+    gr_mean = ROOT.TGraph(np,array('f',x),array('f',y_mean))
+    gr_res = ROOT.TGraph(np,array('f',x),array('f',y_res))
+    gr_mean.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_res.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_mean.SetMarkerSize(2)
+    gr_res.SetMarkerSize(2)
+    
+    gr_mean.SetTitle('')
+    gr_res.SetTitle('')
+    
+    c = ROOT.TCanvas('c','',1200,1200)
+    lMargin = 0.12
+    rMargin = 0.05
+    bMargin = 0.30
+    tMargin = 0.07
+
+    gr_mean.Draw('AP')
+    gr_mean.GetXaxis().SetTitle('distance from center (pixels)')
+    gr_mean.GetYaxis().SetTitle('integral (photons)')
+
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/mean.{ext}".format(plotdir=plotdir,ext=ext))
+
+    gr_res.Draw('AP')
+    gr_res.GetXaxis().SetTitle('distance from center (pixels)')
+    gr_res.GetYaxis().SetTitle('resolution (rms)')
+    gr_res.GetYaxis().SetRangeUser(0.10,0.50)
+
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/rms.{ext}".format(plotdir=plotdir,ext=ext))
+
+    print x
+    print y_mean
+    print y_res
+    
+    
+    
+    
     
 if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
-    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options=tworuns,multiplicity)')
+    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options=tworuns,evsdist,multiplicity)')
     parser.add_option('', '--outdir' , type='string'       , default='./'      , help='output directory with directory structure and plots')
     (options, args) = parser.parse_args()
 
@@ -243,6 +303,7 @@ if __name__ == "__main__":
     
     if options.make in ['all','multiplicity']:
         plotNClusters()
+
     if options.make in ['all','tworuns']:
         histograms = fillSpectra()
         odir = options.outdir+'/clusters/'
@@ -250,4 +311,5 @@ if __name__ == "__main__":
         drawSpectra(histograms,odir)
         os.system('cp index.php {od}'.format(od=odir))
     
-    
+    if options.make in ['all','evsdist']:
+        plotEnergyVsDistance('./')
