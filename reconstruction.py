@@ -57,10 +57,12 @@ class analysis:
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
-        #if self.options.daq == 'midas': self.autotree.createPMTVariables()
-        self.autotree.createCameraVariables()
-        self.autotree.createClusterVariables('cl')
-        self.autotree.createClusterVariables('sc')
+        if self.options.camera_mode:
+            self.autotree.createCameraVariables()
+            self.autotree.createClusterVariables('cl')
+            self.autotree.createClusterVariables('sc')
+        if self.options.pmt_mode:
+            self.autotree.createPMTVariables()
 
     def endJob(self):
         self.outTree.write()
@@ -175,10 +177,8 @@ class analysis:
             if iev in self.options.excImages: continue
 
             if self.options.debug_mode == 1 and iev != self.options.ev: continue
-            
+
             if obj.InheritsFrom('TH2'):
-                # DAQ convention
-                # BTF convention
                 if self.options.daq == 'btf':
                     run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
                 elif self.options.daq == 'h5':
@@ -189,47 +189,52 @@ class analysis:
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
 
-                pic_fullres = obj.Clone(obj.GetName()+'_fr')
-                img_fr = hist2array(pic_fullres)
-
-                # Upper Threshold full image
-                img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
-                # zs on full image
-                img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=self.options.nsigma)
-                img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+            if self.options.camera_mode:
+                if obj.InheritsFrom('TH2'):
+     
+                    pic_fullres = obj.Clone(obj.GetName()+'_fr')
+                    img_fr = hist2array(pic_fullres)
+     
+                    # Upper Threshold full image
+                    img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
+                    # zs on full image
+                    img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                    img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=self.options.nsigma)
+                    img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                    
+                    # Cluster reconstruction on 2D picture
+                    algo = 'DBSCAN'
+                    if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
+                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
+                    plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
+                    snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
+                    snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
+                    clusters,snakes = snprod.run()
+                    self.autotree.fillCameraVariables(img_fr_zs)
+                    self.autotree.fillClusterVariables(snakes,'sc')
+                    self.autotree.fillClusterVariables(clusters,'cl')
                 
-                # Cluster reconstruction on 2D picture
-                algo = 'DBSCAN'
-                if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
-                plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
-                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
-                snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
-                clusters,snakes = snprod.run()
-                self.autotree.fillCameraVariables(img_fr_zs)
-                self.autotree.fillClusterVariables(snakes,'sc')
-                self.autotree.fillClusterVariables(clusters,'cl')
+            if self.options.pmt_mode:
+                if obj.InheritsFrom('TGraph'):
+                    # PMT waveform reconstruction
+                    from waveform import PeakFinder,PeaksProducer
+                    wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
+                    # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
+                    pkprod_inputs = {'waveform': wform}
+                    pkprod_params = {'threshold': options.threshold, # min threshold for a signal (baseline is -20 mV)
+                                     'minPeakDistance': options.minPeakDistance, # number of samples (1 sample = 1ns )
+                                     'prominence': options.prominence, # noise after resampling very small
+                                     'width': options.width, # minimal width of the signal
+                                     'resample': options.resample,  # to sample waveform at 1 GHz only
+                                     'rangex': (self.options.time_range[0],self.options.time_range[1]),
+                                     'plotpy': options.pmt_plotpy
+                    }
+                    pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
+                    peaksfinder = pkprod.run()
+                    self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
                 
-                if False: #self.options.daq != 'btf':
-                   # PMT waveform reconstruction
-                   from waveform import PeakFinder,PeaksProducer
-                   wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
-                   # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
-                   pkprod_inputs = {'waveform': wform}
-                   pkprod_params = {'threshold': 0, # min threshold for a signal
-                                    'minPeakDistance': 1, # number of samples (1 sample = 1ns )
-                                    'prominence': 0.5, # noise after resampling very small
-                                    'width': 1, # minimal width of the signal
-                                    'resample': 5,  # to sample waveform at 1 GHz only
-                                    'rangex': (6160,6500),
-                                    'plotpy': False
-                   }
-                   pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
-                   peaksfinder = pkprod.run()
-                   self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
-                
-                # fill reco tree
+            # fill reco tree (just once/event, and the TGraph is analyses as last)
+            if obj.InheritsFrom('TGraph'):
                 self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
