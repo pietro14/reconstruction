@@ -31,7 +31,7 @@ class PeakFinder:
         if rebin:
             yrebin = []; xrebin = []
             for i in range(0,len(y),rebin):
-                yrebin.append(np.mean([y[j] for j in range(i,min(i+rebin,len(y)))]))
+                yrebin.append(np.sum([y[j] for j in range(i,min(i+rebin,len(y)))]))
                 xrebin.append(np.mean([x[j] for j in range(i,min(i+rebin,len(y)))]))
             y = np.array(yrebin)
             x = np.array(xrebin)
@@ -43,7 +43,7 @@ class PeakFinder:
                 print("WARNING! Rebinning for TProfile not implemented yet!")
             else:
                 th1.Rebin(rebin)
-        y = np.array([th1.GetBinContent(b) for b in range(1,th1.GetNbinsX()+1)])
+        y = np.array([-1*th1.GetBinContent(b) for b in range(1,th1.GetNbinsX()+1)])
         x = np.array([th1.GetXaxis().GetBinCenter(b) for b in range(1,th1.GetNbinsX()+1)])
         self.setData(x,y,xmin,xmax)
         
@@ -80,7 +80,7 @@ class PeakFinder:
                    xmax=self.getPeakBoundaries('right'), color = "C1")        
         plt.xlabel('Time (ns)')
         plt.ylabel('amplitude (mV)')
-        for ext in ['pdf']:
+        for ext in ['pdf','png']:
             plt.savefig('{pdir}/{name}.{ext}'.format(pdir=pdir,name=self.name,ext=ext))
         plt.gcf().clear()
 
@@ -121,11 +121,22 @@ class PeakFinder:
 
     def setTot(self,threshold=0):
         x0,x1=(-1,-1)
+        # for robustness, look for the rise from the left and for the fall from the right
         for i,y in enumerate(self.y):
-            if x0==-1 and y>threshold: x0=self.x[i]
-            if x0>0 and x1==-1 and y<threshold: x1=self.x[i]
-        self.x0 = np.nanmax(x0,self.xmin)
-        self.x1 = np.nanmax(x1,self.xmax)
+            if y>threshold:
+                x0 = self.x[i]
+                break
+        for i in range(1,len(self.y)):
+            ip = -i
+            if self.x[ip]<=x0:
+                x1 = x0
+                break
+            y = self.y[ip]
+            if y>threshold:
+                x1=self.x[ip]
+                break
+        self.x0 = np.nanmax(np.array([x0,self.xmin]))
+        self.x1 = np.nanmin(np.array([x1,self.xmax]))
 
     def getTot(self):
         return self.x1-self.x0
@@ -133,7 +144,10 @@ class PeakFinder:
     def getIntegral(self):
         # range of x with y over threshold
         ix = np.array([i for i,v in enumerate(self.x) if v>self.x0 and v<self.x1])
-        return sum(self.y[ix])
+        if len(ix)==0:
+            return 0
+        else:
+            return sum(self.y[ix])
 
 
 class PeaksProducer:
@@ -180,7 +194,7 @@ class PMTSignal:
         title = 'N clusters = {nclu}, max length = {maxl:.1f}mm'.format(nclu=len(self.clusters), maxl=maxwidth)
         self.waveform.SetTitle(title)
 
-        for ext in ['pdf']:
+        for ext in ['png','pdf']:
             canv.SaveAs('{od}/{name}.{ext}'.format(od=self.options.plotDir,name=self.waveform.GetName(),ext=ext))
 
 
@@ -194,37 +208,16 @@ if __name__ == '__main__':
     # sampling was 5 GHz (5/ns). Separate peaks of at least 1ns
     # rebin by 5 (1/ns)
     
-    threshold = 10 # min threshold for a signal
-    min_distance_peaks = 1 # number of samples (1 samples = 1ns)
-    prominence = 0.5 # noise seems ~0.2 mV
-    width = 1 # minimal width of the signal
+    threshold = 0 # min threshold for a signal
+    min_distance_peaks = 5 # number of samples (1 samples = 1ns)
+    prominence = 50 # noise seems ~0.2 mV
+    width = 10 # minimal width of the signal
 
-    # single peak example
-    gr = tf.Get('wfm_run00070_ev310')
-    pf = PeakFinder(gr,6160,6300,rebin=5)
-    pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-    pf.plotpy()
-    
-    # two clear peaks example
-    gr = tf.Get('wfm_run00070_ev39')
-    pf = PeakFinder(gr,6160,6300,rebin=5)
-    pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-    pf.plotpy()
+    # plot the first 10 waveforms
+    for iev in range(10):
+        gr = tf.Get('wfm_run01753_ev{iev}'.format(iev=iev))
+        pf = PeakFinder(gr,7000,7800,rebin=5)
+        pf.findPeaks(threshold,min_distance_peaks,prominence,width)
+        pf.plotpy()
 
-    # small second peak example
-    gr = tf.Get('wfm_run00070_ev0')
-    pf = PeakFinder(gr,6160,6300,rebin=5)
-    pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-    pf.plotpy()
 
-    # mess
-    gr = tf.Get('wfm_run00070_ev9')
-    pf = PeakFinder(gr,6160,6300,rebin=5)
-    pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-    pf.plotpy()
-
-    # large peak
-    gr = tf.Get('wfm_run00070_ev73')
-    pf = PeakFinder(gr,6160,6300,rebin=5)
-    pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-    pf.plotpy()
