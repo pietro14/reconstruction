@@ -14,7 +14,7 @@
 'flag_all_it'         : 0,
 'flag_plot_noise'     : 0,
 
-'camera_mode'            : 0,
+'camera_mode'            : 1,
 
 # Parameters of the plots
 'cmapcolor'           : 'gray',
