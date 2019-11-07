@@ -21,13 +21,7 @@ class analysis:
         self.rebin = options.rebin        
         self.rfile = rfile
         self.options = options
-        #self.pedfile_name = 'pedestals/pedmap_818_rebin4.root'
-        self.pedfile_name = options.pedfile_name
-        if not os.path.exists(self.pedfile_name):
-            print("WARNING: pedestal file ",self.pedfile_name, " not existing. First calculate them...")
-            self.calcPedestal(options)
         self.pedfile_fullres_name = options.pedfile_fullres_name    
-        #self.pedfile_fullres_name = 'pedestals/pedmap_818_rebin1.root'
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
@@ -35,14 +29,6 @@ class analysis:
            print("Pulling pedestals...")
            # first the one for clustering with rebin
            ctools = cameraTools()
-           pedrf = ROOT.TFile.Open(self.pedfile_name)
-           self.pedmap = pedrf.Get('pedmap').Clone()
-           self.pedmap.SetDirectory(None)
-           self.pedarr = hist2array(self.pedmap)
-           self.noisearr = ctools.noisearray(self.pedmap)
-           #self.pedmean = pedrf.Get('pedmean').GetMean()
-           #self.pedrms = pedrf.Get('pedrms').GetMean()
-           pedrf.Close()
            # then the full resolution one
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
@@ -71,8 +57,12 @@ class analysis:
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
-        #if self.options.daq == 'midas': self.autotree.createPMTVariables()
-        self.autotree.createCameraVariables()
+        if self.options.camera_mode:
+            self.autotree.createCameraVariables()
+            self.autotree.createClusterVariables('cl')
+            self.autotree.createClusterVariables('sc')
+        if self.options.pmt_mode:
+            self.autotree.createPMTVariables()
 
     def endJob(self):
         self.outTree.write()
@@ -85,56 +75,75 @@ class analysis:
         return ret
 
     def calcPedestal(self,options,alternativeRebin=-1):
-        maxImages=options.numPedEvents
+        maxImages=options.maxEntries
         nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
-        pedfile = ROOT.TFile.Open(self.pedfile_name,'recreate')
-        pedmap = ROOT.TProfile2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax,'s')
+        pedfilename = 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure,rebin)
+        pedfile = ROOT.TFile.Open(pedfilename,'recreate')
+        pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax)
+
+        pedsum = np.zeros((nx,ny))
+        
         tf = ROOT.TFile.Open(self.rfile)
-        if options.pedExclRegion:
-            print("Excluding the following region from the calculation of pedestals:")
-            xmin,xmax = options.pedExclRegion.split(',')[0].split(':')
-            ymin,ymax = options.pedExclRegion.split(',')[1].split(':')
-            print("xrange excl = ({xmin},{xmax})".format(xmin=xmin,xmax=xmax))
-            print("yrange excl = ({ymin},{ymax})".format(ymin=ymin,ymax=ymax))
-            
+
+        # first calculate the mean 
+        numev = 0
         for i,e in enumerate(tf.GetListOfKeys()):
+            iev = i if self.options.daq != 'midas'  else iobj/2 # when PMT is present
+            if iev in self.options.excImages: continue
+
             if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
             name=e.GetName()
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
-            print("Calc pedestal with event: ",name)
+            print("Calc pedestal mean with event: ",name)
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
-            for ix in range(nx+1):
-                for iy in range(ny+1):
-                    x = obj.GetXaxis().GetBinCenter(ix+1)
-                    y = obj.GetYaxis().GetBinCenter(iy+1)
-                    if options.pedExclRegion and x>int(xmin) and x<int(xmax) and y>int(ymin) and y<int(ymax):
-                        ix_rnd = iy_rnd = 0
-                        # need to take only hits within the ellipse not to bias pedestals
-                        while math.hypot(ix_rnd-self.xmax/2, iy_rnd-self.xmax/2)>600:
-                            ix_rnd,iy_rnd = utilities.gen_rand_limit(int(xmin)/rebin,int(xmax)/rebin,
-                                                                     int(ymin)/rebin,int(ymax)/rebin,
-                                                                     maxx=self.xmax/rebin,maxy=self.xmax/rebin)
-                        pedmap.Fill(x,y,obj.GetBinContent(ix_rnd+1,iy_rnd+1)/float(math.pow(self.rebin,2)))                        
-                    else:
-                        pedmap.Fill(x,y,obj.GetBinContent(ix+1,iy+1)/float(math.pow(self.rebin,2)))
-        tf.Close()
-        pedfile.cd()
-        pedmap.Write()
-        pedmean = ROOT.TH1D('pedmean','pedestal mean',500,97,103)
-        pedrms = ROOT.TH1D('pedrms','pedestal RMS',500,0,5)
+            arr = hist2array(obj)
+            pedsum = np.add(pedsum,arr)
+            numev += 1
+        pedmean = pedsum / float(numev)
+
+        # now compute the rms (two separate loops is faster than one, yes)
+        pedsqdiff = np.zeros((nx,ny))
+        for i,e in enumerate(tf.GetListOfKeys()):
+            iev = i if self.options.daq != 'midas'  else iobj/2 # when PMT is present
+            if iev in self.options.excImages: continue
+
+            if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
+            name=e.GetName()
+            obj=e.ReadObj()
+            if not obj.InheritsFrom('TH2'): continue
+            print("Calc pedestal rms with event: ",name)
+            if rebin>1:
+                obj.RebinX(rebin);
+                obj.RebinY(rebin); 
+            arr = hist2array(obj)
+            pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
+        pedrms = np.sqrt(pedsqdiff/float(numev-1))
+
+        # now save in a persistent ROOT object
         for ix in range(nx):
             for iy in range(ny):
-               pedmean.Fill(pedmap.GetBinContent(ix,iy)) 
-               pedrms.Fill(pedmap.GetBinError(ix,iy)) 
-        pedmean.Write()
-        pedrms.Write()
+                pedmap.SetBinContent(ix+1,iy+1,pedmean[ix,iy]);
+                pedmap.SetBinError(ix+1,iy+1,pedrms[ix,iy]);
+        tf.Close()
+
+        pedfile.cd()
+        pedmap.Write()
+        pedmean1D = ROOT.TH1D('pedmean','pedestal mean',500,97,103)
+        pedrms1D = ROOT.TH1D('pedrms','pedestal RMS',500,0,5)
+        for ix in range(nx):
+            for iy in range(ny):
+               pedmean1D.Fill(pedmap.GetBinContent(ix,iy)) 
+               pedrms1D.Fill(pedmap.GetBinError(ix,iy)) 
+        pedmean1D.Write()
+        pedrms1D.Write()
         pedfile.Close()
-        print("Pedestal calculated and saved into ",self.pedfile_name)
+        print("Pedestal calculated and saved into ",pedfilename)
+
 
     def reconstruct(self,evrange=(-1,-1,-1)):
 
@@ -154,7 +163,7 @@ class analysis:
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
                 if iev<evrange[1] or iev>evrange[2]: continue
-                
+
             name=key.GetName()
             obj=key.ReadObj()
 
@@ -168,10 +177,8 @@ class analysis:
             if iev in self.options.excImages: continue
 
             if self.options.debug_mode == 1 and iev != self.options.ev: continue
-            
+
             if obj.InheritsFrom('TH2'):
-                # DAQ convention
-                # BTF convention
                 if self.options.daq == 'btf':
                     run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
                 elif self.options.daq == 'h5':
@@ -182,45 +189,52 @@ class analysis:
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
 
-                pic_fullres = obj.Clone(obj.GetName()+'_fr')
-                img_fr = hist2array(pic_fullres)
-
-                # Upper Threshold full image
-                img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
-                # zs on full image
-                img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=self.options.nsigma)
-                img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+            if self.options.camera_mode:
+                if obj.InheritsFrom('TH2'):
+     
+                    pic_fullres = obj.Clone(obj.GetName()+'_fr')
+                    img_fr = hist2array(pic_fullres)
+     
+                    # Upper Threshold full image
+                    img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
+                    # zs on full image
+                    img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                    img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=self.options.nsigma)
+                    img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                    
+                    # Cluster reconstruction on 2D picture
+                    algo = 'DBSCAN'
+                    if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
+                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
+                    plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
+                    snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
+                    snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
+                    clusters,snakes = snprod.run()
+                    self.autotree.fillCameraVariables(img_fr_zs)
+                    self.autotree.fillClusterVariables(snakes,'sc')
+                    self.autotree.fillClusterVariables(clusters,'cl')
                 
-                # Cluster reconstruction on 2D picture
-                algo = 'DBSCAN'
-                if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
-                plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
-                snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
-                snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
-                snakes = snprod.run()
-                self.autotree.fillCameraVariables(img_fr_zs,snakes)
+            if self.options.pmt_mode:
+                if obj.InheritsFrom('TGraph'):
+                    # PMT waveform reconstruction
+                    from waveform import PeakFinder,PeaksProducer
+                    wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
+                    # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
+                    pkprod_inputs = {'waveform': wform}
+                    pkprod_params = {'threshold': options.threshold, # min threshold for a signal (baseline is -20 mV)
+                                     'minPeakDistance': options.minPeakDistance, # number of samples (1 sample = 1ns )
+                                     'prominence': options.prominence, # noise after resampling very small
+                                     'width': options.width, # minimal width of the signal
+                                     'resample': options.resample,  # to sample waveform at 1 GHz only
+                                     'rangex': (self.options.time_range[0],self.options.time_range[1]),
+                                     'plotpy': options.pmt_plotpy
+                    }
+                    pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
+                    peaksfinder = pkprod.run()
+                    self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
                 
-                if False: #self.options.daq != 'btf':
-                   # PMT waveform reconstruction
-                   from waveform import PeakFinder,PeaksProducer
-                   wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
-                   # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
-                   pkprod_inputs = {'waveform': wform}
-                   pkprod_params = {'threshold': 0, # min threshold for a signal
-                                    'minPeakDistance': 1, # number of samples (1 sample = 1ns )
-                                    'prominence': 0.5, # noise after resampling very small
-                                    'width': 1, # minimal width of the signal
-                                    'resample': 5,  # to sample waveform at 1 GHz only
-                                    'rangex': (6160,6500),
-                                    'plotpy': False
-                   }
-                   pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
-                   peaksfinder = pkprod.run()
-                   self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
-                
-                # fill reco tree
+            # fill reco tree (just once/event, and the TGraph is analyses as last)
+            if obj.InheritsFrom('TGraph'):
                 self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
@@ -246,7 +260,7 @@ if __name__ == '__main__':
     if options.debug_mode == 1:
         setattr(options,'outFile','reco_run%s_%s_debug.root' % (options.run, options.tip))
         if options.ev: options.maxEntries = options.ev + 1
-        if options.daq == 'midas': options.ev +=0.5 
+        #if options.daq == 'midas': options.ev +=0.5 
     else:
         setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
     setattr(options,'pedfile_name', 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure, options.rebin))
@@ -255,7 +269,7 @@ if __name__ == '__main__':
 
     if options.justPedestal:
         ana = analysis(inputf,options)
-        print("Pedestals with rebin factor = ",options.rebin, "done. Exiting.")
+        print("Pedestals done. Exiting.")
         sys.exit(0)
         
     ana = analysis(inputf,options)
