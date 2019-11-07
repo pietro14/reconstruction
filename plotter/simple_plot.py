@@ -163,6 +163,21 @@ def fillSpectra(cluster='cl'):
 
     return ret
 
+def getCanvas():
+    c = ROOT.TCanvas('c','',1200,1200)
+    lMargin = 0.14
+    rMargin = 0.10
+    bMargin = 0.15
+    tMargin = 0.10
+    c.SetLeftMargin(lMargin)
+    c.SetRightMargin(rMargin)
+    c.SetTopMargin(tMargin)
+    c.SetBottomMargin(bMargin)
+    c.SetFrameBorderMode(0);
+    c.SetBorderMode(0);
+    c.SetBorderSize(0);
+    return c
+
 def drawOne(histo_sr,histo_cr,plotdir='./'):
     ROOT.gStyle.SetOptStat(0)
     
@@ -288,13 +303,118 @@ def plotEnergyVsDistance(plotdir):
     print y_res
     
     
+def plotPMTEnergyVsPosition(plotdir):
+    tf_fe55 = ROOT.TFile('runs/reco_run01754_to_run01759.root')
+    tree = tf_fe55.Get('Events')
+
+    runs = range(1754,1760)
+    integral = ROOT.TH1F('integral','',100,2000,20000)
+
+    np = len(runs)
+    x = []
+    y_mean = []; y_res = []
     
+    for i,r in enumerate(runs):
+        cut = 'run=={r} && pmt_tot<100'.format(r=r)
+        tree.Draw('pmt_integral>>integral',cut)
+        mean = integral.GetMean()
+        rms  = integral.GetRMS()
+        x.append(i)
+        y_mean.append(mean)
+        y_res.append(rms/mean)
+        integral.Reset()
+
+
+    print y_res
+    
+    gr_mean = ROOT.TGraph(np,array('f',x),array('f',y_mean))
+    gr_res = ROOT.TGraph(np,array('f',x),array('f',y_res))
+    gr_mean.GetXaxis().SetRangeUser(-1,np)
+    gr_res.GetXaxis().SetRangeUser(-1,np)
+    gr_mean.GetYaxis().SetRangeUser(5000,9000)
+    gr_res. GetYaxis().SetRangeUser(0,1.0)
+    gr_mean.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_res.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_mean.SetMarkerSize(2)
+    gr_res.SetMarkerSize(2)
+    
+    gr_mean.SetTitle('')
+    gr_res.SetTitle('')
+
+    c = ROOT.TCanvas('c','',1200,1200)
+    lMargin = 0.17
+    rMargin = 0.05
+    bMargin = 0.15
+    tMargin = 0.07
+    c.SetLeftMargin(lMargin)
+    c.SetRightMargin(rMargin)
+    c.SetTopMargin(tMargin)
+    c.SetBottomMargin(bMargin)
+    c.SetFrameBorderMode(0);
+    c.SetBorderMode(0);
+    c.SetBorderSize(0);
+
+    gr_mean.Draw('AP')
+    gr_mean.GetXaxis().SetTitle('source position index')
+    gr_mean.GetYaxis().SetTitle('PMT integral (mV)')
+
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/mean.{ext}".format(plotdir=plotdir,ext=ext))
+
+    gr_res.Draw('AP')
+    gr_res.GetXaxis().SetTitle('source position index')
+    gr_res.GetYaxis().SetTitle('resolution (rms)')
+
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/rms.{ext}".format(plotdir=plotdir,ext=ext))
+
+    print x
+    print y_mean
+    print y_res
+
+
+def plotCameraPMTCorr(outdir):
+    tf_fe55 = ROOT.TFile('runs/reco_run01754_to_run01759.root')
+    tree = tf_fe55.Get('Events')
+
+    tot_vs_nhits = ROOT.TH2F('nhits_vs_tot','',45,20,100,30,100,400)
+    tot_vs_nhits.GetXaxis().SetTitle("T.o.T. (ms)")
+    tot_vs_nhits.GetYaxis().SetTitle("supercluster pixels")
+    tot_vs_nhits.SetContour(100)
+    
+    ## fill the 2D histogram
+    for event in tree:
+        if event.pmt_tot > 100: continue
+        for isc in range(event.nSc):
+            if event.sc_iteration[isc]!=2: continue
+            if event.sc_width[isc]/event.sc_length[isc]<0.7: continue
+            if not withinFC(event.sc_xmean[isc],event.sc_ymean[isc],700,700): continue
+            tot_vs_nhits.Fill(event.pmt_tot,event.sc_nhits[isc])
+
+    ## profile for better understanding
+    profX = tot_vs_nhits.ProfileX()
+    profX.SetMarkerStyle(ROOT.kFullCircle)
+    profX.SetLineColor(ROOT.kBlack)
+    profX.SetMarkerColor(ROOT.kBlack)
+    profX.GetYaxis().SetRangeUser(180,310)
+    profX.GetYaxis().SetTitle("average pixels in SC")
+
+    ROOT.gStyle.SetPalette(ROOT.kRainBow)
+    ROOT.gStyle.SetOptStat(0)
+    c = getCanvas()
+    tot_vs_nhits.Draw("colz")
+    for ext in ['png','pdf','root']:
+        c.SaveAs('{plotdir}/{name}.{ext}'.format(plotdir=outdir,name=tot_vs_nhits.GetName(),ext=ext))
+
+    profX.Draw('pe1')
+    for ext in ['png','pdf','root']:
+        c.SaveAs('{plotdir}/{name}_profX.{ext}'.format(plotdir=outdir,name=tot_vs_nhits.GetName(),ext=ext))
     
     
 if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
-    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options=tworuns,evsdist,multiplicity)')
+    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options=tworuns,evsdist,pmtvsz,cluvspmt,multiplicity)')
     parser.add_option('', '--outdir' , type='string'       , default='./'      , help='output directory with directory structure and plots')
     (options, args) = parser.parse_args()
 
@@ -312,4 +432,10 @@ if __name__ == "__main__":
         os.system('cp index.php {od}'.format(od=odir))
     
     if options.make in ['all','evsdist']:
-        plotEnergyVsDistance('./')
+        plotEnergyVsDistance(options.outdir)
+
+    if options.make in ['all','pmtvsz']:
+        plotPMTEnergyVsPosition(options.outdir)
+
+    if options.make in ['all','cluvspmt']:
+        plotCameraPMTCorr(options.outdir)
