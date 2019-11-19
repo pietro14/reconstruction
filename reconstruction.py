@@ -167,12 +167,6 @@ class analysis:
             name=key.GetName()
             obj=key.ReadObj()
 
-            ###### DEBUG #########
-            # if iev!=9 and iev!=4 and iev!=162: continue
-            if iev<2: continue
-            #if iev<80: continue
-            ######################
-            
             # Routine to skip some images if needed
             if iev in self.options.excImages: continue
 
