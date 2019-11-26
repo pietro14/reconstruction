@@ -26,10 +26,64 @@ or *histograms_Run01515.root* if it was already a root file.
 
 
 # Prerequisite to run:
-- Python 3.X
+- Python 2.X (Stable version) or Python 3.X
 - Root 6.X
-- root-numpy
-- Numpy
-- Matplotlib
-and a few other common python libraries
 
+## Python libraries:
+- cycler==0.10.0
+- decorator==4.4.0
+- imageio==2.6.1
+- joblib==0.14.0
+- kiwisolver==1.1.0
+- matplotlib==3.1.1
+- networkx==2.4
+- numpy==1.17.3
+- Pillow==6.2.0
+- pyparsing==2.4.2
+- python-dateutil==2.8.0
+- PyWavelets==1.1.0
+- root-numpy==4.8.0
+- scikit-image==0.16.1
+- scikit-learn==0.21.3
+- scipy==1.3.1
+- six==1.12.0
+
+## Example
+
+**Download the code from github:**
+
+`git clone git@github.com:CYGNUS-RD/analysis.git`
+
+`cd analysis`
+
+
+**Get a file for a specific run taken with the DAQ (eg. run 2113):**
+
+`wget https://swift.cloud.infn.it:8080/v1/AUTH_1e60fe39fba04701aa5ffc0b97871ed8/Cygnus/Data/LAB/histograms_Run02113.root`
+
+
+**Change the run number in the config file (Line 34)**
+
+**https://github.com/CYGNUS-RD/analysis/blob/fng_18/configFile.txt#L34**
+
+`emacs -nw configFile.txt`
+
+
+**Then run the code on all the events**
+
+`python reconstruction.py configFile.txt`
+
+
+**If your computer has X cores**
+
+(check  on linux with `cat /proc/cpuinfo | awk '/^processor/{print $3}’`)
+
+
+**You can speed up the processing by parallelizing it:**
+
+`python reconstruction.py configFile.txt -j X`
+
+
+**You can now look at the output ROOT file with a tree containing 1 event/image with:**
+
+`root -l reco_run02113_3D.root`
