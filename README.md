@@ -53,6 +53,8 @@ or *histograms_Run01515.root* if it was already a root file.
 **Download the code from github:**
 
 `git clone git@github.com:CYGNUS-RD/analysis.git`
+or
+`git clone https://github.com/CYGNUS-RD/analysis.git`
 
 `cd analysis`
 
