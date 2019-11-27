@@ -90,7 +90,7 @@ class analysis:
         # first calculate the mean 
         numev = 0
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas'  else iobj/2 # when PMT is present
+            iev = i if self.options.daq != 'midas'  else i/2 # when PMT is present
             if iev in self.options.excImages: continue
 
             if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
@@ -109,7 +109,7 @@ class analysis:
         # now compute the rms (two separate loops is faster than one, yes)
         pedsqdiff = np.zeros((nx,ny))
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas'  else iobj/2 # when PMT is present
+            iev = i if self.options.daq != 'midas'  else i/2 # when PMT is present
             if iev in self.options.excImages: continue
 
             if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
