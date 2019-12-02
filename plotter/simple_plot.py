@@ -114,18 +114,26 @@ def plotNClusters(iteration=1):
     c.SaveAs("nclusters_iter1_run70_71.pdf")
 
 
-def withinFC(x,y,ax=500,ay=500,shape=2048):
+def withinFC(x,y,ax=400,ay=500,shape=2048):
     center = shape/2.
     x1 = x-center
-    y1 = (y-center)*ax/ay
+    y1 = (y-center)*1.2
     return math.hypot(x1,y1)<ax
+
+def slimnessCut(l,w,th=0.6):
+    
+        return (w/l)>th
+
+def integralCut(i,minTh=1800,maxTh=3200):
+    
+        return (i>minTh) & (i<maxTh)
     
 
 def fillSpectra(cluster='cl'):
 
     ret = {}
-    tf_cosmics = ROOT.TFile('runs/reco_run01726_3D.root')
-    tf_fe55 = ROOT.TFile('runs/reco_run01740_3D.root')
+    tf_cosmics = ROOT.TFile('../reco_run02278_3D.root')
+    tf_fe55 = ROOT.TFile('../reco_run02279_3D.root')
     tfiles = {'fe':tf_fe55,'cosm':tf_cosmics}
     
     ## signal region histograms
@@ -156,6 +164,10 @@ def fillSpectra(cluster='cl'):
                 if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
                     continue
                 if not withinFC(getattr(event,"{clutype}_xmean".format(clutype=cluster))[isc],getattr(event,"{clutype}_ymean".format(clutype=cluster))[isc]):
+                    continue
+                #if not slimnessCut(getattr(event,"{clutype}_length".format(clutype=cluster))[isc],getattr(event,"{clutype}_width".format(clutype=cluster))[isc]):
+                 #   continue
+                if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
                     continue
                 for var in ['integral','length','width','nhits']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
@@ -213,7 +225,7 @@ def drawOne(histo_sr,histo_cr,plotdir='./'):
     histo_sr.Draw("pe same")
 
     histos = [histo_sr,histo_cr]
-    labels = ['^{55}Fe source','No source']
+    labels = ['^{55}Fe source 70/30 - Pos6','^{55}Fe source 70/30 - Pos4']
     styles = ['p','f']
     
     legend = doLegend(histos,labels,styles,corner="TR")
@@ -301,6 +313,73 @@ def plotEnergyVsDistance(plotdir):
     print x
     print y_mean
     print y_res
+
+def plotCameraEnergyVsPosition(plotdir):
+    tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280.root')
+    tree = tf_fe55.Get('Events')
+
+    runs = range(2274,2281)
+    integral = ROOT.TH1F('integral','',100,1000,6000)
+
+    np = len(runs)
+    x = []
+    y_mean = []; y_res = []
+    
+    cut_base = 'cl_iteration==2'
+    
+    for i,r in enumerate(runs):
+        cut = "{base} && run=={r} && TMath::Hypot(cl_xmean-1024,(cl_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r=r,r_max=400)
+        tree.Draw('cl_integral>>integral',cut)
+        mean = integral.GetMean()
+        rms  = integral.GetRMS()
+        x.append(i)
+        y_mean.append(mean)
+        y_res.append(rms/mean)
+        integral.Reset()
+
+
+    print y_res
+    
+    gr_mean = ROOT.TGraph(np,array('f',x),array('f',y_mean))
+    gr_res = ROOT.TGraph(np,array('f',x),array('f',y_res))
+    gr_mean.GetXaxis().SetRangeUser(-2,np)
+    gr_res.GetXaxis().SetRangeUser(-2,np)
+    gr_mean.GetYaxis().SetRangeUser(0,3000)
+    gr_res. GetYaxis().SetRangeUser(0,0.5)
+    gr_mean.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_res.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_mean.SetMarkerSize(2)
+    gr_res.SetMarkerSize(2)
+    
+    gr_mean.SetTitle('')
+    gr_res.SetTitle('')
+
+    c = ROOT.TCanvas('c','',1200,1200)
+    lMargin = 0.17
+    rMargin = 0.05
+    bMargin = 0.15
+    tMargin = 0.07
+    c.SetLeftMargin(lMargin)
+    c.SetRightMargin(rMargin)
+    c.SetTopMargin(tMargin)
+    c.SetBottomMargin(bMargin)
+    c.SetFrameBorderMode(0);
+    c.SetBorderMode(0);
+    c.SetBorderSize(0);
+
+    gr_mean.Draw('AP')
+    gr_mean.GetXaxis().SetTitle('Source Position')
+    gr_mean.GetYaxis().SetTitle('Integral (ph)')
+
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/CameraMean.{ext}".format(plotdir=plotdir,ext=ext))
+
+    gr_res.Draw('AP')
+    gr_res.GetXaxis().SetTitle('Source Position')
+    gr_res.GetYaxis().SetTitle('Resolution (rms)')
+
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/CameraRms.{ext}".format(plotdir=plotdir,ext=ext))
     
     
 def plotPMTEnergyVsPosition(plotdir):
@@ -409,13 +488,107 @@ def plotCameraPMTCorr(outdir):
     profX.Draw('pe1')
     for ext in ['png','pdf','root']:
         c.SaveAs('{plotdir}/{name}_profX.{ext}'.format(plotdir=outdir,name=tot_vs_nhits.GetName(),ext=ext))
+        
+def plotHistFit(plotdir,var='integral',i=0):
+    ROOT.gStyle.SetOptFit(1011)
+    #i=6
+    pos = [0, 1, 2, 3, 4, 5, 6]
+    run = [2274, 2275, 2276, 2277, 2278, 2279, 2280]
+    
+    if var == 'integral':
+        var1 = 'cl_integral'
+        leg = 'Integral [ph]'
+        xmin = 2300
+        xmax = 2900
+        histlimit = 6000
+    elif var == 'length':
+        var1 = 'cl_length'
+        leg = 'length [px]'
+        xmin = 20
+        xmax = 60
+        histlimit = 450
+    elif var == 'width':
+        var1 = 'cl_width'
+        leg = 'Width [px]'
+        xmin = 20
+        xmax = 40
+        histlimit = 80
+    elif var == 'slimness':
+        var1 = 'cl_width/cl_length'
+        leg = 'Slimness [w/l]'
+        xmin = 0.5
+        xmax = 1.1
+        histlimit = 1.2
+    else:
+        exit()
+    
+    
+    tf_fe55 = ROOT.TFile('../reco_run%05d_3D.root' % run[i])    
+    tree = tf_fe55.Get('Events')
+    
+    c = ROOT.TCanvas('','',800,600)
+
+    integral = ROOT.TH1F('integral','Position %d' % (pos[i]),100,0,histlimit)
+    integral.Sumw2()
+
+    cut_base = 'cl_iteration==2'
+    cut = "{base} && TMath::Hypot(cl_xmean-1024,(cl_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r_max=400)
+    tree.Draw('{var}>>integral'.format(var=var1),cut)
+    integral.SetFillStyle(3005)
+    
+    # add Polya Fuction
+    func='gauss'
+    
+    if func == 'gauss':
+        print("Using Gauss fit")
+        f = ROOT.TF1('f','gaus')
+        #TF1 *f1 = new TF1("f1","[0]*x*sin([1]*x)",-3,3);
+        integral.Fit(f,'R','',xmin,xmax)
+        rMean  = f.GetParameter(1)
+        rSigma = f.GetParameter(2)
+    else:
+        print("Using Polya fit needs to be fixed")
+             
+        #[0] = b
+        #[1] = nt
+        #[2] = k
+        #k = 1/[0] -1
+        #[x] = n
+
+        pol_A = "(1/[0]*[1])"
+        pol_B = "(1/TMath::Factorial(1/([0] -1)))"
+        pol_C = "TMath::Power(x/([0]*[1]), (1/([0] -1)))"
+        pol_D = "exp((-1*x)/([0]*[1]))"
+        pol = "(%s)*(%s)*(%s)*(%s)" % (pol_A , pol_B , pol_C, pol_D)
+        
+        polyaFit = ROOT.TF1("polyafit", pol, 0, 6000)
+        #polyaFit.SetParameter (0, 500)
+        polyaFit.SetParameter (1, 2600)
+        
+        integral.Fit(polyaFit ,"S")
+        rMean  = polyaFit.GetParameter(0)
+        rSigma = polyaFit.GetParameter(1)
+        
+    integral.Draw('hist sames')  
+    
+    ROOT.gPad.Update()
+    #h.GetXaxis().SetRangeUser(0,0.25)
+    integral.GetYaxis().SetTitle('Counts')
+    integral.GetXaxis().SetTitle('{leg}'.format(leg=leg))
+    #'Position %d' % (pos[i])
+    c.SetGrid()
+    c.Draw()
+    c.SaveAs("{plotdir}/hist_{var}_pos{pos}.pdf".format(plotdir=plotdir,var=var,pos=pos[i]))
     
     
 if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
-    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options=tworuns,evsdist,pmtvsz,cluvspmt,multiplicity)')
+    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options=tworuns,evsdist,pmtvsz,cluvspmt,cluvsz,multiplicity)')
     parser.add_option('', '--outdir' , type='string'       , default='./'      , help='output directory with directory structure and plots')
+    parser.add_option('', '--var' , type='string'       , default='integral'      , help='variable to plot the histogram')
+    parser.add_option('', '--pos' , type='int'       , default=0      , help='position of the iron source')
+   
     (options, args) = parser.parse_args()
 
     ## make the output directory first
@@ -439,3 +612,9 @@ if __name__ == "__main__":
 
     if options.make in ['all','cluvspmt']:
         plotCameraPMTCorr(options.outdir)
+        
+    if options.make in ['all','cluvsz']:
+        plotCameraEnergyVsPosition(options.outdir)
+    
+    if options.make in ['all','hist1d']:        
+        plotHistFit(options.outdir, options.var, options.pos)
