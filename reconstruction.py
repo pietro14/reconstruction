@@ -228,7 +228,6 @@ class analysis:
                     self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
                 
             # fill reco tree (just once/event, and the TGraph is analyses as last)
-            #if obj.InheritsFrom('TGraph'):
             self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
