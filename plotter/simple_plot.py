@@ -498,32 +498,28 @@ def plotHistFit(plotdir,var='integral',i=0):
     if var == 'integral':
         var1 = 'cl_integral'
         leg = 'Integral [ph]'
-        xmin = 2300
-        xmax = 2900
         histlimit = 6000
     elif var == 'length':
         var1 = 'cl_length'
         leg = 'length [px]'
-        xmin = 20
-        xmax = 60
         histlimit = 450
     elif var == 'width':
         var1 = 'cl_width'
         leg = 'Width [px]'
-        xmin = 20
-        xmax = 40
         histlimit = 80
+    elif var == 'size':
+        var1 = 'cl_size'
+        leg = 'Size [px]'
+        histlimit = 450
     elif var == 'slimness':
         var1 = 'cl_width/cl_length'
         leg = 'Slimness [w/l]'
-        xmin = 0.5
-        xmax = 1.1
         histlimit = 1.2
     else:
         exit()
     
     
-    tf_fe55 = ROOT.TFile('../reco_run%05d_3D.root' % run[i])    
+    tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280.root')    
     tree = tf_fe55.Get('Events')
     
     c = ROOT.TCanvas('','',800,600)
@@ -531,10 +527,13 @@ def plotHistFit(plotdir,var='integral',i=0):
     integral = ROOT.TH1F('integral','Position %d' % (pos[i]),100,0,histlimit)
     integral.Sumw2()
 
-    cut_base = 'cl_iteration==2'
+    cut_base = 'cl_iteration==2 && run=={r}'.format(r=run[i])
     cut = "{base} && TMath::Hypot(cl_xmean-1024,(cl_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r_max=400)
-    tree.Draw('{var}>>integral'.format(var=var1),cut)
+
+    tree.Draw("{var}>>integral".format(var=var1),cut)
     integral.SetFillStyle(3005)
+    mean = integral.GetMean()
+    rms  = integral.GetRMS()
     
     # add Polya Fuction
     func='gauss'
@@ -542,8 +541,11 @@ def plotHistFit(plotdir,var='integral',i=0):
     if func == 'gauss':
         print("Using Gauss fit")
         f = ROOT.TF1('f','gaus')
-        #TF1 *f1 = new TF1("f1","[0]*x*sin([1]*x)",-3,3);
-        integral.Fit(f,'R','',xmin,xmax)
+        f.SetParameter(1,mean);
+        f.SetParLimits(1,mean-3*rms,mean+3*rms);
+        f.SetParameter(2,rms);
+        #f.SetParLimits(2,rms,rms);
+        fitRe = integral.Fit(f,'S')
         rMean  = f.GetParameter(1)
         rSigma = f.GetParameter(2)
     else:
