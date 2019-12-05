@@ -175,7 +175,7 @@ class analysis:
 
             name=key.GetName()
             obj=key.ReadObj()
-            
+
             # Routine to skip some images if needed
             if iev in self.options.excImages: continue
 
@@ -237,8 +237,7 @@ class analysis:
                     self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
                 
             # fill reco tree (just once/event, and the TGraph is analyses as last)
-            if obj.InheritsFrom('TGraph'):
-                self.outTree.fill()
+            self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
@@ -311,4 +310,4 @@ if __name__ == '__main__':
     githash.Write()
     tf.Close()
     
-    #sw.swift_rm_root_file(options.tmpname)
+    sw.swift_rm_root_file(options.tmpname)
