@@ -128,6 +128,33 @@ def integralCut(i,minTh=1800,maxTh=3200):
     
         return (i>minTh) & (i<maxTh)
     
+def varChoice(var):
+    
+    if var == 'integral':
+        var1 = 'cl_integral'
+        leg = 'Integral [ph]'
+        histlimit = 6000
+    elif var == 'length':
+        var1 = 'cl_length*125E-3'
+        leg = 'Length [mm]'
+        histlimit = 32
+    elif var == 'width':
+        var1 = 'cl_width*125E-3'
+        leg = 'Width [mm]'
+        histlimit = 10
+    elif var == 'size':
+        var1 = 'cl_size'
+        leg = 'Size [px]'
+        histlimit = 1600
+    elif var == 'slimness':
+        var1 = 'cl_width/cl_length'
+        leg = 'Slimness [w/l]'
+        histlimit = 1.2
+    else:
+        exit()
+    
+    return var1, leg, histlimit
+    
 
 def fillSpectra(cluster='cl'):
 
@@ -314,38 +341,27 @@ def plotEnergyVsDistance(plotdir):
     print y_mean
     print y_res
 
-def plotCameraEnergyVsPosition(plotdir):
-    tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280.root')
-    tree = tf_fe55.Get('Events')
-
-    runs = range(2274,2281)
-    integral = ROOT.TH1F('integral','',100,1000,6000)
-
-    np = len(runs)
+def plotCameraEnergyVsPosition(plotdir,var='integral'):
+    
     x = []
     y_mean = []; y_res = []
     
-    cut_base = 'cl_iteration==2'
-    
-    for i,r in enumerate(runs):
-        cut = "{base} && run=={r} && TMath::Hypot(cl_xmean-1024,(cl_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r=r,r_max=400)
-        tree.Draw('cl_integral>>integral',cut)
-        mean = integral.GetMean()
-        rms  = integral.GetRMS()
+    for i in range(0,6):
+        
+        mean, rms, i, leg = plotHistFit(plotdir,var,i)
         x.append(i)
         y_mean.append(mean)
         y_res.append(rms/mean)
-        integral.Reset()
-
 
     print y_res
+    np = len(x)
     
     gr_mean = ROOT.TGraph(np,array('f',x),array('f',y_mean))
     gr_res = ROOT.TGraph(np,array('f',x),array('f',y_res))
-    gr_mean.GetXaxis().SetRangeUser(-2,np)
-    gr_res.GetXaxis().SetRangeUser(-2,np)
-    gr_mean.GetYaxis().SetRangeUser(0,3000)
-    gr_res. GetYaxis().SetRangeUser(0,0.5)
+    gr_mean.GetXaxis().SetRangeUser(0,21)
+    gr_res.GetXaxis().SetRangeUser(0,21)
+    gr_mean.GetYaxis().SetRangeUser(0,max(y_mean)*1.2)
+    gr_res. GetYaxis().SetRangeUser(0,max(y_res)*1.2)
     gr_mean.SetMarkerStyle(ROOT.kOpenCircle)
     gr_res.SetMarkerStyle(ROOT.kOpenCircle)
     gr_mean.SetMarkerSize(2)
@@ -366,20 +382,21 @@ def plotCameraEnergyVsPosition(plotdir):
     c.SetFrameBorderMode(0);
     c.SetBorderMode(0);
     c.SetBorderSize(0);
+    c.SetGrid();
 
     gr_mean.Draw('AP')
-    gr_mean.GetXaxis().SetTitle('Source Position')
-    gr_mean.GetYaxis().SetTitle('Integral (ph)')
+    gr_mean.GetXaxis().SetTitle('Source Position [cm]')
+    gr_mean.GetYaxis().SetTitle('{leg}'.format(leg=leg))
 
     for ext in ['png','pdf']:
-        c.SaveAs("{plotdir}/CameraMean.{ext}".format(plotdir=plotdir,ext=ext))
+        c.SaveAs("{plotdir}/CameraMean_{var}_60-40.{ext}".format(plotdir=plotdir,var=var,ext=ext))
 
     gr_res.Draw('AP')
-    gr_res.GetXaxis().SetTitle('Source Position')
-    gr_res.GetYaxis().SetTitle('Resolution (rms)')
+    gr_res.GetXaxis().SetTitle('Source Position [cm]')
+    gr_res.GetYaxis().SetTitle('Resolution [rms]')
 
     for ext in ['png','pdf']:
-        c.SaveAs("{plotdir}/CameraRms.{ext}".format(plotdir=plotdir,ext=ext))
+        c.SaveAs("{plotdir}/CameraRMS_{var}_60-40.{ext}".format(plotdir=plotdir,var=var,ext=ext))
     
     
 def plotPMTEnergyVsPosition(plotdir):
@@ -432,6 +449,7 @@ def plotPMTEnergyVsPosition(plotdir):
     c.SetFrameBorderMode(0);
     c.SetBorderMode(0);
     c.SetBorderSize(0);
+    
 
     gr_mean.Draw('AP')
     gr_mean.GetXaxis().SetTitle('source position index')
@@ -490,27 +508,39 @@ def plotCameraPMTCorr(outdir):
         c.SaveAs('{plotdir}/{name}_profX.{ext}'.format(plotdir=outdir,name=tot_vs_nhits.GetName(),ext=ext))
         
 def plotHistFit(plotdir,var='integral',i=0):
+    import numpy as np
+    
     ROOT.gStyle.SetOptFit(1011)
-    #i=6
-    pos = [0, 1, 2, 3, 4, 5, 6]
-    run = [2274, 2275, 2276, 2277, 2278, 2279, 2280]
+    gas=60
+    if gas == 70:
+        pos  = [0, 1, 2, 3, 4, 5, 6]
+        run  = [2274, 2275, 2276, 2277, 2278, 2279, 2280]
+        dist = (23-np.array([19.5, 16.5, 14.3, 12.5, 10.5, 8.2, 6.2])).tolist()
+    else:
+        pos  = [0, 1, 2, 3, 4, 5]
+        run  = [2160, 2161, 2162, 2163, 2164, 2165]
+        dist = (23-np.array([19.5, 16.5, 14.3, 12.5, 10.5, 8.2])).tolist()
+        
     
     if var == 'integral':
         var1 = 'cl_integral'
         leg = 'Integral [ph]'
         histlimit = 6000
     elif var == 'length':
-        var1 = 'cl_length'
-        leg = 'length [px]'
-        histlimit = 450
+        var1 = 'cl_length*125E-3'
+        leg = 'Length [mm]'
+        if gas == 70:
+            histlimit = 12
+        else:
+            histlimit = 7
     elif var == 'width':
-        var1 = 'cl_width'
-        leg = 'Width [px]'
-        histlimit = 80
+        var1 = 'cl_width*125E-3'
+        leg = 'Width [mm]'
+        histlimit = 10
     elif var == 'size':
         var1 = 'cl_size'
         leg = 'Size [px]'
-        histlimit = 450
+        histlimit = 1600
     elif var == 'slimness':
         var1 = 'cl_width/cl_length'
         leg = 'Slimness [w/l]'
@@ -518,22 +548,25 @@ def plotHistFit(plotdir,var='integral',i=0):
     else:
         exit()
     
-    
-    tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280.root')    
+    if gas == 70:
+        tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280.root')    
+    else:
+        tf_fe55 = ROOT.TFile('../reco_run02160_to_run02165.root')
+        
     tree = tf_fe55.Get('Events')
     
     c = ROOT.TCanvas('','',800,600)
 
-    integral = ROOT.TH1F('integral','Position %d' % (pos[i]),100,0,histlimit)
-    integral.Sumw2()
+    hist = ROOT.TH1F('hist','%.2f cm between Source and GEM' % (dist[i]),100,0,histlimit)
+    hist.Sumw2()
 
     cut_base = 'cl_iteration==2 && run=={r}'.format(r=run[i])
     cut = "{base} && TMath::Hypot(cl_xmean-1024,(cl_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r_max=400)
 
-    tree.Draw("{var}>>integral".format(var=var1),cut)
-    integral.SetFillStyle(3005)
-    mean = integral.GetMean()
-    rms  = integral.GetRMS()
+    tree.Draw("{var}>>hist".format(var=var1),cut)
+    hist.SetFillStyle(3005)
+    mean = hist.GetMean()
+    rms  = hist.GetRMS()
     
     # add Polya Fuction
     func='gauss'
@@ -544,8 +577,8 @@ def plotHistFit(plotdir,var='integral',i=0):
         f.SetParameter(1,mean);
         f.SetParLimits(1,mean-3*rms,mean+3*rms);
         f.SetParameter(2,rms);
-        #f.SetParLimits(2,rms,rms);
-        fitRe = integral.Fit(f,'S')
+        #f.SetParLimits(2,300,600);
+        fitRe = hist.Fit(f,'S')
         rMean  = f.GetParameter(1)
         rSigma = f.GetParameter(2)
     else:
@@ -567,29 +600,84 @@ def plotHistFit(plotdir,var='integral',i=0):
         #polyaFit.SetParameter (0, 500)
         polyaFit.SetParameter (1, 2600)
         
-        integral.Fit(polyaFit ,"S")
+        hist.Fit(polyaFit ,"S")
         rMean  = polyaFit.GetParameter(0)
         rSigma = polyaFit.GetParameter(1)
         
-    integral.Draw('hist sames')  
+    hist.Draw('hist sames')  
     
     ROOT.gPad.Update()
     #h.GetXaxis().SetRangeUser(0,0.25)
-    integral.GetYaxis().SetTitle('Counts')
-    integral.GetXaxis().SetTitle('{leg}'.format(leg=leg))
+    hist.GetYaxis().SetTitle('Counts')
+    hist.GetXaxis().SetTitle('{leg}'.format(leg=leg))
     #'Position %d' % (pos[i])
     c.SetGrid()
     c.Draw()
-    c.SaveAs("{plotdir}/hist_{var}_pos{pos}.pdf".format(plotdir=plotdir,var=var,pos=pos[i]))
+    c.SaveAs("{plotdir}/hist_{var}_pos{pos}_60-40.pdf".format(plotdir=plotdir,var=var,pos=pos[i]))
+    hist.Reset()
+    
+    return rMean,rSigma,dist[i],leg
+
+def plotHist2D(plotdir,v1='integral',v2='slimness',i=0):
+    import numpy as np
+    
+    ROOT.gStyle.SetOptFit(1011)
+    
+    gas=70
+    #i=5
+    
+    if gas == 70:
+        pos  = [0, 1, 2, 3, 4, 5, 6]
+        run  = [2274, 2275, 2276, 2277, 2278, 2279, 2280]
+        dist = (23-np.array([19.5, 16.5, 14.3, 12.5, 10.5, 8.2, 6.2])).tolist()
+        gg   = '70-30'
+    else:
+        pos  = [0, 1, 2, 3, 4, 5]
+        run  = [2160, 2161, 2162, 2163, 2164, 2165]
+        dist = (23-np.array([19.5, 16.5, 14.3, 12.5, 10.5, 8.2])).tolist()
+        gg   = '60-40'
+        
+    if gas == 70:
+        tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280.root')    
+    else:
+        tf_fe55 = ROOT.TFile('../reco_run02160_to_run02165.root')        
+    
+    vr1,legy,histlimity = varChoice(v1)
+    vr2,legx,histlimitx = varChoice(v2)
+        
+    var1 = vr1+":"+vr2
+        
+    tree = tf_fe55.Get('Events')
+    
+    c = ROOT.TCanvas('','',800,800)
+
+    hist = ROOT.TH2F('hist2D','%.2f cm between Source and GEM' % (dist[i]),1000,0,histlimity,1000,0,histlimitx)
+    hist.Sumw2()
+
+    cut_base = 'cl_iteration==2 && run=={r}'.format(r=run[i])
+    cut = "{base} && TMath::Hypot(cl_xmean-1024,(cl_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r_max=400)
+
+    tree.Draw("{var}>>hist".format(var=var1),cut)
+    hist.SetFillStyle(3005)
+    
+    ROOT.gPad.Update()
+    #h.GetXaxis().SetRangeUser(0,0.25)
+    hist.GetYaxis().SetTitle('{leg}'.format(leg=legy))
+    hist.GetXaxis().SetTitle('{leg}'.format(leg=legx))
+    c.SetGrid()
+    c.Draw()
+    c.SaveAs("{plotdir}/hist_{var}_vs_{var2}_pos{pos}_{gg}.pdf".format(plotdir=plotdir,var=v1,var2=v2,pos=pos[i],gg=gg))
+    hist.Reset()
     
     
 if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
-    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options=tworuns,evsdist,pmtvsz,cluvspmt,cluvsz,multiplicity)')
+    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options = tworuns, evsdist, pmtvsz, cluvspmt, cluvsz, multiplicity, hist1d, hist2d)')
     parser.add_option('', '--outdir' , type='string'       , default='./'      , help='output directory with directory structure and plots')
     parser.add_option('', '--var' , type='string'       , default='integral'      , help='variable to plot the histogram')
     parser.add_option('', '--pos' , type='int'       , default=0      , help='position of the iron source')
+    parser.add_option('', '--var2' , type='string'       , default='slimness'      , help='variable2 to plot the histogram 2D')
    
     (options, args) = parser.parse_args()
 
@@ -616,7 +704,10 @@ if __name__ == "__main__":
         plotCameraPMTCorr(options.outdir)
         
     if options.make in ['all','cluvsz']:
-        plotCameraEnergyVsPosition(options.outdir)
+        plotCameraEnergyVsPosition(options.outdir, options.var)
     
     if options.make in ['all','hist1d']:        
         plotHistFit(options.outdir, options.var, options.pos)
+        
+    if options.make in ['all','hist2d']:
+        plotHist2D(options.outdir, options.var, options.var2, options.pos)
