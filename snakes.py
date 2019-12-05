@@ -191,7 +191,7 @@ class SnakesFactory:
                 cl.iteration = db.tag_[labels == k][0]
                 cl.nclu = k
                 
-                ##corr, p_value = pearsonr(x, y)
+                #corr, p_value = pearsonr(x, y)
                 cl.pearson = 999#p_value
                 
                 clusters.append(cl)
