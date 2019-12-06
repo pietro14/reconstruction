@@ -33,7 +33,7 @@
 'cimax'                 : 200,                     # Upper threshold
 'pedrun'                : '02151',
 'justPedestal'          : False,
-'run'                   : '02278',                 # uses always 5 characters
+#'run'                   : '02278',                 # uses always 5 characters
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
 'tag'                   : 'Data',                  # 'Data' for experimental data or 'MC' for Simulated data
