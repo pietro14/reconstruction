@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-def swift_root_file(sel, run):
+def swift_root_file(tag, run):
+    sel = rootlocation(tag,run)    
+    
     BASE_URL  = "https://swift.cloud.infn.it:8080/v1/AUTH_1e60fe39fba04701aa5ffc0b97871ed8/Cygnus/"
     file_root = (sel+'/histograms_Run%05d.root' % run)
     return BASE_URL+file_root
@@ -25,6 +27,23 @@ def swift_download_root_file(url,run):
     tmpname = ("/tmp/histograms_Run%05d.root" % run)
     urlretrieve(url, tmpname, reporthook)
     return tmpname 
+
+def rootlocation(tag,run):
+    
+    if tag == 'Data':
+        if (run>=936) and (run<=1601):
+            sel = 'Data/LTD/Data_Camera/ROOT'
+        elif (run>=1632) and (run<=2321):
+            sel = 'Data/LAB'
+        else:
+            print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
+            exit()
+    elif tag == 'MC':
+        sel = 'Simulation'
+        print("WARNING: automatic download for Simulated data not implemented yet")
+        exit()
+ 
+    return sel
 
 def swift_read_root_file(tmpname):
     import ROOT
