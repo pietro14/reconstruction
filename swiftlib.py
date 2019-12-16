@@ -53,7 +53,7 @@ def swift_read_root_file(tmpname):
 def swift_rm_root_file(tmpname):
     import os
     os.remove(tmpname)
-    #print("tmp file removed")
+    print("tmp file removed")
 
 def checkfiletmp(run):
     import os.path
@@ -70,3 +70,23 @@ def root_TH2_name(root_file):
         elif ('wfm_run' in str(che)):
             wfm.append(che)
     return pic, wfm
+
+def swift_pedestal_file(run):
+    pedrun = selectPedestal(run)    
+    
+    BASE_URL  = "https://swift.cloud.infn.it:8080/v1/AUTH_1e60fe39fba04701aa5ffc0b97871ed8/Cygnus/Pedestals/"
+    file_root = ('pedmap_run%05d_rebin1.root' % pedrun)
+    return BASE_URL+file_root
+
+def selectPedestal(run):
+    
+    f = open('runvspedmap.txt', "r")
+    params = eval(f.read())
+    
+    for k,v in params.items():
+        setattr(options,k,v)
+        
+    options.pedavailable
+    
+ 
+    return sel

@@ -265,7 +265,7 @@ if __name__ == '__main__':
         if options.ev: options.maxEntries = options.ev + 1
         #if options.daq == 'midas': options.ev +=0.5 
     else:
-        setattr(options,'outFile','reco_run%s_%s.root' % (options.run, options.tip))
+        setattr(options,'outFile','reco_run%05d_%s.root' % (int(options.run), options.tip))
     setattr(options,'pedfile_name', 'pedestals/pedestals/pedmap_run%s_rebin%d.root' % (options.pedrun,options.rebin))
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
@@ -311,4 +311,5 @@ if __name__ == '__main__':
     githash.Write()
     tf.Close()
     
-    sw.swift_rm_root_file(options.tmpname)
+    if options.donotremove == False:
+        sw.swift_rm_root_file(options.tmpname)

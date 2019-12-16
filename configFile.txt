@@ -1,8 +1,8 @@
 {
 # DEBUG plots
-'debug_mode'            : 0,
+'debug_mode'            : 1,
 
-'ev'                    : 15,
+'ev'                    : 27,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -31,7 +31,7 @@
 'rebin'                 : 4,
 'nsigma'                : 1.5,
 'cimax'                 : 200,                     # Upper threshold
-'pedrun'                : '02151',
+'pedrun'                : '02054',
 'justPedestal'          : False,
 #'run'                   : '02278',                 # uses always 5 characters
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
@@ -40,6 +40,7 @@
 
 'excImages'             : range(5)+[],             # To exlude some images of the analysis. Always exclude the first 5 which are messy
 'min_neighbors_average' : 3.5,                     # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
+'donotremove'           : True,                   # Remove or not the file from the tmp folder
 
 # Setting i2DBSCAN parameters
 
