@@ -179,7 +179,7 @@ class Cluster:
         fitResults = {}
         for ip,p in enumerate(profiles):
             if p:
-                p.GetXaxis().SetTitle('X_{%s} (mm)' % titles[ip])
+                p.GetXaxis().SetTitle('X_{%s} (pixels)' % titles[ip])
                 p.GetYaxis().SetTitle('Number of photons per slice')
                 self.applyProfileStyle(p)
                 if self.iteration<3:
