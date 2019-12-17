@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import ROOT,math,os,sys
 
 from scipy.ndimage import gaussian_filter, median_filter
@@ -16,7 +16,6 @@ from morphsnakes import(morphological_chan_vese,
 
 from clusterTools import Cluster
 from cameraChannel import cameraTools
-import matplotlib.pyplot as plt
 from iDBSCAN import iDBSCAN
 
 import debug_code.tools_lib as tl
@@ -72,7 +71,8 @@ class SnakesFactory:
         from sklearn import metrics
         from scipy.spatial import distance
         from scipy.stats import pearsonr
-        
+        from random import random
+
         outname = self.options.plotDir
         if outname and not os.path.exists(outname):
             os.system("mkdir -p "+outname)
@@ -162,8 +162,11 @@ class SnakesFactory:
 
         # Black removed and is used for noise instead.
         unique_labels = set(labels)
-        colors = [plt.cm.Spectral(each)
-                  for each in np.linspace(0, 1, len(unique_labels))]
+
+        colors = [(random(),random(),random(),1.0) for each in range(10)]
+
+        # colors = [plt.cm.Spectral(each)
+        #           for each in np.linspace(0, 1, len(unique_labels))]
         #canv = ROOT.TCanvas('c1','',600,600)
         if plot:
             #fig_edges = plt.figure(figsize=(10, 10))

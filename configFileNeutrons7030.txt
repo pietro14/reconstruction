@@ -1,6 +1,6 @@
 {
 # DEBUG plots
-'debug_mode'            : 1,
+'debug_mode'            : 0,
 
 'ev'                    : 141,
 'nclu'                  : -1,        # -1
@@ -40,7 +40,7 @@
 
 'excImages'             : range(5)+[],             # To exlude some images of the analysis. Always exclude the first 5 which are messy
 'min_neighbors_average' : 3.5,                     # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
-'donotremove'           : True,                    # Remove or not the file from the tmp folder
+'donotremove'           : False,                    # Remove or not the file from the tmp folder
 
 # Setting i2DBSCAN parameters
 
