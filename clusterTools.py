@@ -116,17 +116,28 @@ class Cluster:
         mean = hist.GetMean()
         rms  = hist.GetRMS()
 
+        if hist.Integral()==0:
+            ret = {'amp': 0, 'mean': 0, 'sigma': 0, 'chi2': 999, 'status': -1}
+            return ret
+
         f = ROOT.TF1('f','gaus',mean-5*rms,mean+5*rms)
         f.SetParameter(1,mean);
         f.SetParLimits(1,mean-rms,mean+rms);
         f.SetParameter(2,rms);
         f.SetParLimits(2,0.5*rms,1.5*rms);
-        fitRe = hist.Fit(f,'SRQ')
+        fitRe = hist.Fit(f,'SQ')
         rInt   = f.GetParameter(0)
         rMean  = f.GetParameter(1)
         rSigma = f.GetParameter(2)
-        chi2 = fitRe.Chi2()
-        status = fitRe.CovMatrixStatus()
+        if fitRe:
+            chi2 = fitRe.Chi2()
+            status = fitRe.CovMatrixStatus()
+        else:
+            chi2 = 999
+            status = -1
+            rInt = -999
+            rMean = -999
+            rSigma = -999
 
         ret = {'amp': rInt, 'mean': rMean, 'sigma': rSigma, 'chi2': chi2, 'status': status}
         return ret
