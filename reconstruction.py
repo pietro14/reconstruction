@@ -249,7 +249,7 @@ if __name__ == '__main__':
     
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
-    parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel')
+    parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
     
@@ -289,12 +289,19 @@ if __name__ == '__main__':
     print("Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
-    if options.jobs>1:
-        nj = int(nev/options.jobs)
+    nThreads = 1
+    if options.jobs==-1:
+        import multiprocessing
+        nThreads = multiprocessing.cpu_count()
+    else:
+        nThreads = options.jobs
+
+    if nThreads>1:
+        nj = int(nev/nThreads)
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(0,nev,nj))]
         print(chunks)
         from multiprocessing import Pool
-        pool = Pool(options.jobs)
+        pool = Pool(nThreads)
         ret = pool.map(ana, chunks)
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
@@ -306,10 +313,10 @@ if __name__ == '__main__':
         ana.endJob()
 
     # now add the git commit hash to track the version in the ROOT file
-    tf = ROOT.TFile.Open(options.outFile,'update')
-    githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
-    githash.Write()
-    tf.Close()
+    # tf = ROOT.TFile.Open(options.outFile,'update')
+    # githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
+    # githash.Write()
+    # tf.Close()
     
     if options.donotremove == False:
         sw.swift_rm_root_file(options.tmpname)
