@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     f = open(args[0], "r")
     runs = eval(f.read())
-    print "RUNNING ON THE FOLLOWING RUNS: ",runs
+    print "RUNNING ON THE FOLLOWING RUNS: ",runs," with config: ",options.configFile
 
     absopath  = os.path.abspath(options.outdir)
     if not options.outdir:
@@ -56,6 +56,5 @@ if __name__ == '__main__':
         if options.dryRun:
             print bsub_cmd
         else:
-            pass
+            os.system(bsub_cmd)
 
-        
