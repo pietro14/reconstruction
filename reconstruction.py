@@ -297,6 +297,7 @@ if __name__ == '__main__':
         nThreads = options.jobs
 
     if nThreads>1:
+        print "RUNNING USING ",nThreads," THREADS."
         nj = int(nev/nThreads)
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(0,nev,nj))]
         print(chunks)
@@ -312,6 +313,7 @@ if __name__ == '__main__':
         ana.reconstruct()
         ana.endJob()
 
+    #### FOR SOME REASON THIS DOESN'T WORK IN BATCH.
     # now add the git commit hash to track the version in the ROOT file
     # tf = ROOT.TFile.Open(options.outFile,'update')
     # githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))

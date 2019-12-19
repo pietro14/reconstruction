@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     f = open(args[0], "r")
     runs = eval(f.read())
-    print "RUNNING ON THE FOLLOWING RUNS: ",runs
+    print "RUNNING ON THE FOLLOWING RUNS: ",runs," with config: ",options.configFile
 
     absopath  = os.path.abspath(options.outdir)
     if not options.outdir:
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     srcfiles = []
     for j,r in enumerate(runs):
-        cmd = 'python reconstruction.py {config} -r {run}'.format(config=options.configFile,run=r)
+        cmd = 'python reconstruction.py {config} -r {run} -j -1'.format(config=options.configFile,run=r)
         job_file_name = jobdir+'/job_{j}.sh'.format(j=j)
         log_file_name = logdir+'/log_{j}.log'.format(j=j)
         tmp_file = open(job_file_name, 'w')
@@ -56,6 +56,5 @@ if __name__ == '__main__':
         if options.dryRun:
             print bsub_cmd
         else:
-            pass
+            os.system(bsub_cmd)
 
-        
