@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     srcfiles = []
     for j,r in enumerate(runs):
-        cmd = 'python reconstruction.py {config} -r {run}'.format(config=options.configFile,run=r)
+        cmd = 'python reconstruction.py {config} -r {run} -j -1'.format(config=options.configFile,run=r)
         job_file_name = jobdir+'/job_{j}.sh'.format(j=j)
         log_file_name = logdir+'/log_{j}.log'.format(j=j)
         tmp_file = open(job_file_name, 'w')
