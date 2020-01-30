@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import numpy as np
-#import matplotlib.pyplot as plt
 import ROOT,math,os,sys
 
 from scipy.ndimage import gaussian_filter, median_filter
@@ -128,11 +127,11 @@ class SnakesFactory:
 
         # returned collections
         clusters = []
-        allSuperClusters = []
+        superclusters = []
 
         # clustering will crash if the vector of pixels is empty (it may happen after the zero-suppression + noise filtering)
         if len(X)==0:
-            return clusters,allSuperClusters
+            return clusters,superclusters
         
         # - - - - - - - - - - - - - -
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts, flag_plot_noise = self.options.flag_plot_noise).fit(X)
@@ -213,13 +212,14 @@ class SnakesFactory:
 
         ## SUPERCLUSTERING
         from supercluster import SuperClusterAlgorithm
-        superclusters = [None]*nb_it; superclusterContours = [None]*nb_it
+        superclusterContours = []
         scAlgo = SuperClusterAlgorithm(shape=rescale)
         u,indices = np.unique(db.labels_,return_index = True)
-        for it in range(nb_it):
-            allclusters_it = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == it+1)[0])].tolist()]
-            # note: passing the edges, not the filtered ones for deeper information
-            superclusters[it],superclusterContours[it] = scAlgo.findSuperClusters(allclusters_it,edges,self.image_fr,self.image_fr_zs,it+1)
+        allclusters_it1 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
+        allclusters_it2 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]
+        allclusters_it12 = allclusters_it1 + allclusters_it2
+        # note: passing the edges, not the filtered ones for deeper information
+        superclusters,superclusterContours = scAlgo.findSuperClusters(allclusters_it12,edges,self.image_fr,self.image_fr_zs,0)
                 
         if plot:
             for ext in ['png','pdf']:
@@ -231,7 +231,10 @@ class SnakesFactory:
         if self.options.debug_mode == 1:
             print('[DEBUG-MODE ON]')
             print('[%s Method]' % (self.options.tip))
-            
+
+            if self.options.flag_full_image or self.options.flag_rebin_image or self.options.flag_edges_image or self.options.flag_first_it or self.options.flag_second_it or self.options.flag_third_it or self.options.flag_all_it:
+                import matplotlib.pyplot as plt
+
             if self.options.flag_full_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image_fr,cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='lower' )
@@ -287,10 +290,6 @@ class SnakesFactory:
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
 
-                if len(superclusters[0]):
-                       supercluster_contour = plt.contour(superclusterContours[0], [0.5], colors='firebrick', linewidths=4)
-                       supercluster_contour.collections[0].set_label('supercluster it 1')
-                
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
@@ -314,10 +313,6 @@ class SnakesFactory:
                         contours = tl.findedges(ybox,xbox,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-b',linewidth=2.5)
-
-                if len(superclusters[1]):
-                       supercluster_contour = plt.contour(superclusterContours[1], [0.5], colors='royalblue', linewidths=4)
-                       supercluster_contour.collections[0].set_label('supercluster it 2')
 
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='2nd', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
@@ -344,10 +339,6 @@ class SnakesFactory:
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-y',linewidth=2.5)
 
-                if len(superclusters[2]):
-                       supercluster_contour = plt.contour(superclusterContours[2], [0.5], colors='gold', linewidths=4)
-                       supercluster_contour.collections[0].set_label('supercluster it 3')
-                            
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='3rd', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
@@ -402,6 +393,11 @@ class SnakesFactory:
                         if j == 0:
                             line.set_label('3rd Iteration')
                 plt.legend(loc='upper left')
+
+                if len(superclusters):
+                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='firebrick', linewidths=4)
+                    supercluster_contour.collections[0].set_label('supercluster it 1+2')
+                
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='all', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
@@ -429,9 +425,7 @@ class SnakesFactory:
                 plt.gcf().clear()
                 plt.close('all')
 
-        for it in range(3):
-            allSuperClusters += superclusters[it]
-        return clusters,allSuperClusters
+        return clusters,superclusters
         
     def getTracks(self,plot=True):
         from skimage.transform import (hough_line, hough_line_peaks)
