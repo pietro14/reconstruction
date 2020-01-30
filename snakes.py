@@ -162,7 +162,7 @@ class SnakesFactory:
         # Black removed and is used for noise instead.
         unique_labels = set(labels)
 
-        colors = [(random(),random(),random(),1.0) for each in range(10)]
+        colors = [(random(),random(),random(),1.0) for each in range(len(unique_labels))]
 
         # colors = [plt.cm.Spectral(each)
         #           for each in np.linspace(0, 1, len(unique_labels))]
