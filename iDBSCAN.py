@@ -4,7 +4,6 @@ iDBSCAN: Iterative Density-Based Spatial Clustering of Applications with Noise
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
 
 def idbscan(X, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_samples = [2, 30, 6, 2], cuts = [900, 150], flag_noise = True, flag_plot_noise = 0):
@@ -79,6 +78,7 @@ def idbscan(X, iterative = 4, vector_eps = [2.26, 3.5, 2.8, 6], vector_min_sampl
 
         
         if flag_plot_noise == 1:
+            import matplotlib.pyplot as plt
             f,ax = plt.subplots(1,2,figsize=(40,20))
             ax[0].scatter(X[:, 1], X[:, 0], alpha = 0.5, s = 10, linewidths = 0)
             ax[0].set_title('Edges after pedestal substraction')

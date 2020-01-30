@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import numpy as np
-import matplotlib.pyplot as plt
 import math,itertools
 import ROOT
 from array import array
@@ -22,7 +21,7 @@ class Cluster:
         self.widths = {}
         self.profiles = {}
         self.shapes = {}
-        
+
     def integral(self):
         if hasattr(self,'hits_fr'):
             return sum([z for (x,y,z) in self.hits_fr])
@@ -112,6 +111,37 @@ class Cluster:
         for line in lines:
             plot.plot(line[0], line[1], c="r")
 
+
+    def fitProfile(self,hist):
+        mean = hist.GetMean()
+        rms  = hist.GetRMS()
+
+        if hist.Integral()==0:
+            ret = {'amp': 0, 'mean': 0, 'sigma': 0, 'chi2': 999, 'status': -1}
+            return ret
+
+        f = ROOT.TF1('f','gaus',mean-5*rms,mean+5*rms)
+        f.SetParameter(1,mean);
+        f.SetParLimits(1,mean-rms,mean+rms);
+        f.SetParameter(2,rms);
+        f.SetParLimits(2,0.5*rms,1.5*rms);
+        fitRe = hist.Fit(f,'SQ')
+        rInt   = f.GetParameter(0)
+        rMean  = f.GetParameter(1)
+        rSigma = f.GetParameter(2)
+        if fitRe:
+            chi2 = fitRe.Chi2()
+            status = fitRe.CovMatrixStatus()
+        else:
+            chi2 = 999
+            status = -1
+            rInt = -999
+            rMean = -999
+            rSigma = -999
+
+        ret = {'amp': rInt, 'mean': rMean, 'sigma': rSigma, 'chi2': chi2, 'status': status}
+        return ret
+        
     def calcProfiles(self,plot=None):
         # if they have been attached to the cluster, do not recompute them
         if len(self.profiles)>0:
@@ -156,12 +186,17 @@ class Cluster:
 
         profiles = [longprof,latprof]
         titles = ['longitudinal','transverse']
+        fitResults = {}
         for ip,p in enumerate(profiles):
             if p:
-                p.GetXaxis().SetTitle('X_{%s} (mm)' % titles[ip])
+                p.GetXaxis().SetTitle('X_{%s} (pixels)' % titles[ip])
                 p.GetYaxis().SetTitle('Number of photons per slice')
                 self.applyProfileStyle(p)
-                
+                if self.iteration<3:
+                    fitResults[titles[ip]] = self.fitProfile(p)
+                else:
+                    fitResults[titles[ip]] = {'amp': -999, 'mean': -999, 'sigma': -999, 'chi2': -999, 'status': -999}
+                    
         # now set the cluster shapes and profiles
         self.profiles['long'] = longprof
         self.profiles['lat'] = latprof
@@ -179,6 +214,12 @@ class Cluster:
         self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,1]))
         self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,0]))
         self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,1]))
+        for direction in titles:
+            self.shapes['{direction}gaussamp'.format(direction=direction[0])] = (fitResults[direction])['amp']
+            self.shapes['{direction}gaussmean'.format(direction=direction[0])] = (fitResults[direction])['mean']
+            self.shapes['{direction}gausssigma'.format(direction=direction[0])] = (fitResults[direction])['sigma']
+            self.shapes['{direction}chi2'.format(direction=direction[0])] = (fitResults[direction])['chi2']
+            self.shapes['{direction}status'.format(direction=direction[0])] = (fitResults[direction])['status']
 
         # get the peaks inside the profile
         for direction in ['lat','long']:

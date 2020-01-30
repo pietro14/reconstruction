@@ -58,6 +58,16 @@ class AutoFillTreeProducer:
         self.outTree.branch('{name}_ymin'.format(name=name),         'F', lenVar=sizeStr)
         self.outTree.branch('{name}_nclu'.format(name=name),         'F', lenVar=sizeStr)
         self.outTree.branch('{name}_pearson'.format(name=name),      'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_tgaussamp'.format(name=name),    'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_tgaussmean'.format(name=name),   'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_tgausssigma'.format(name=name),  'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_tchi2'.format(name=name),        'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_tstatus'.format(name=name),      'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_lgaussamp'.format(name=name),    'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_lgaussmean'.format(name=name),   'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_lgausssigma'.format(name=name),  'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_lchi2'.format(name=name),        'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_lstatus'.format(name=name),      'F', lenVar=sizeStr)
 
     def fillCameraVariables(self,pic):
         self.outTree.fillBranch('cmos_integral',np.sum(pic))
@@ -91,7 +101,16 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('{name}_ymin'.format(name=name),      [cl.shapes['ymin'] for cl in clusters])
         self.outTree.fillBranch('{name}_nclu'.format(name=name),      [cl.getNclu() for cl in clusters])
         self.outTree.fillBranch('{name}_pearson'.format(name=name),   [cl.getPearson() for cl in clusters])
-
+        self.outTree.fillBranch('{name}_tgaussamp'.format(name=name),   [cl.shapes['tgaussamp'] for cl in clusters])
+        self.outTree.fillBranch('{name}_tgaussmean'.format(name=name),  [cl.shapes['tgaussmean'] for cl in clusters])
+        self.outTree.fillBranch('{name}_tgausssigma'.format(name=name), [cl.shapes['tgausssigma'] for cl in clusters])
+        self.outTree.fillBranch('{name}_tchi2'.format(name=name),       [cl.shapes['tchi2'] for cl in clusters]) 
+        self.outTree.fillBranch('{name}_tstatus'.format(name=name),     [cl.shapes['tstatus'] for cl in clusters])
+        self.outTree.fillBranch('{name}_lgaussamp'.format(name=name),   [cl.shapes['lgaussamp'] for cl in clusters])
+        self.outTree.fillBranch('{name}_lgaussmean'.format(name=name),  [cl.shapes['lgaussmean'] for cl in clusters])
+        self.outTree.fillBranch('{name}_lgausssigma'.format(name=name), [cl.shapes['lgausssigma'] for cl in clusters])
+        self.outTree.fillBranch('{name}_lchi2'.format(name=name),       [cl.shapes['lchi2'] for cl in clusters]) 
+        self.outTree.fillBranch('{name}_lstatus'.format(name=name),     [cl.shapes['lstatus'] for cl in clusters])
 
 
 
