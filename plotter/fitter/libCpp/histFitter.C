@@ -31,7 +31,7 @@ public:
   void setWorkspace(std::vector<std::string>);
   void setOutputFile(TFile *fOut ) {_fOut = fOut;}
   void fits(std::string title = "");
-  float efficiency(double xthres);
+  float efficiency(double xthres,std::string pdf="sigPdf");
   void useMinos(bool minos = true) {_useMinos = minos;}
 
   void setFitRange(double xMin,double xMax) { _xFitMin = xMin; _xFitMax = xMax; }
@@ -109,10 +109,10 @@ void histFitter::fits(string title) {
   
 }
 
-float histFitter::efficiency(double xthres) {
+float histFitter::efficiency(double xthres,std::string pdf) {
 
   RooRealVar *x = _work->var("x");
-  RooAbsPdf *sigPdf = _work->pdf("sigPdf");
+  RooAbsPdf *sigPdf = _work->pdf(pdf.c_str());
 
   x->setRange("my_range", xthres, _xFitMax);
   RooAbsReal* integral = sigPdf->createIntegral(*x, RooFit::NormSet(RooArgSet(*x)), RooFit::Range("my_range"));

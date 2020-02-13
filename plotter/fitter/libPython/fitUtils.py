@@ -48,7 +48,8 @@ def histFitterNominal( sample, fitWorkspaceParam  ):
     ## give info on efficiency for a set of cuts
     cuts = [16,17,18,19,20]
     for c in cuts:
-        print "Effi for x>",c," = ",fitter.efficiency(c)
+        print "signal Effi for x>",c," = ",fitter.efficiency(c,'sigPdf')
+        print "bkg Effi for x>",c," = ",fitter.efficiency(c,'bkgPdf')
     
 
 def histPlotter( filename, plotDir):
