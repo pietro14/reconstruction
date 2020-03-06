@@ -34,7 +34,7 @@ class analysis:
            # then the full resolution one
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
-           self.pedmap_fr.SetDirectory(None)
+           self.pedmap_fr.SetDirectory(0)
            self.pedarr_fr = hist2array(self.pedmap_fr)
            self.noisearr_fr = ctools.noisearray(self.pedmap_fr)
            pedrf_fr.Close()
@@ -197,7 +197,7 @@ class analysis:
      
                     pic_fullres = obj.Clone(obj.GetName()+'_fr')
                     img_fr = hist2array(pic_fullres)
-     
+
                     # Upper Threshold full image
                     img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
                     # zs on full image
