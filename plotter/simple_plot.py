@@ -113,12 +113,19 @@ def plotNClusters(iteration=1):
     nclu_h.Draw('hist same')
     c.SaveAs("nclusters_iter1_run70_71.pdf")
 
-
-def withinFC(x,y,ax=400,ay=500,shape=2048):
+def withinFC(xmean,ymean,ax=400,ay=500,shape=2048):
     center = shape/2.
-    x1 = x-center
-    y1 = (y-center)*1.2
+    x1 = xmean-center
+    y1 = (ymean-center)*1.2
     return math.hypot(x1,y1)<ax
+
+def withinFCFull(xmin,ymin,xmax,ymax,ax=400,ay=500,shape=2048):
+    center = shape/2.
+    x1 = xmin-center
+    y1 = (ymin-center)*1.2
+    x2 = xmax-center
+    y2 = (ymax-center)*1.2
+    return math.hypot(x1,y1)<ax and math.hypot(x2,y2)<ax
 
 def slimnessCut(l,w,th=0.6):
     
@@ -159,48 +166,97 @@ def varChoice(var):
 def fillSpectra(cluster='cl'):
 
     ret = {}
-    tf_cosmics = ROOT.TFile('../reco_run02278_3D.root')
-    tf_fe55 = ROOT.TFile('../reco_run02279_3D.root')
-    tfiles = {'fe':tf_fe55,'cosm':tf_cosmics}
+    #tf_ambe = ROOT.TFile('../runs/AmBeConfig/reco_runs_2317_to_2320_3D.root')
+    tf_ambe  = ROOT.TFile('../runs/AmBeConfig/reco_runs_2097_to_2098_3D.root')
+    #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2252_to_2257_3D.root')
+    #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2311_to_2313_3D.root')
+    #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_fe55_6040_3D.root') # many short runs
+    tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_run02156_3D.root') ## cosmics run
+    tfiles = {'fe':tf_fe55,'ambe':tf_ambe}
+
+    entries = {'fe': tf_fe55.Events.GetEntries(), 'ambe': tf_ambe.Events.GetEntries()}
     
     ## signal region histograms
-    ret[('fe','integral')] = ROOT.TH1F("fe_integral",'',100,-10,8000)
-    ret[('fe','length')]   = ROOT.TH1F("fe_length",'',100,0,500)
+    ret[('fe','integral')] = ROOT.TH1F("fe_integral",'',100,0,5e3)
+    ret[('fe','length')]   = ROOT.TH1F("fe_length",'',100,0,100)
     ret[('fe','width')]    = ROOT.TH1F("fe_width",'',35,0,70)
-    ret[('fe','nhits')]    = ROOT.TH1F("fe_nhits",'',100,0,1500)
-    ret[('fe','slimness')] = ROOT.TH1F("fe_slimness",'',100,0,1)
+    ret[('fe','nhits')]    = ROOT.TH1F("fe_nhits",'',100,0,2000)
+    ret[('fe','slimness')] = ROOT.TH1F("fe_slimness",'',70,0,1)
+    ret[('fe','density')] = ROOT.TH1F("fe_density",'',45,0,30)
 
+    ## CMOS integral variables
+    ret[('fe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',100,1.54e6,2.0e6)
+    ret[('fe','cmos_mean')] = ROOT.TH1F("cmos_mean",'',100,0.36,0.56)
+    ret[('fe','cmos_rms')] = ROOT.TH1F("cmos_rms",'',100,2,3)
+    
+    # ret[('fe','integralvslength')] = ROOT.TGraph()
+    # ret[('fe','sigmavslength')] = ROOT.TGraph()
+    # ret[('fe','sigmavsintegral')] = ROOT.TGraph()
+    
     # x-axis titles
-    titles = {'integral': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length'}
+    titles = {'integral': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)'}
     
     ## control region histograms
     ret2 = {}
     for (region,var),h in ret.iteritems():
-        ret[(region,var)].Sumw2()
-        ret[(region,var)].SetDirectory(None)
-        ret[(region,var)].GetXaxis().SetTitle(titles[var])
-        ret[(region,var)].GetXaxis().SetTitleSize(0.1)
-        ret2[('cosm',var)] = h.Clone('cosm_{name}'.format(name=var))
-        ret2[('cosm',var)].SetDirectory(None)
+        ret2[('ambe',var)] = h.Clone('ambe_{name}'.format(name=var))
+        if ret[(region,var)].InheritsFrom('TH1'):
+            ret[(region,var)].Sumw2()
+            ret[(region,var)].SetDirectory(0)
+            ret[(region,var)].GetXaxis().SetTitle(titles[var])
+            ret[(region,var)].GetXaxis().SetTitleSize(0.1)
+            ret2[('ambe',var)].SetDirectory(0)
+        else:
+            ret[(region,var)].SetName(region+var)
+            ret2[('ambe',var)].SetName('ambe'+var)
+
     ret.update(ret2)
 
     ## now fill the histograms 
-    for runtype in ['fe','cosm']:
+    selected = 0
+    for runtype in ['fe','ambe']:
         for ie,event in enumerate(tfiles[runtype].Events):
+            for cmosvar in ['cmos_integral','cmos_mean','cmos_rms']:
+                ret[runtype,cmosvar].Fill(getattr(event,cmosvar))
             for isc in range(getattr(event,"nSc" if cluster=='sc' else 'nCl')):
-                if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
+                if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]>2:
                     continue
-                if not withinFC(getattr(event,"{clutype}_xmean".format(clutype=cluster))[isc],getattr(event,"{clutype}_ymean".format(clutype=cluster))[isc]):
+                nhits = getattr(event,"{clutype}_nhits".format(clutype=cluster))[isc]
+                density = getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]/nhits if nhits>0 else 0
+                xmin = getattr(event,"{clutype}_xmin".format(clutype=cluster))[isc]
+                xmax = getattr(event,"{clutype}_xmax".format(clutype=cluster))[isc]
+                ymin = getattr(event,"{clutype}_ymin".format(clutype=cluster))[isc]
+                ymax = getattr(event,"{clutype}_ymax".format(clutype=cluster))[isc]
+                xmean = getattr(event,"{clutype}_xmean".format(clutype=cluster))[isc]
+                ymean = getattr(event,"{clutype}_ymean".format(clutype=cluster))[isc]
+                #if density<5:
+                #    continue
+                photons = getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
+                #if photons < 1000:
+                #    continue
+                #if not withinFCFull(xmin,ymin,xmax,ymax):
+                if not withinFC(xmean,ymean):
                     continue
                 #if not slimnessCut(getattr(event,"{clutype}_length".format(clutype=cluster))[isc],getattr(event,"{clutype}_width".format(clutype=cluster))[isc]):
                  #   continue
-                if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
-                    continue
+                #if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
+                #    continue
                 for var in ['integral','length','width','nhits']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
+                ret[(runtype,'density')].Fill(density)
+                integral =  getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]  *  5.9 / 2800.
+                #sigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
+                #length =  getattr(event,"{clutype}_lgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 - sigma # subtract the sigma to remove the diffusion
+                sigma =  getattr(event,"{clutype}_width".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
+                length =  getattr(event,"{clutype}_length".format(clutype=cluster))[isc] * 0.125
+                length_sub = math.sqrt(max(0,length*length - sigma*sigma))
+                # ret[(runtype,'integralvslength')].SetPoint(selected,length_sub,integral) 
+                # ret[(runtype,'sigmavslength')].SetPoint(selected,length_sub,sigma)
+                # ret[(runtype,'sigmavsintegral')].SetPoint(selected,integral,sigma)
+                selected += 1
 
-    return ret
+    return ret,entries
 
 def getCanvas():
     c = ROOT.TCanvas('c','',1200,1200)
@@ -217,7 +273,42 @@ def getCanvas():
     c.SetBorderSize(0);
     return c
 
-def drawOne(histo_sr,histo_cr,plotdir='./'):
+def drawOneGraph(graph,var,plotdir):
+    ROOT.gStyle.SetOptStat(0)
+    c = ROOT.TCanvas('c','',1200,1200)
+    lMargin = 0.12
+    rMargin = 0.05
+    bMargin = 0.30
+    tMargin = 0.07
+
+    graph.SetMarkerStyle(ROOT.kOpenCircle)
+    graph.SetMarkerColor(1)
+    graph.SetMarkerSize(1)
+    graph.Draw('AP')
+
+    xtitle = var.split('vs')[1]
+    ytitle = var.split('vs')[0]
+
+    if 'length' in xtitle:
+        graph.GetXaxis().SetRangeUser(-6,15)
+    if 'integral' in ytitle:
+        graph.GetYaxis().SetRangeUser(0,100)
+    if 'integral' in xtitle:
+        graph.GetXaxis().SetRangeUser(0,100)
+        
+    titles = [xtitle,ytitle]
+    for i,t in enumerate(titles):
+        if 'integral' in t:  titles[i] = 'energy [keV]'
+        if 'sigma' in t: titles[i] = 'transverse width (6#sigma) [mm]'
+        if 'length' in t: titles[i] = 'length (diffusion subtracted) [mm]'
+
+    graph.GetXaxis().SetTitle(titles[0])
+    graph.GetYaxis().SetTitle(titles[1])
+
+    for ext in ['png','pdf','root']:
+        c.SaveAs("{plotdir}/graph_{var}.{ext}".format(plotdir=plotdir,var=var,ext=ext))
+
+def drawOne(histo_sr,histo_cr,plotdir='./',normEntries=False):
     ROOT.gStyle.SetOptStat(0)
     
     c = ROOT.TCanvas('c','',1200,1200)
@@ -247,12 +338,17 @@ def drawOne(histo_sr,histo_cr,plotdir='./'):
 
     padTop.cd()
     histo_cr.SetMaximum(1.2*max(histo_cr.GetMaximum(),histo_sr.GetMaximum()))
-    histo_cr.GetYaxis().SetTitle('clusters (a.u.)')
+    if normEntries:
+        histo_cr.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
+    else:
+        histo_cr.GetYaxis().SetTitle('clusters (a.u.)')
     histo_cr.Draw("hist")
     histo_sr.Draw("pe same")
-
+    #padTop.SetLogy(1)
+    
     histos = [histo_sr,histo_cr]
-    labels = ['^{55}Fe source 70/30 - Pos6','^{55}Fe source 70/30 - Pos4']
+    #labels = ['^{55}Fe 60/40','AmBe 60/40']
+    labels = ['no source','AmBe 60/40']
     styles = ['p','f']
     
     legend = doLegend(histos,labels,styles,corner="TR")
@@ -270,20 +366,31 @@ def drawOne(histo_sr,histo_cr,plotdir='./'):
     line.SetLineStyle(3)
     line.SetLineColor(ROOT.kBlack)
     
-    for ext in ['png','pdf','root']:
+    for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/{var}.{ext}".format(plotdir=plotdir,var=histo_sr.GetName(),ext=ext))
+
+    of = ROOT.TFile.Open("{plotdir}/{var}.root".format(plotdir=plotdir,var=histo_sr.GetName()),'recreate')
+    histo_cr.Write()
+    histo_sr.Write()
+    of.Close()
     
-    
-def drawSpectra(histos,plotdir):
+def drawSpectra(histos,plotdir,entries,normEntries=False):
     variables = [var for (reg,var) in histos.keys() if reg=='fe']
-    print "variables to plot: ", variables
-
+    
     for var in variables:
-        histos[('cosm',var)].SetFillColor(ROOT.kAzure+6)
-        histos[('fe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
-        histos[('cosm',var)].Scale(histos[('fe',var)].Integral()/histos[('cosm',var)].Integral())
-        drawOne(histos[('fe',var)],histos[('cosm',var)],plotdir)
-
+        if histos[('fe',var)].InheritsFrom('TH1'):
+            histos[('ambe',var)].SetFillColor(ROOT.kAzure+6)
+            histos[('fe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
+            if normEntries:
+                print "fe norm = ",float(entries['fe'])
+                print "am norm = ",float(entries['ambe'])
+                histos[('fe',var)].Scale(float(entries['ambe'])/float(entries['fe']))
+            else:
+                histos[('ambe',var)].Scale(histos[('fe',var)].Integral()/histos[('ambe',var)].Integral())
+            drawOne(histos[('fe',var)],histos[('ambe',var)],plotdir,normEntries)
+        elif histos[('fe',var)].InheritsFrom('TGraph'):
+            drawOneGraph(histos[('ambe',var)],var,plotdir)
+            
 def plotEnergyVsDistance(plotdir):
 
     tf_fe55 = ROOT.TFile('runs/reco_run01740_3D.root')
@@ -688,11 +795,11 @@ if __name__ == "__main__":
         plotNClusters()
 
     if options.make in ['all','tworuns']:
-        histograms = fillSpectra()
-        odir = options.outdir+'/clusters/'
+        histograms,entries = fillSpectra()
+        odir = options.outdir
         os.system('mkdir -p {od}'.format(od=odir))
-        drawSpectra(histograms,odir)
-        os.system('cp index.php {od}'.format(od=odir))
+        drawSpectra(histograms,odir,entries,normEntries=True)
+        os.system('cp ../index.php {od}'.format(od=odir))
     
     if options.make in ['all','evsdist']:
         plotEnergyVsDistance(options.outdir)
