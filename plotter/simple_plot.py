@@ -163,7 +163,7 @@ def varChoice(var):
     return var1, leg, histlimit
     
 
-def fillSpectra(cluster='cl'):
+def fillSpectra(cluster='sc'):
 
     ret = {}
     #tf_ambe = ROOT.TFile('../runs/AmBeConfig/reco_runs_2317_to_2320_3D.root')
@@ -227,8 +227,8 @@ def fillSpectra(cluster='cl'):
             for cmosvar in ['cmos_integral','cmos_mean','cmos_rms']:
                 ret[runtype,cmosvar].Fill(getattr(event,cmosvar))
             for isc in range(getattr(event,"nSc" if cluster=='sc' else 'nCl')):
-                if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
-                    continue
+                #if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
+                #    continue
                 nhits = getattr(event,"{clutype}_nhits".format(clutype=cluster))[isc]
                 density = getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]/nhits if nhits>0 else 0
                 xmin = getattr(event,"{clutype}_xmin".format(clutype=cluster))[isc]
@@ -390,7 +390,16 @@ def drawOne(histo_sr,histo_cr,plotdir='./',normEntries=False):
 def drawOne2D(histo_sr,histo_cr,plotdir='./',normEntries=False):
     ROOT.gStyle.SetOptStat(0)
 
-    ROOT.gStyle.SetPalette(ROOT.kTemperatureMap)
+    ROOT.TColor.CreateGradientColorTable(3,
+                                      array ("d", [0.00, 0.50, 1.00]),
+                                      ##array ("d", [1.00, 1.00, 0.00]),
+                                      ##array ("d", [0.70, 1.00, 0.34]),
+                                      ##array ("d", [0.00, 1.00, 0.82]),
+                                      array ("d", [0.00, 1.00, 1.00]),
+                                      array ("d", [0.34, 1.00, 0.65]),
+                                      array ("d", [0.82, 1.00, 0.00]),
+                                      255,  0.95)
+
     ROOT.gStyle.SetNumberContours(51)
     ROOT.gErrorIgnoreLevel = 100
     
