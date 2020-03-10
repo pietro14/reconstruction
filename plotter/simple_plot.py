@@ -171,40 +171,48 @@ def fillSpectra(cluster='cl'):
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2252_to_2257_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2311_to_2313_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_fe55_6040_3D.root') # many short runs
-    tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_run02156_3D.root') ## cosmics run
+    tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2156_to_2159_3D.root') ## cosmics run
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe}
 
     entries = {'fe': tf_fe55.Events.GetEntries(), 'ambe': tf_ambe.Events.GetEntries()}
     
     ## signal region histograms
-    ret[('fe','integral')] = ROOT.TH1F("fe_integral",'',100,0,5e3)
-    ret[('fe','length')]   = ROOT.TH1F("fe_length",'',100,0,100)
+    ret[('fe','integral')] = ROOT.TH1F("fe_integral",'',100,0,7e4)
+    ret[('fe','length')]   = ROOT.TH1F("fe_length",'',100,0,300)
     ret[('fe','width')]    = ROOT.TH1F("fe_width",'',35,0,70)
-    ret[('fe','nhits')]    = ROOT.TH1F("fe_nhits",'',100,0,2000)
-    ret[('fe','slimness')] = ROOT.TH1F("fe_slimness",'',70,0,1)
+    ret[('fe','nhits')]    = ROOT.TH1F("fe_nhits",'',100,0,4000)
+    ret[('fe','slimness')] = ROOT.TH1F("fe_slimness",'',50,0,1)
     ret[('fe','density')] = ROOT.TH1F("fe_density",'',45,0,30)
 
     ## CMOS integral variables
     ret[('fe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',100,1.54e6,2.0e6)
     ret[('fe','cmos_mean')] = ROOT.TH1F("cmos_mean",'',100,0.36,0.56)
     ret[('fe','cmos_rms')] = ROOT.TH1F("cmos_rms",'',100,2,3)
-    
+
+    ret[('fe','integralvslength')] =  ROOT.TH2F("fe_integralvslength",'',100,0,300,100,0,15e3)
+
     # ret[('fe','integralvslength')] = ROOT.TGraph()
     # ret[('fe','sigmavslength')] = ROOT.TGraph()
     # ret[('fe','sigmavsintegral')] = ROOT.TGraph()
     
     # x-axis titles
     titles = {'integral': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)'}
+
+    titles2d = {'integralvslength': ['length (pixels)','photons']}
     
     ## control region histograms
     ret2 = {}
     for (region,var),h in ret.iteritems():
-        ret2[('ambe',var)] = h.Clone('ambe_{name}'.format(name=var))
+        if ret[(region,var)].InheritsFrom('TH2'):
+            ret[(region,var)].GetXaxis().SetTitle(titles2d[var][0])
+            ret[(region,var)].GetYaxis().SetTitle(titles2d[var][1])
+        elif ret[(region,var)].InheritsFrom('TH1'):
+            ret[(region,var)].GetXaxis().SetTitle(titles[var])
+            ret[(region,var)].GetXaxis().SetTitleSize(0.1)
+        ret2[('ambe',var)] = h.Clone('fe_{name}'.format(name=var))
         if ret[(region,var)].InheritsFrom('TH1'):
             ret[(region,var)].Sumw2()
             ret[(region,var)].SetDirectory(0)
-            ret[(region,var)].GetXaxis().SetTitle(titles[var])
-            ret[(region,var)].GetXaxis().SetTitleSize(0.1)
             ret2[('ambe',var)].SetDirectory(0)
         else:
             ret[(region,var)].SetName(region+var)
@@ -219,7 +227,7 @@ def fillSpectra(cluster='cl'):
             for cmosvar in ['cmos_integral','cmos_mean','cmos_rms']:
                 ret[runtype,cmosvar].Fill(getattr(event,cmosvar))
             for isc in range(getattr(event,"nSc" if cluster=='sc' else 'nCl')):
-                if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]>2:
+                if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
                     continue
                 nhits = getattr(event,"{clutype}_nhits".format(clutype=cluster))[isc]
                 density = getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]/nhits if nhits>0 else 0
@@ -245,12 +253,13 @@ def fillSpectra(cluster='cl'):
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
                 ret[(runtype,'density')].Fill(density)
-                integral =  getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]  *  5.9 / 2800.
+                integral =  getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
                 #sigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
                 #length =  getattr(event,"{clutype}_lgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 - sigma # subtract the sigma to remove the diffusion
                 sigma =  getattr(event,"{clutype}_width".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
-                length =  getattr(event,"{clutype}_length".format(clutype=cluster))[isc] * 0.125
+                length =  getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
                 length_sub = math.sqrt(max(0,length*length - sigma*sigma))
+                ret[(runtype,'integralvslength')].Fill(length,integral)
                 # ret[(runtype,'integralvslength')].SetPoint(selected,length_sub,integral) 
                 # ret[(runtype,'sigmavslength')].SetPoint(selected,length_sub,sigma)
                 # ret[(runtype,'sigmavsintegral')].SetPoint(selected,integral,sigma)
@@ -337,32 +346,35 @@ def drawOne(histo_sr,histo_cr,plotdir='./',normEntries=False):
     padBottom.Draw()
 
     padTop.cd()
-    histo_cr.SetMaximum(1.2*max(histo_cr.GetMaximum(),histo_sr.GetMaximum()))
+    histo_sr.SetMaximum(1.2*max(histo_cr.GetMaximum(),histo_sr.GetMaximum()))
     if normEntries:
-        histo_cr.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
+        histo_sr.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
     else:
-        histo_cr.GetYaxis().SetTitle('clusters (a.u.)')
-    histo_cr.Draw("hist")
-    histo_sr.Draw("pe same")
+        histo_sr.GetYaxis().SetTitle('clusters (a.u.)')
+    histo_sr.Draw("hist")
+    histo_cr.Draw("pe same")
     #padTop.SetLogy(1)
     
     histos = [histo_sr,histo_cr]
     #labels = ['^{55}Fe 60/40','AmBe 60/40']
-    labels = ['no source','AmBe 60/40']
-    styles = ['p','f']
+    labels = ['AmBe 60/40','no source']
+    styles = ['f','p']
     
     legend = doLegend(histos,labels,styles,corner="TR")
     legend.Draw()
     
     padBottom.cd()
-    ratio = histo_sr.Clone(histo_sr.GetName()+"_ratio")
-    ratio.Divide(histo_cr)
+    ratio = histo_sr.Clone(histo_sr.GetName()+"_diff")
+    ratio.SetMarkerStyle(ROOT.kFullDotLarge)
+    ratio.SetMarkerColor(ROOT.kBlack)
+    ratio.Sumw2()
+    ratio.Add(histo_cr,-1.0)
     ratio.GetYaxis().SetTitleSize(0.05)
-    ratio.GetYaxis().SetTitle("{num} / {den}".format(num=labels[0],den=labels[1]))
+    ratio.GetYaxis().SetTitle("{num} - {den}".format(num=labels[0],den=labels[1]))
     ratio.Draw('pe1')
 
     line = ROOT.TLine()
-    line.DrawLine(ratio.GetXaxis().GetBinLowEdge(1), 1, ratio.GetXaxis().GetBinLowEdge(ratio.GetNbinsX()+1), 1)
+    line.DrawLine(ratio.GetXaxis().GetBinLowEdge(1), 0, ratio.GetXaxis().GetBinLowEdge(ratio.GetNbinsX()+1), 0)
     line.SetLineStyle(3)
     line.SetLineColor(ROOT.kBlack)
     
@@ -373,21 +385,62 @@ def drawOne(histo_sr,histo_cr,plotdir='./',normEntries=False):
     histo_cr.Write()
     histo_sr.Write()
     of.Close()
+
+
+def drawOne2D(histo_sr,histo_cr,plotdir='./',normEntries=False):
+    ROOT.gStyle.SetOptStat(0)
+
+    ROOT.gStyle.SetPalette(ROOT.kTemperatureMap)
+    ROOT.gStyle.SetNumberContours(51)
+    ROOT.gErrorIgnoreLevel = 100
     
+    c = ROOT.TCanvas('c','',3600,1200)
+    c.Divide(3,1)
+
+    c.cd(1)
+    histo_sr.SetTitle('AmBe')
+    histo_sr.Draw('colz')
+    
+    c.cd(2)
+    histo_cr.SetTitle('no source')
+    histo_cr.Draw("colz")
+
+    c.cd(3)
+    ratio = histo_sr.Clone(histo_sr.GetName()+"_diff")
+    ratio.SetTitle('AmBe - NoSource')
+    ratio.Sumw2()
+    ratio.Add(histo_cr,-1)
+    ratio.GetYaxis().SetTitleSize(0.05)
+    ratio.GetYaxis().SetTitle("left - right")
+    ratio.Draw('colz')
+    
+    maxY = max(ratio.GetMaximum(),abs(ratio.GetMinimum()))
+    ratio.SetMaximum( 0.5 * maxY)
+    ratio.SetMinimum(-0.5 * maxY)
+    
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/{var}.{ext}".format(plotdir=plotdir,var=histo_sr.GetName(),ext=ext))
+
+    of = ROOT.TFile.Open("{plotdir}/{var}.root".format(plotdir=plotdir,var=histo_sr.GetName()),'recreate')
+    histo_cr.Write()
+    histo_sr.Write()
+    of.Close()
+
 def drawSpectra(histos,plotdir,entries,normEntries=False):
     variables = [var for (reg,var) in histos.keys() if reg=='fe']
     
     for var in variables:
         if histos[('fe',var)].InheritsFrom('TH1'):
-            histos[('ambe',var)].SetFillColor(ROOT.kAzure+6)
-            histos[('fe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
             if normEntries:
-                print "fe norm = ",float(entries['fe'])
-                print "am norm = ",float(entries['ambe'])
                 histos[('fe',var)].Scale(float(entries['ambe'])/float(entries['fe']))
             else:
                 histos[('ambe',var)].Scale(histos[('fe',var)].Integral()/histos[('ambe',var)].Integral())
-            drawOne(histos[('fe',var)],histos[('ambe',var)],plotdir,normEntries)
+        if histos[('fe',var)].InheritsFrom('TH2'):
+            drawOne2D(histos[('ambe',var)],histos[('fe',var)],plotdir)
+        elif histos[('fe',var)].InheritsFrom('TH1'):
+            histos[('ambe',var)].SetFillColor(ROOT.kAzure+6)
+            histos[('fe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
+            drawOne(histos[('ambe',var)],histos[('fe',var)],plotdir,normEntries)
         elif histos[('fe',var)].InheritsFrom('TGraph'):
             drawOneGraph(histos[('ambe',var)],var,plotdir)
             
