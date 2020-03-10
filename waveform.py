@@ -135,8 +135,12 @@ class PeakFinder:
             if y>threshold:
                 x1=self.x[ip]
                 break
-        self.x0 = np.nanmax(np.array([x0,self.xmin]))
-        self.x1 = np.nanmin(np.array([x1,self.xmax]))
+        if self.xmin is not None and self.xmax is not None:
+            self.x0 = np.nanmax(np.array([x0,self.xmin]))
+            self.x1 = np.nanmin(np.array([x1,self.xmax]))
+        else:
+            self.x0 = -999
+            self.x1 = -999
 
     def getTot(self):
         return self.x1-self.x0

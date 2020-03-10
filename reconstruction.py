@@ -297,7 +297,7 @@ if __name__ == '__main__':
         nThreads = options.jobs
 
     if nThreads>1:
-        print "RUNNING USING ",nThreads," THREADS."
+        print ("RUNNING USING ",nThreads," THREADS.")
         nj = int(nev/nThreads)
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(0,nev,nj))]
         print(chunks)

@@ -169,12 +169,12 @@ class Cluster:
         length=(rxmax-rxmin); width=(rymax-rymin)
         if len(xedg)>1:
             longprof = ROOT.TH1F('longprof','longitudinal profile',len(xedg)-1,array('f',xedg))
-            longprof.SetDirectory(None)
-        else: longprof = None
+            longprof.SetDirectory(0)
+        else: longprof = 0
         if len(yedg)>1:
             latprof = ROOT.TH1F('latprof','lateral profile',len(yedg)-1,array('f',yedg))
-            latprof.SetDirectory(None)
-        else: latprof = None
+            latprof.SetDirectory(0)
+        else: latprof = 0
         
         cluth2d = ROOT.TH2D('cluth2d','',int(length)+2,0,int(length)+2, int(width)+2,0,int(width)+2)
         for h in rot_hits:

@@ -23,7 +23,7 @@ def reporthook(blocknum, blocksize, totalsize):
 def swift_download_root_file(url,run):
     import ROOT
     import os
-    from urllib import urlretrieve
+    from urllib.request import urlretrieve
     tmpname = ("/tmp/histograms_Run%05d.root" % run)
     urlretrieve(url, tmpname, reporthook)
     return tmpname 

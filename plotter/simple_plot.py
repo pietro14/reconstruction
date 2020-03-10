@@ -46,7 +46,7 @@ def plotDensity():
     colors = [ROOT.kRed,ROOT.kBlue,ROOT.kOrange]
     #histo = ROOT.TH1F('density','',70,0,2500)
     histo = ROOT.TH1F('density','',70,0,20)
-    for it in xrange(1,4):
+    for it in range(1,4):
         h = histo.Clone('h_iter{it}'.format(it=it))
         h.Sumw2()
         #tree.Draw('track_integral/track_nhits>>h_iter{it}'.format(it=it),'track_iteration=={it}'.format(it=it))
@@ -202,7 +202,7 @@ def fillSpectra(cluster='cl'):
     
     ## control region histograms
     ret2 = {}
-    for (region,var),h in ret.iteritems():
+    for (region,var),h in ret.items():
         if ret[(region,var)].InheritsFrom('TH2'):
             ret[(region,var)].GetXaxis().SetTitle(titles2d[var][0])
             ret[(region,var)].GetYaxis().SetTitle(titles2d[var][1])
@@ -427,7 +427,7 @@ def drawOne2D(histo_sr,histo_cr,plotdir='./',normEntries=False):
     of.Close()
 
 def drawSpectra(histos,plotdir,entries,normEntries=False):
-    variables = [var for (reg,var) in histos.keys() if reg=='fe']
+    variables = [var for (reg,var) in list(histos.keys()) if reg=='fe']
     
     for var in variables:
         if histos[('fe',var)].InheritsFrom('TH1'):
@@ -497,9 +497,9 @@ def plotEnergyVsDistance(plotdir):
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/rms.{ext}".format(plotdir=plotdir,ext=ext))
 
-    print x
-    print y_mean
-    print y_res
+    print(x)
+    print(y_mean)
+    print(y_res)
 
 def plotCameraEnergyVsPosition(plotdir,var='integral'):
     
@@ -513,7 +513,7 @@ def plotCameraEnergyVsPosition(plotdir,var='integral'):
         y_mean.append(mean)
         y_res.append(rms/mean)
 
-    print y_res
+    print(y_res)
     np = len(x)
     
     gr_mean = ROOT.TGraph(np,array('f',x),array('f',y_mean))
@@ -563,7 +563,7 @@ def plotPMTEnergyVsPosition(plotdir):
     tf_fe55 = ROOT.TFile('runs/reco_run01754_to_run01759.root')
     tree = tf_fe55.Get('Events')
 
-    runs = range(1754,1760)
+    runs = list(range(1754,1760))
     integral = ROOT.TH1F('integral','',100,2000,20000)
 
     np = len(runs)
@@ -581,7 +581,7 @@ def plotPMTEnergyVsPosition(plotdir):
         integral.Reset()
 
 
-    print y_res
+    print(y_res)
     
     gr_mean = ROOT.TGraph(np,array('f',x),array('f',y_mean))
     gr_res = ROOT.TGraph(np,array('f',x),array('f',y_res))
@@ -625,9 +625,9 @@ def plotPMTEnergyVsPosition(plotdir):
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/rms.{ext}".format(plotdir=plotdir,ext=ext))
 
-    print x
-    print y_mean
-    print y_res
+    print(x)
+    print(y_mean)
+    print(y_res)
 
 
 def plotCameraPMTCorr(outdir):

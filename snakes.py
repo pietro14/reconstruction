@@ -395,7 +395,7 @@ class SnakesFactory:
                 plt.legend(loc='upper left')
 
                 if len(superclusters):
-                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='firebrick', linewidths=4)
+                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=4)
                     supercluster_contour.collections[0].set_label('supercluster it 1+2')
                 
                 for ext in ['png','pdf']:
