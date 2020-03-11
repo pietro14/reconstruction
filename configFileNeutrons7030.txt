@@ -2,7 +2,7 @@
 # DEBUG plots
 'debug_mode'            : 0,
 
-'ev'                    : 141,
+'ev'                    : 1,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -12,7 +12,7 @@
 'flag_edges_image'      : 1,
 'flag_first_it'         : 1,
 'flag_second_it'        : 1,
-'flag_third_it'         : 0,
+'flag_third_it'         : 1,
 'flag_stats'            : 1,
 'flag_all_it'           : 1,
 'flag_plot_noise'       : 0,
@@ -31,16 +31,16 @@
 'rebin'                 : 4,
 'nsigma'                : 1.5,
 'cimax'                 : 200,                     # Upper threshold
-'pedrun'                : '02316',
+'pedrun'                : '02054',
 'justPedestal'          : False,
 #'run'                   : '02278',                 # uses always 5 characters
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
 'tag'                   : 'Data',                  # 'Data' for experimental data or 'MC' for Simulated data
 
-'excImages'             : range(5)+[],             # To exlude some images of the analysis. Always exclude the first 5 which are messy
+'excImages'             : list(range(5))+[],             # To exlude some images of the analysis. Always exclude the first 5 which are messy
 'min_neighbors_average' : 3.5,                     # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
-'donotremove'           : False,                    # Remove or not the file from the tmp folder
+'donotremove'           : True,                    # Remove or not the file from the tmp folder
 
 # Setting i2DBSCAN parameters
 

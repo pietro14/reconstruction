@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os,math,sys
+import os,math,sys,ctypes
 import numpy as np
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -26,8 +26,19 @@ class PeakFinder:
         
     def importTGraph(self,tgraph,xmin,xmax,rebin):
         # transform to positive signals for PMT
-        y = np.array([-y for y in tgraph.GetY()])
-        x = np.array(tgraph.GetX())
+        ## GetY of a TGraph crashes in pyROOT 6.20 ... 
+        #y = np.array([-y for y in tgraph.GetY()])
+        #x = np.array(tgraph.GetX())
+        xl = []; yl = []
+        for i in range(tgraph.GetN()):
+            #xi = ROOT.Double(0); yi = ROOT.Double(0)
+            xi = ctypes.c_double(); yi = ctypes.c_double()
+            tgraph.GetPoint(i,xi,yi)
+            xl.append(xi.value)
+            yl.append(-1*yi.value)
+        x = np.array(xl)
+        y = np.array(yl)
+
         if rebin:
             yrebin = []; xrebin = []
             for i in range(0,len(y),rebin):
@@ -135,8 +146,12 @@ class PeakFinder:
             if y>threshold:
                 x1=self.x[ip]
                 break
-        self.x0 = np.nanmax(np.array([x0,self.xmin]))
-        self.x1 = np.nanmin(np.array([x1,self.xmax]))
+        if self.xmin is not None and self.xmax is not None:
+            self.x0 = np.nanmax(np.array([x0,self.xmin]))
+            self.x1 = np.nanmin(np.array([x1,self.xmax]))
+        else:
+            self.x0 = -999
+            self.x1 = -999
 
     def getTot(self):
         return self.x1-self.x0
