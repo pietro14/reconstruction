@@ -270,6 +270,7 @@ class SnakesFactory:
                 print("Clusters found in iteration 1: %d" % (sum(db.tag_[indices] == 1)))
                 print("Clusters found in iteration 2: %d" % (sum(db.tag_[indices] == 2)))
                 print("Clusters found in iteration 3: %d" % (sum(db.tag_[indices] == 3)))
+                print("SuperClusters found: %d" % len(superclusters))
                 
             if self.options.flag_first_it == 1:
                 print('[Plotting 1st iteration]')
