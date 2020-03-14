@@ -31,7 +31,7 @@ class Cluster:
 
     def getSize(self,name='long'):
         if len(self.profiles)==0:
-            self.calcProfiles()
+            self.calcProfiles(name)
         if name in self.widths: return self.widths[name]
         else:
             print("ERROR! You can only get 'long' or 'lat' sizes!")
@@ -142,7 +142,7 @@ class Cluster:
         ret = {'amp': rInt, 'mean': rMean, 'sigma': rSigma, 'chi2': chi2, 'status': status}
         return ret
         
-    def calcProfiles(self,plot=None):
+    def calcProfiles(self,name='prof',plot=None):
         # if they have been attached to the cluster, do not recompute them
         if len(self.profiles)>0:
             return
@@ -154,25 +154,22 @@ class Cluster:
             rx,ry = utilities.rotate_around_point(h,self.EVs[0],self.mean_point)
             rh_major_axis = (rx,ry,h[-1])
             rot_hits.append(rh_major_axis)
-        if plot!=None:
-            rx = [h[0] for h in rot_hits]; ry = [h[1] for h in rot_hits]; 
-            plot.plot(rx, ry, color='green', marker='^',markersize=3)
 
         # now compute the length along major axis, long profile, etc
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
         xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.2)
-        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.6)
+        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.3)
         xedg = [(x-int(rxmin)) for x in xedg]
         yedg = [(y-int(rymin)) for y in yedg]
 
         length=(rxmax-rxmin); width=(rymax-rymin)
         if len(xedg)>1:
-            longprof = ROOT.TH1F('longprof','longitudinal profile',len(xedg)-1,array('f',xedg))
+            longprof = ROOT.TH1F(name+'_long','longitudinal profile',len(xedg)-1,array('f',xedg))
             longprof.SetDirectory(0)
         else: longprof = 0
         if len(yedg)>1:
-            latprof = ROOT.TH1F('latprof','lateral profile',len(yedg)-1,array('f',yedg))
+            latprof = ROOT.TH1F(name+'_lat','lateral profile',len(yedg)-1,array('f',yedg))
             latprof.SetDirectory(0)
         else: latprof = 0
         
@@ -223,14 +220,14 @@ class Cluster:
 
         # get the peaks inside the profile
         for direction in ['lat','long']:
-            self.clusterShapes(direction)
+            self.clusterShapes(direction,plot)
         
     def getProfile(self,name='long'):
         if len(self.profiles)==0:
-            self.calcProfiles()
+            self.calcProfiles(name=name)
         return self.profiles[name] if name in self.profiles else None
 
-    def clusterShapes(self,name='long'):
+    def clusterShapes(self,name='long',plot=False):
         # ensure the cluster profiles are ready
         if name not in ['lat','long']:
             print("ERROR! Requested profile along the ",name," direction. Should be either 'long' or 'lat'. Exiting clusterShapes().")
@@ -252,12 +249,16 @@ class Cluster:
         # find the peaks and store their properties
         # thresholds on the light. Should be configurable...
         threshold = 3
-        min_distance_peaks = 3 # number of bins of the profile, to be converted in mm later... TO DO
+        min_distance_peaks = 6 # number of bins of the profile, to be converted in mm later... TO DO
         prominence = 2 # noise seems <1
-        width = 1 # minimal width of the signal
-        pf = PeakFinder(self.profiles[name])        
+        width = 2 # minimal width of the signal
+        xmin = 0 # the profile always starts from 0
+        xmax = self.profiles[name].GetBinLowEdge(self.profiles[name].GetNbinsX()+1) # low edge of the overflow bin
+        pf = PeakFinder(self.profiles[name],xmin=0,xmax=xmax,negative=False)        
         pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-
+        if plot:
+            pf.plotpy(xlabel='$X_{%s} (pixels)$' % name, ylabel='Photons / bin')
+        
         amplitudes = pf.getAmplitudes()
         prominences = pf.getProminences()
         fwhms = pf.getFWHMs()

@@ -495,20 +495,23 @@ class SnakesFactory:
         for k,cl in enumerate(clusters):
             cl.plotFullResolution('{pdir}/{name}_cluster{iclu}'.format(pdir=outname,name=self.name,iclu=k))
 
-    def calcProfiles(self,clusters):
+    def calcProfiles(self,clusters,plot=False):
         for k,cl in enumerate(clusters):
-            cl.calcProfiles(plot=None)
+            profName = '{name}_cluster{iclu}'.format(name=self.name,iclu=k)
+            cl.calcProfiles(name=profName,plot=plot)
                              
     def plotProfiles(self,clusters):
+        print ("plot profiles...")
         outname = self.options.plotDir
         canv = ROOT.TCanvas('c1','',1200,600)
         for k,cl in enumerate(clusters):
             for dir in ['long','lat']:
+                profName = '{name}_cluster{iclu}_{dir}'.format(name=self.name,iclu=k,dir=dir)
                 prof = cl.getProfile(dir)
                 if prof and cl.widths[dir]>0.2: # plot the profiles only of sufficiently long snakes (>200 um)
                     prof.Draw("pe1")
                     for ext in ['pdf']:
-                        canv.SaveAs('{pdir}/{name}_cluster{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
+                        canv.SaveAs('{pdir}/{name}profile.{ext}'.format(pdir=outname,name=profName,ext=ext))
         
     def plotContours(self,contours):
 
@@ -577,8 +580,8 @@ class SnakesProducer:
             snakes = snfac.getTracks(plot=self.plotpy)            
 
         # print "Get light profiles..."
-        snfac.calcProfiles(snakes)
-        snfac.calcProfiles(clusters)
+        snfac.calcProfiles(snakes,plot=self.plotpy)
+        snfac.calcProfiles(clusters,plot=False)
         
         # snfac.calcProfiles(snakes) # this is for BTF
         
