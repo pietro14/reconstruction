@@ -4,6 +4,8 @@ from array import array
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
 
+fe_integral_rescale = 1
+
 def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
     nentries = len(histos)
     (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .91)
@@ -176,7 +178,7 @@ def fillSpectra(cluster='sc'):
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
 
-    entries = {'fe': 10*tf_fe55.Events.GetEntries(), 'ambe': tf_ambe.Events.GetEntries(), 'cosm': tf_cosmics.Events.GetEntries()}
+    entries = {'fe': tf_fe55.Events.GetEntries(), 'ambe': tf_ambe.Events.GetEntries(), 'cosm': tf_cosmics.Events.GetEntries()}
     
     ## Fe55 region histograms
     ret[('ambe','integral')] = ROOT.TH1F("integral",'',50,0,1e4)
@@ -188,9 +190,9 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','density')]  = ROOT.TH1F("density",'',45,0,30)
 
     ## CMOS integral variables
-    ret[('ambe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',100,1.54e6,2.0e6)
-    ret[('ambe','cmos_mean')]     = ROOT.TH1F("cmos_mean",'',100,0.36,0.56)
-    ret[('ambe','cmos_rms')]      = ROOT.TH1F("cmos_rms",'',100,2,3)
+    ret[('ambe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',50,1.54e6,2.0e6)
+    ret[('ambe','cmos_mean')]     = ROOT.TH1F("cmos_mean",'',50,0.36,0.56)
+    ret[('ambe','cmos_rms')]      = ROOT.TH1F("cmos_rms",'',50,2,3)
     ret[('ambe','integralvslength')] =  ROOT.TH2F("fe_integralvslength",'',100,0,300,100,0,15e3)
 
     # ret[('fe','integralvslength')] = ROOT.TGraph()
@@ -364,7 +366,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     #padTop.SetLogy(1)
     
     histos = [histo_sig,histo_bkg,histo_sig2]
-    labels = ['AmBe','no source','0.1 #times ^{55}Fe']
+    labels = ['AmBe','no source','%.1f #times ^{55}Fe' % fe_integral_rescale]
     styles = ['pe','f','f']
     
     legend = doLegend(histos,labels,styles,corner="TR")
@@ -387,7 +389,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     stylesR.append('pe')
     
     if histo_sig2:
-        ratio2 = histo_sig2.Clone(histo_sig.GetName()+"_diff")
+        ratio2 = histo_sig2.Clone(histo_sig.GetName()+"fe_diff")
         ratio2.SetMarkerStyle(ROOT.kFullDotLarge)
         ratio2.SetMarkerColor(ROOT.kRed+2)
         ratio2.SetLineColor(ROOT.kRed+2)
@@ -397,7 +399,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         ratio2.GetYaxis().SetTitle("{num} - {den}".format(num=labels[0],den=labels[1]))
         ratio2.Draw('pe same')
         ratios.append(ratio2)
-        labelsR.append('0.1 #times ^{55}Fe - no source')
+        labelsR.append('%.1f #times ^{55}Fe - no source' % fe_integral_rescale)
         stylesR.append('pe')
         rmax = max(ratio.GetMaximum(),ratio2.GetMaximum())
         ratio.SetMaximum(rmax)
@@ -416,6 +418,10 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     of = ROOT.TFile.Open("{plotdir}/{var}.root".format(plotdir=plotdir,var=histo_sig.GetName()),'recreate')
     histo_bkg.Write()
     histo_sig.Write()
+    ratio.Write()
+    if histo_sig2:
+        histo_sig2.Write()
+        ratio2.Write()
     of.Close()
 
 
@@ -476,7 +482,7 @@ def drawSpectra(histos,plotdir,entries,normEntries=False):
     for var in variables:
         if histos[('ambe',var)].InheritsFrom('TH1'):
             if normEntries:
-                histos[('fe',var)].Scale(float(entries['ambe'])/float(entries['fe']))
+                histos[('fe',var)].Scale(float(entries['ambe'])/float(entries['fe'])*fe_integral_rescale)
                 histos[('cosm',var)].Scale(float(entries['ambe'])/float(entries['cosm']))
             else:
                 histos[('ambe',var)].Scale(1./histos[('ambe',var)].Integral())
@@ -880,7 +886,61 @@ def plotHist2D(plotdir,v1='integral',v2='slimness',i=0):
     c.Draw()
     c.SaveAs("{plotdir}/hist_{var}_vs_{var2}_pos{pos}_{gg}.pdf".format(plotdir=plotdir,var=v1,var2=v2,pos=pos[i],gg=gg))
     hist.Reset()
+
+
+def getOneROC(sigh,bkgh,direction='gt'):
     
+    ## this assumes the same binning, but it is always the case here
+    plots = [sigh,bkgh]
+    integrals = [p.Integral() for p in plots]
+    nbins = sigh.GetNbinsX()
+
+    efficiencies = []
+    for ip,p in enumerate(plots):
+        if direction=='gt':
+            eff = [p.Integral(binx,nbins)/integrals[ip] for binx in range(0,nbins)]
+        else:
+            eff = [p.Integral(0,binx)/integrals[ip] for binx in range(0,nbins)]
+        efficiencies.append(eff)
+
+    ## graph for the roc
+    roc = ROOT.TGraph(nbins)
+    for i in range(nbins):
+        roc.SetPoint(i, efficiencies[0][i], 1-efficiencies[1][i])
+    roc.SetTitle('')
+        
+    return roc
+
+def drawROC(varname,odir):
+    tf = ROOT.TFile.Open('{odir}/{var}.root'.format(odir=odir,var=varname))
+
+    cosm_roc = getOneROC(tf.Get('{var}_diff'.format(var=varname)), tf.Get('cosm_{var}'.format(var=varname)))
+    fe_roc   = getOneROC(tf.Get('{var}_diff'.format(var=varname)), tf.Get('fe_{var}'.format(var=varname)))
+
+    c = ROOT.TCanvas('c','',1200,1200)
+    cosm_roc.SetMarkerStyle(ROOT.kFullDotLarge)
+    cosm_roc.SetMarkerSize(2)
+    cosm_roc.SetMarkerColor(ROOT.kBlack)
+    cosm_roc.SetLineColor(ROOT.kBlack)
+
+    fe_roc.SetMarkerStyle(ROOT.kFullSquare)
+    fe_roc.SetMarkerSize(2)
+    fe_roc.SetMarkerColor(ROOT.kRed)
+    fe_roc.SetLineColor(ROOT.kRed)
+
+    cosm_roc.Draw('APC')
+    cosm_roc.GetXaxis().SetTitle('AmBe efficiency')
+    cosm_roc.GetYaxis().SetTitle('Background rejection')
+    fe_roc.Draw('PC')
+
+    graphs = [cosm_roc,fe_roc]
+    labels = ['no source bkg','^{55}Fe bkg']
+    styles = ['pl','pl']
+    legend = doLegend(graphs,labels,styles,corner="TR")
+    
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/{var}_roc.{ext}".format(plotdir=odir,var=varname,ext=ext))
+             
     
 if __name__ == "__main__":
 
@@ -905,7 +965,8 @@ if __name__ == "__main__":
         os.system('mkdir -p {od}'.format(od=odir))
         drawSpectra(histograms,odir,entries,normEntries=True)
         os.system('cp ../index.php {od}'.format(od=odir))
-    
+        drawROC('density',odir)
+        
     if options.make in ['all','evsdist']:
         plotEnergyVsDistance(options.outdir)
 
