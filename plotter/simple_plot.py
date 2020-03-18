@@ -182,6 +182,7 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','integral')] = ROOT.TH1F("integral",'',50,0,1e4)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',100,0,300)
     ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200)
+    ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40)
     ret[('ambe','nhits')]    = ROOT.TH1F("nhits",'',70,0,2000)
     ret[('ambe','slimness')] = ROOT.TH1F("slimness",'',50,0,1)
     ret[('ambe','density')]  = ROOT.TH1F("density",'',45,0,30)
@@ -197,7 +198,7 @@ def fillSpectra(cluster='sc'):
     # ret[('fe','sigmavsintegral')] = ROOT.TGraph()
     
     # x-axis titles
-    titles = {'integral': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)'}
+    titles = {'integral': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)', 'tgausssigma': '#sigma_{transverse} (pixels)'}
 
     titles2d = {'integralvslength': ['length (pixels)','photons']}
     
@@ -252,7 +253,7 @@ def fillSpectra(cluster='sc'):
                  #   continue
                 #if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
                 #    continue
-                for var in ['integral','length','width','nhits']:
+                for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
                 ret[(runtype,'density')].Fill(density)
@@ -364,7 +365,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     
     histos = [histo_sig,histo_bkg,histo_sig2]
     labels = ['AmBe','no source','0.1 #times ^{55}Fe']
-    styles = ['p','f','f']
+    styles = ['pe','f','f']
     
     legend = doLegend(histos,labels,styles,corner="TR")
     legend.Draw()
@@ -380,7 +381,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ratio.GetYaxis().SetTitleSize(0.05)
     ratio.GetYaxis().SetTitle("source - nosource")
     ratio.GetYaxis().CenterTitle()
-    ratio.Draw('pe1')
+    ratio.Draw('pe')
     ratios.append(ratio)
     labelsR.append('AmBe - no source')
     stylesR.append('pe')
@@ -394,7 +395,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         ratio2.Add(histo_bkg,-1.0)
         ratio2.GetYaxis().SetTitleSize(0.05)
         ratio2.GetYaxis().SetTitle("{num} - {den}".format(num=labels[0],den=labels[1]))
-        ratio2.Draw('pe1 same')
+        ratio2.Draw('pe same')
         ratios.append(ratio2)
         labelsR.append('0.1 #times ^{55}Fe - no source')
         stylesR.append('pe')
@@ -485,6 +486,7 @@ def drawSpectra(histos,plotdir,entries,normEntries=False):
             drawOne2D(histos[('ambe',var)],histos[('fe',var)],plotdir)
         elif histos[('ambe',var)].InheritsFrom('TH1'):
             histos[('ambe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
+            histos[('ambe',var)].SetLineColor(ROOT.kBlack)
             histos[('cosm',var)].SetFillColor(ROOT.kAzure+6)
             histos[('cosm',var)].SetFillStyle(3345)
             if histos[('fe',var)]:
