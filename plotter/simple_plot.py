@@ -4,7 +4,7 @@ from array import array
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
 
-fe_integral_rescale = 1
+fe_integral_rescale = 0.1
 
 def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
     nentries = len(histos)
@@ -169,7 +169,8 @@ def fillSpectra(cluster='sc'):
 
     ret = {}
     #tf_ambe = ROOT.TFile('../runs/AmBeConfig/reco_runs_2317_to_2320_3D.root')
-    tf_ambe  = ROOT.TFile('../runs/AmBeConfig/reco_runs_2097_to_2098_3D.root')
+    #tf_ambe  = ROOT.TFile('../runs/AmBeConfig/reco_runs_2097_to_2098_3D.root') ## 60/40
+    tf_ambe =  ROOT.TFile('../runs/AmBeConfig/reco_ambe7030_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2252_to_2257_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2311_to_2313_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_fe55_6040_3D.root') # many short runs
@@ -182,6 +183,7 @@ def fillSpectra(cluster='sc'):
     
     ## Fe55 region histograms
     ret[('ambe','integral')] = ROOT.TH1F("integral",'',50,0,1e4)
+    ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',200,0,50e4)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',100,0,300)
     ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200)
     ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40)
@@ -200,7 +202,7 @@ def fillSpectra(cluster='sc'):
     # ret[('fe','sigmavsintegral')] = ROOT.TGraph()
     
     # x-axis titles
-    titles = {'integral': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)', 'tgausssigma': '#sigma_{transverse} (pixels)'}
+    titles = {'integral': 'photons', 'integralExt': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)', 'tgausssigma': '#sigma_{transverse} (pixels)'}
 
     titles2d = {'integralvslength': ['length (pixels)','photons']}
     
@@ -257,6 +259,8 @@ def fillSpectra(cluster='sc'):
                 #    continue
                 for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
+                ret[(runtype,'integralExt')].Fill(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc])
+                
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
                 ret[(runtype,'density')].Fill(density)
                 integral =  getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
