@@ -84,10 +84,19 @@ class Cluster:
         
     def dump(self):
         if hasattr(self,'hits_fr'):
-            return len(self.hits_fr)
+            print("DUMPING fullres hits")
+            print(self.hits_fr)            
         else:
             print("DUMPING rebinned hits in absence of full res ones")
             print(self.hits)
+
+    def dumpToFile(self,filename):
+        if hasattr(self,'hits_fr'):
+            print("DUMPING fullres hits to a numpy file: ",filename)
+            np.save(filename, self.hits_fr)
+        else:
+            print("DUMPING rebinned hits to a numpy file: ",'rebinned_hits_'+filename)
+            np.save(filename, self.hits)
 
     def eigenvectors(self):
         covmat = np.cov([self.x,self.y])
