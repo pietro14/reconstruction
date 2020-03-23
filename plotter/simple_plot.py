@@ -4,6 +4,8 @@ from array import array
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
 
+fe_integral_rescale = 0.1
+
 def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
     nentries = len(histos)
     (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .91)
@@ -167,40 +169,44 @@ def fillSpectra(cluster='sc'):
 
     ret = {}
     #tf_ambe = ROOT.TFile('../runs/AmBeConfig/reco_runs_2317_to_2320_3D.root')
-    tf_ambe  = ROOT.TFile('../runs/AmBeConfig/reco_runs_2097_to_2098_3D.root')
+    #tf_ambe  = ROOT.TFile('../runs/AmBeConfig/reco_runs_2097_to_2098_3D.root') ## 60/40
+    tf_ambe =  ROOT.TFile('../runs/AmBeConfig/reco_ambe7030_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2252_to_2257_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2311_to_2313_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_fe55_6040_3D.root') # many short runs
-    tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2156_to_2159_3D.root') ## cosmics run
-    tfiles = {'fe':tf_fe55,'ambe':tf_ambe}
+    tf_cosmics = ROOT.TFile('../runs/AmBeConfig/reco_runs_2156_to_2159_3D.root') ## cosmics run
+    tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_Fe55.root')
 
-    entries = {'fe': tf_fe55.Events.GetEntries(), 'ambe': tf_ambe.Events.GetEntries()}
+    tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
+
+    entries = {'fe': tf_fe55.Events.GetEntries(), 'ambe': tf_ambe.Events.GetEntries(), 'cosm': tf_cosmics.Events.GetEntries()}
     
-    ## signal region histograms
-    ret[('fe','integral')] = ROOT.TH1F("fe_integral",'',100,0,7e4)
-    ret[('fe','length')]   = ROOT.TH1F("fe_length",'',100,0,300)
-    ret[('fe','width')]    = ROOT.TH1F("fe_width",'',35,0,70)
-    ret[('fe','nhits')]    = ROOT.TH1F("fe_nhits",'',100,0,4000)
-    ret[('fe','slimness')] = ROOT.TH1F("fe_slimness",'',50,0,1)
-    ret[('fe','density')] = ROOT.TH1F("fe_density",'',45,0,30)
+    ## Fe55 region histograms
+    ret[('ambe','integral')] = ROOT.TH1F("integral",'',50,0,1e4)
+    ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',200,0,50e4)
+    ret[('ambe','length')]   = ROOT.TH1F("length",'',100,0,300)
+    ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200)
+    ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40)
+    ret[('ambe','nhits')]    = ROOT.TH1F("nhits",'',70,0,2000)
+    ret[('ambe','slimness')] = ROOT.TH1F("slimness",'',50,0,1)
+    ret[('ambe','density')]  = ROOT.TH1F("density",'',45,0,30)
 
     ## CMOS integral variables
-    ret[('fe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',100,1.54e6,2.0e6)
-    ret[('fe','cmos_mean')] = ROOT.TH1F("cmos_mean",'',100,0.36,0.56)
-    ret[('fe','cmos_rms')] = ROOT.TH1F("cmos_rms",'',100,2,3)
-
-    ret[('fe','integralvslength')] =  ROOT.TH2F("fe_integralvslength",'',100,0,300,100,0,15e3)
+    ret[('ambe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',50,1.54e6,2.0e6)
+    ret[('ambe','cmos_mean')]     = ROOT.TH1F("cmos_mean",'',50,0.36,0.56)
+    ret[('ambe','cmos_rms')]      = ROOT.TH1F("cmos_rms",'',50,2,3)
+    ret[('ambe','integralvslength')] =  ROOT.TH2F("fe_integralvslength",'',100,0,300,100,0,15e3)
 
     # ret[('fe','integralvslength')] = ROOT.TGraph()
     # ret[('fe','sigmavslength')] = ROOT.TGraph()
     # ret[('fe','sigmavsintegral')] = ROOT.TGraph()
     
     # x-axis titles
-    titles = {'integral': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)'}
+    titles = {'integral': 'photons', 'integralExt': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)', 'tgausssigma': '#sigma_{transverse} (pixels)'}
 
     titles2d = {'integralvslength': ['length (pixels)','photons']}
     
-    ## control region histograms
+    ## background histograms
     ret2 = {}
     for (region,var),h in ret.items():
         if ret[(region,var)].InheritsFrom('TH2'):
@@ -209,20 +215,23 @@ def fillSpectra(cluster='sc'):
         elif ret[(region,var)].InheritsFrom('TH1'):
             ret[(region,var)].GetXaxis().SetTitle(titles[var])
             ret[(region,var)].GetXaxis().SetTitleSize(0.1)
-        ret2[('ambe',var)] = h.Clone('fe_{name}'.format(name=var))
+        ret2[('cosm',var)] = h.Clone('cosm_{name}'.format(name=var))
+        ret2[('fe',var)]   = h.Clone('fe_{name}'.format(name=var))
         if ret[(region,var)].InheritsFrom('TH1'):
             ret[(region,var)].Sumw2()
             ret[(region,var)].SetDirectory(0)
-            ret2[('ambe',var)].SetDirectory(0)
+            ret2[('cosm',var)].SetDirectory(0)
+            ret2[('fe',var)].SetDirectory(0)
         else:
             ret[(region,var)].SetName(region+var)
-            ret2[('ambe',var)].SetName('ambe'+var)
+            ret2[('cosm',var)].SetName('cosm'+var)
+            ret2[('fe',var)].SetName('fe'+var)
 
     ret.update(ret2)
 
     ## now fill the histograms 
     selected = 0
-    for runtype in ['fe','ambe']:
+    for runtype in ['fe','ambe','cosm']:
         for ie,event in enumerate(tfiles[runtype].Events):
             for cmosvar in ['cmos_integral','cmos_mean','cmos_rms']:
                 ret[runtype,cmosvar].Fill(getattr(event,cmosvar))
@@ -237,8 +246,7 @@ def fillSpectra(cluster='sc'):
                 ymax = getattr(event,"{clutype}_ymax".format(clutype=cluster))[isc]
                 xmean = getattr(event,"{clutype}_xmean".format(clutype=cluster))[isc]
                 ymean = getattr(event,"{clutype}_ymean".format(clutype=cluster))[isc]
-                #if density<5:
-                #    continue
+                length =  getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
                 photons = getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
                 #if photons < 1000:
                 #    continue
@@ -249,15 +257,16 @@ def fillSpectra(cluster='sc'):
                  #   continue
                 #if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
                 #    continue
-                for var in ['integral','length','width','nhits']:
+                for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
+                ret[(runtype,'integralExt')].Fill(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc])
+                
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
                 ret[(runtype,'density')].Fill(density)
                 integral =  getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
                 #sigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
                 #length =  getattr(event,"{clutype}_lgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 - sigma # subtract the sigma to remove the diffusion
                 sigma =  getattr(event,"{clutype}_width".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
-                length =  getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
                 length_sub = math.sqrt(max(0,length*length - sigma*sigma))
                 ret[(runtype,'integralvslength')].Fill(length,integral)
                 # ret[(runtype,'integralvslength')].SetPoint(selected,length_sub,integral) 
@@ -317,7 +326,7 @@ def drawOneGraph(graph,var,plotdir):
     for ext in ['png','pdf','root']:
         c.SaveAs("{plotdir}/graph_{var}.{ext}".format(plotdir=plotdir,var=var,ext=ext))
 
-def drawOne(histo_sr,histo_cr,plotdir='./',normEntries=False):
+def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ROOT.gStyle.SetOptStat(0)
     
     c = ROOT.TCanvas('c','',1200,1200)
@@ -346,32 +355,61 @@ def drawOne(histo_sr,histo_cr,plotdir='./',normEntries=False):
     padBottom.Draw()
 
     padTop.cd()
-    histo_sr.SetMaximum(1.2*max(histo_cr.GetMaximum(),histo_sr.GetMaximum()))
+    ymax = max(histo_bkg.GetMaximum(),histo_sig.GetMaximum())
+    if histo_sig2:
+        ymax = max(histo_sig2.GetMaximum(),histo_sig.GetMaximum())
+    histo_sig.SetMaximum(1.2*ymax)
     if normEntries:
-        histo_sr.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
+        histo_sig.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
     else:
-        histo_sr.GetYaxis().SetTitle('clusters (a.u.)')
-    histo_sr.Draw("hist")
-    histo_cr.Draw("pe same")
+        histo_sig.GetYaxis().SetTitle('clusters (a.u.)')
+    histo_sig.Draw("pe")
+    histo_bkg.Draw("hist same")
+    if histo_sig2:
+        histo_sig2.Draw("hist same")
     #padTop.SetLogy(1)
     
-    histos = [histo_sr,histo_cr]
-    #labels = ['^{55}Fe 60/40','AmBe 60/40']
-    labels = ['AmBe 60/40','no source']
-    styles = ['f','p']
+    histos = [histo_sig,histo_bkg,histo_sig2]
+    labels = ['AmBe','no source','%.1f #times ^{55}Fe' % fe_integral_rescale]
+    styles = ['pe','f','f']
     
     legend = doLegend(histos,labels,styles,corner="TR")
     legend.Draw()
     
     padBottom.cd()
-    ratio = histo_sr.Clone(histo_sr.GetName()+"_diff")
+    ratios = []; labelsR = []; stylesR = []
+    ratio = histo_sig.Clone(histo_sig.GetName()+"_diff")
     ratio.SetMarkerStyle(ROOT.kFullDotLarge)
     ratio.SetMarkerColor(ROOT.kBlack)
+    ratio.SetLineColor(ROOT.kBlack)
     ratio.Sumw2()
-    ratio.Add(histo_cr,-1.0)
+    ratio.Add(histo_bkg,-1.0)
     ratio.GetYaxis().SetTitleSize(0.05)
-    ratio.GetYaxis().SetTitle("{num} - {den}".format(num=labels[0],den=labels[1]))
-    ratio.Draw('pe1')
+    ratio.GetYaxis().SetTitle("source - nosource")
+    ratio.GetYaxis().CenterTitle()
+    ratio.Draw('pe')
+    ratios.append(ratio)
+    labelsR.append('AmBe - no source')
+    stylesR.append('pe')
+    
+    if histo_sig2:
+        ratio2 = histo_sig2.Clone(histo_sig.GetName()+"fe_diff")
+        ratio2.SetMarkerStyle(ROOT.kFullDotLarge)
+        ratio2.SetMarkerColor(ROOT.kRed+2)
+        ratio2.SetLineColor(ROOT.kRed+2)
+        ratio2.Sumw2()
+        ratio2.Add(histo_bkg,-1.0)
+        ratio2.GetYaxis().SetTitleSize(0.05)
+        ratio2.GetYaxis().SetTitle("{num} - {den}".format(num=labels[0],den=labels[1]))
+        ratio2.Draw('pe same')
+        ratios.append(ratio2)
+        labelsR.append('%.1f #times ^{55}Fe - no source' % fe_integral_rescale)
+        stylesR.append('pe')
+        rmax = max(ratio.GetMaximum(),ratio2.GetMaximum())
+        ratio.SetMaximum(rmax)
+        
+    legendR = doLegend(ratios,labelsR,stylesR,corner="TR")
+    legendR.Draw()
 
     line = ROOT.TLine()
     line.DrawLine(ratio.GetXaxis().GetBinLowEdge(1), 0, ratio.GetXaxis().GetBinLowEdge(ratio.GetNbinsX()+1), 0)
@@ -379,15 +417,19 @@ def drawOne(histo_sr,histo_cr,plotdir='./',normEntries=False):
     line.SetLineColor(ROOT.kBlack)
     
     for ext in ['png','pdf']:
-        c.SaveAs("{plotdir}/{var}.{ext}".format(plotdir=plotdir,var=histo_sr.GetName(),ext=ext))
+        c.SaveAs("{plotdir}/{var}.{ext}".format(plotdir=plotdir,var=histo_sig.GetName(),ext=ext))
 
-    of = ROOT.TFile.Open("{plotdir}/{var}.root".format(plotdir=plotdir,var=histo_sr.GetName()),'recreate')
-    histo_cr.Write()
-    histo_sr.Write()
+    of = ROOT.TFile.Open("{plotdir}/{var}.root".format(plotdir=plotdir,var=histo_sig.GetName()),'recreate')
+    histo_bkg.Write()
+    histo_sig.Write()
+    ratio.Write()
+    if histo_sig2:
+        histo_sig2.Write()
+        ratio2.Write()
     of.Close()
 
 
-def drawOne2D(histo_sr,histo_cr,plotdir='./',normEntries=False):
+def drawOne2D(histo_sig,histo_bkg,plotdir='./',normEntries=False):
     ROOT.gStyle.SetOptStat(0)
 
     ROOT.TColor.CreateGradientColorTable(3,
@@ -407,18 +449,18 @@ def drawOne2D(histo_sr,histo_cr,plotdir='./',normEntries=False):
     c.Divide(3,1)
 
     c.cd(1)
-    histo_sr.SetTitle('AmBe')
-    histo_sr.Draw('colz')
+    histo_sig.SetTitle('AmBe')
+    histo_sig.Draw('colz')
     
     c.cd(2)
-    histo_cr.SetTitle('no source')
-    histo_cr.Draw("colz")
+    histo_bkg.SetTitle('no source')
+    histo_bkg.Draw("colz")
 
     c.cd(3)
-    ratio = histo_sr.Clone(histo_sr.GetName()+"_diff")
+    ratio = histo_sig.Clone(histo_sig.GetName()+"_diff")
     ratio.SetTitle('AmBe - NoSource')
     ratio.Sumw2()
-    ratio.Add(histo_cr,-1)
+    ratio.Add(histo_bkg,-1)
     ratio.GetYaxis().SetTitleSize(0.05)
     ratio.GetYaxis().SetTitle("left - right")
     ratio.Draw('colz')
@@ -428,28 +470,39 @@ def drawOne2D(histo_sr,histo_cr,plotdir='./',normEntries=False):
     ratio.SetMinimum(-0.5 * maxY)
     
     for ext in ['png','pdf']:
-        c.SaveAs("{plotdir}/{var}.{ext}".format(plotdir=plotdir,var=histo_sr.GetName(),ext=ext))
+        c.SaveAs("{plotdir}/{var}.{ext}".format(plotdir=plotdir,var=histo_sig.GetName(),ext=ext))
 
-    of = ROOT.TFile.Open("{plotdir}/{var}.root".format(plotdir=plotdir,var=histo_sr.GetName()),'recreate')
-    histo_cr.Write()
-    histo_sr.Write()
+    of = ROOT.TFile.Open("{plotdir}/{var}.root".format(plotdir=plotdir,var=histo_sig.GetName()),'recreate')
+    histo_bkg.Write()
+    histo_sig.Write()
     of.Close()
 
 def drawSpectra(histos,plotdir,entries,normEntries=False):
     variables = [var for (reg,var) in list(histos.keys()) if reg=='fe']
-    
+
+    ROOT.gStyle.SetHatchesSpacing(0.3)
+    ROOT.gStyle.SetHatchesLineWidth(1)
+
     for var in variables:
-        if histos[('fe',var)].InheritsFrom('TH1'):
+        if histos[('ambe',var)].InheritsFrom('TH1'):
             if normEntries:
-                histos[('fe',var)].Scale(float(entries['ambe'])/float(entries['fe']))
+                histos[('fe',var)].Scale(float(entries['ambe'])/float(entries['fe'])*fe_integral_rescale)
+                histos[('cosm',var)].Scale(float(entries['ambe'])/float(entries['cosm']))
             else:
-                histos[('ambe',var)].Scale(histos[('fe',var)].Integral()/histos[('ambe',var)].Integral())
-        if histos[('fe',var)].InheritsFrom('TH2'):
+                histos[('ambe',var)].Scale(1./histos[('ambe',var)].Integral())
+                histos[('cosm',var)].Scale(1./histos[('cosm',var)].Integral())
+                histos[('fe',var)].Scale(1./histos[('fe',var)].Integral())
+        if histos[('ambe',var)].InheritsFrom('TH2'):
             drawOne2D(histos[('ambe',var)],histos[('fe',var)],plotdir)
-        elif histos[('fe',var)].InheritsFrom('TH1'):
-            histos[('ambe',var)].SetFillColor(ROOT.kAzure+6)
-            histos[('fe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
-            drawOne(histos[('ambe',var)],histos[('fe',var)],plotdir,normEntries)
+        elif histos[('ambe',var)].InheritsFrom('TH1'):
+            histos[('ambe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
+            histos[('ambe',var)].SetLineColor(ROOT.kBlack)
+            histos[('cosm',var)].SetFillColor(ROOT.kAzure+6)
+            histos[('cosm',var)].SetFillStyle(3345)
+            if histos[('fe',var)]:
+                histos[('fe',var)].SetFillColor(ROOT.kRed+6)
+                histos[('fe',var)].SetFillStyle(3354)
+            drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
         elif histos[('fe',var)].InheritsFrom('TGraph'):
             drawOneGraph(histos[('ambe',var)],var,plotdir)
             
@@ -837,7 +890,61 @@ def plotHist2D(plotdir,v1='integral',v2='slimness',i=0):
     c.Draw()
     c.SaveAs("{plotdir}/hist_{var}_vs_{var2}_pos{pos}_{gg}.pdf".format(plotdir=plotdir,var=v1,var2=v2,pos=pos[i],gg=gg))
     hist.Reset()
+
+
+def getOneROC(sigh,bkgh,direction='gt'):
     
+    ## this assumes the same binning, but it is always the case here
+    plots = [sigh,bkgh]
+    integrals = [p.Integral() for p in plots]
+    nbins = sigh.GetNbinsX()
+
+    efficiencies = []
+    for ip,p in enumerate(plots):
+        if direction=='gt':
+            eff = [p.Integral(binx,nbins)/integrals[ip] for binx in range(0,nbins)]
+        else:
+            eff = [p.Integral(0,binx)/integrals[ip] for binx in range(0,nbins)]
+        efficiencies.append(eff)
+
+    ## graph for the roc
+    roc = ROOT.TGraph(nbins)
+    for i in range(nbins):
+        roc.SetPoint(i, efficiencies[0][i], 1-efficiencies[1][i])
+    roc.SetTitle('')
+        
+    return roc
+
+def drawROC(varname,odir):
+    tf = ROOT.TFile.Open('{odir}/{var}.root'.format(odir=odir,var=varname))
+
+    cosm_roc = getOneROC(tf.Get('{var}_diff'.format(var=varname)), tf.Get('cosm_{var}'.format(var=varname)))
+    fe_roc   = getOneROC(tf.Get('{var}_diff'.format(var=varname)), tf.Get('fe_{var}'.format(var=varname)))
+
+    c = ROOT.TCanvas('c','',1200,1200)
+    cosm_roc.SetMarkerStyle(ROOT.kFullDotLarge)
+    cosm_roc.SetMarkerSize(2)
+    cosm_roc.SetMarkerColor(ROOT.kBlack)
+    cosm_roc.SetLineColor(ROOT.kBlack)
+
+    fe_roc.SetMarkerStyle(ROOT.kFullSquare)
+    fe_roc.SetMarkerSize(2)
+    fe_roc.SetMarkerColor(ROOT.kRed)
+    fe_roc.SetLineColor(ROOT.kRed)
+
+    cosm_roc.Draw('APC')
+    cosm_roc.GetXaxis().SetTitle('AmBe efficiency')
+    cosm_roc.GetYaxis().SetTitle('Background rejection')
+    fe_roc.Draw('PC')
+
+    graphs = [cosm_roc,fe_roc]
+    labels = ['no source bkg','^{55}Fe bkg']
+    styles = ['pl','pl']
+    legend = doLegend(graphs,labels,styles,corner="TR")
+    
+    for ext in ['png','pdf']:
+        c.SaveAs("{plotdir}/{var}_roc.{ext}".format(plotdir=odir,var=varname,ext=ext))
+             
     
 if __name__ == "__main__":
 
@@ -862,7 +969,8 @@ if __name__ == "__main__":
         os.system('mkdir -p {od}'.format(od=odir))
         drawSpectra(histograms,odir,entries,normEntries=True)
         os.system('cp ../index.php {od}'.format(od=odir))
-    
+        drawROC('density',odir)
+        
     if options.make in ['all','evsdist']:
         plotEnergyVsDistance(options.outdir)
 

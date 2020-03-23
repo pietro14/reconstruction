@@ -16,26 +16,27 @@ class simplePeak:
         return "(Ampli={ampli:.2f}, Prom={prom:.2f}, Mean={mean:.2f}, FWHM={fwhm:.2f})".format(ampli=self.amplitude,prom=self.prominence,mean=self.mean,fwhm=self.fwhm)
 
 class PeakFinder:
-    def __init__(self,graph,xmin=None,xmax=None,rebin=None):
+    def __init__(self,graph,xmin=None,xmax=None,rebin=None,negative=True):
         if graph.InheritsFrom('TGraph'):
-            self.importTGraph(graph,xmin,xmax,rebin)
+            self.importTGraph(graph,xmin,xmax,rebin,negative)
         elif graph.InheritsFrom('TH1'):
-            self.importTH1(graph,xmin,xmax,rebin)
+            self.importTH1(graph,xmin,xmax,rebin,negative)
         self.name = graph.GetName()
         self.xmin = xmin; self.xmax=xmax
         
-    def importTGraph(self,tgraph,xmin,xmax,rebin):
+    def importTGraph(self,tgraph,xmin,xmax,rebin,negative=True):
         # transform to positive signals for PMT
         ## GetY of a TGraph crashes in pyROOT 6.20 ... 
         #y = np.array([-y for y in tgraph.GetY()])
         #x = np.array(tgraph.GetX())
+        ysign = -1 if negative else 1
         xl = []; yl = []
         for i in range(tgraph.GetN()):
             #xi = ROOT.Double(0); yi = ROOT.Double(0)
             xi = ctypes.c_double(); yi = ctypes.c_double()
             tgraph.GetPoint(i,xi,yi)
             xl.append(xi.value)
-            yl.append(-1*yi.value)
+            yl.append(ysign*yi.value)
         x = np.array(xl)
         y = np.array(yl)
 
@@ -48,25 +49,31 @@ class PeakFinder:
             x = np.array(xrebin)
         self.setData(x,y,xmin,xmax)
 
-    def importTH1(self,th1,xmin,xmax,rebin):
+    def importTH1(self,th1,xmin,xmax,rebin,negative=True):
         if rebin:
             if th1.InheritsFrom('TProfile'):
                 print("WARNING! Rebinning for TProfile not implemented yet!")
             else:
                 th1.Rebin(rebin)
-        y = np.array([-1*th1.GetBinContent(b) for b in range(1,th1.GetNbinsX()+1)])
-        x = np.array([th1.GetXaxis().GetBinCenter(b) for b in range(1,th1.GetNbinsX()+1)])
-        self.setData(x,y,xmin,xmax)
+        ysign = -1 if negative else 1
+        x    = np.array([th1.GetXaxis().GetBinCenter(b) for b in range(1,th1.GetNbinsX()+1)])
+        y    = np.array([ysign*th1.GetBinContent(b) for b in range(1,th1.GetNbinsX()+1)])
+        yerr = np.array([th1.GetBinError(b) for b in range(1,th1.GetNbinsX()+1)])
+        self.setData(x,y,xmin,xmax,yerr)
         
-    def setData(self,x,y,xmin,xmax):
+    def setData(self,x,y,xmin,xmax,yerr=np.array([])):
         xmax = xmax if xmax!=None else x[-1]
         xmin = xmin if xmin!=None else x[0]
         ix = np.array([i for i,v in enumerate(x) if v>xmin and v<xmax])
         if len(ix):
             self.x = np.array(x[ix])
             self.y = np.array(y[ix])
+            if len(yerr)==len(ix):
+                self.yerr = np.array(yerr[ix])
+            else:
+                self.yerr = np.zeros(len(ix))
         else:
-            self.x = self.y = np.array([])
+            self.x = self.y = self.yerr = np.array([])
         self.binsize = self.x[1]-self.x[0] if len(self.x)>1 else 0
         
     def findPeaks(self,thr,mindist,prominence=1,width=5):
@@ -76,11 +83,15 @@ class PeakFinder:
         self.setTot(thr)
         return peaks
 
-    def plotpy(self,pdir='./'):
+    def plotpy(self,pdir='./',xlabel='Time (ns)',ylabel='amplitude (mV)'):
         import matplotlib.pyplot as plt
+        ## enable TeX 
+        from matplotlib import rc
+        rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+        rc('text', usetex=True)
 
         # plot data and the found peaks
-        plt.plot(self.x,self.y)
+        plt.errorbar(self.x, self.y, self.yerr, ls='', ecolor='lightgrey',elinewidth=1, marker='o', mfc = 'black', ms=3, mew=0)
         plt.plot(self.getPeakTimes(), self.y[self.peaks], "x")
         plt.plot(self.x, np.zeros_like(self.y), "--", color="gray")
 
@@ -89,8 +100,8 @@ class PeakFinder:
                    ymax = self.y[self.peaks], color = "C1")
         plt.hlines(y=self.getHMs(), xmin=self.getPeakBoundaries('left'),
                    xmax=self.getPeakBoundaries('right'), color = "C1")        
-        plt.xlabel('Time (ns)')
-        plt.ylabel('amplitude (mV)')
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
         for ext in ['pdf','png']:
             plt.savefig('{pdir}/{name}.{ext}'.format(pdir=pdir,name=self.name,ext=ext))
         plt.gcf().clear()

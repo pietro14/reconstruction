@@ -5,10 +5,9 @@ from clusterTools import Cluster
 from scipy.stats import pearsonr
 
 class SuperClusterAlgorithm:
-    def __init__(self,shape=512,neighbor_window=3,nb_min_clusters=3):
+    def __init__(self,shape=512,neighbor_window=3):
         self.shape = shape
         self.neighbor_window = neighbor_window
-        self.nb_min_clusters = nb_min_clusters
         
     def clusters_neighborood(self,basic_clusters,raw_data):
         neighboroods = np.zeros([self.shape,self.shape],dtype=float)
@@ -67,7 +66,7 @@ class SuperClusterAlgorithm:
                     if superclusters[lbl-1]: superclusters[lbl-1].append((ix,iy))
                     else: superclusters[lbl-1] = [(ix,iy)]
 
-        # tranform to numpy array
+        # transform to numpy array
         for isc in range(len(superclusters)):
             superclusters[isc] = np.array(superclusters[isc])
         return np.array(superclusters)
