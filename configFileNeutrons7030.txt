@@ -2,7 +2,7 @@
 # DEBUG plots
 'debug_mode'            : 0,
 
-'ev'                    : 1,
+'ev'                    : 8,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -10,10 +10,10 @@
 'flag_full_image'       : 0,
 'flag_rebin_image'      : 1,
 'flag_edges_image'      : 1,
-'flag_first_it'         : 1,
-'flag_second_it'        : 1,
-'flag_third_it'         : 1,
-'flag_stats'            : 1,
+'flag_first_it'         : 0,
+'flag_second_it'        : 0,
+'flag_third_it'         : 0,
+'flag_stats'            : 0,
 'flag_all_it'           : 1,
 'flag_plot_noise'       : 0,
 
@@ -31,7 +31,7 @@
 'rebin'                 : 4,
 'nsigma'                : 1.5,
 'cimax'                 : 200,                     # Upper threshold
-'pedrun'                : '02054',
+'pedrun'                : '02316',
 'justPedestal'          : False,
 #'run'                   : '02278',                 # uses always 5 characters
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
