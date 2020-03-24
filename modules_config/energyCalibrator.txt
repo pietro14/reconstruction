@@ -1,0 +1,7 @@
+{
+'p0'            : 5979,
+'p1'            : 2.051e+4,
+'photonsPerEv'  : 0.5,
+'sliceRadius'   : 15,
+'noiseThr'      : 2.25,
+}
