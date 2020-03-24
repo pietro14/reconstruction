@@ -3,11 +3,17 @@ import numpy as np
 from skimage.segmentation import  inverse_gaussian_gradient,morphological_geodesic_active_contour
 from clusterTools import Cluster
 from scipy.stats import pearsonr
+from energyCalibrator import EnergyCalibrator
 
 class SuperClusterAlgorithm:
     def __init__(self,shape=512,neighbor_window=3):
         self.shape = shape
         self.neighbor_window = neighbor_window
+
+        # supercluster energy calibration for the saturation effect
+        filePar = open('modules_config/energyCalibrator.txt','r')
+        params = eval(filePar.read())
+        self.calibrator = EnergyCalibrator(params)
         
     def clusters_neighborood(self,basic_clusters,raw_data):
         neighboroods = np.zeros([self.shape,self.shape],dtype=float)
@@ -31,7 +37,7 @@ class SuperClusterAlgorithm:
         return _store
 
     def supercluster(self,clustered_data):
-        gimage = inverse_gaussian_gradient(clustered_data)
+        gimage = inverse_gaussian_gradient(clustered_data,alpha=500,sigma=2)
         # Initial level set
         # this makes alternate squares active at the first iteration of 10 macro-pixels
         #init_ls = checkerboard_level_set(clustered_data.shape, 10)
@@ -40,8 +46,8 @@ class SuperClusterAlgorithm:
         # List with intermediate results for plotting the evolution
         evolution = []
         callback = self.store_evolution_in(evolution)
-        ls = morphological_geodesic_active_contour(gimage, 300, init_ls,
-                                                   smoothing=1, balloon=-1,
+        ls = morphological_geodesic_active_contour(gimage, 500, init_ls,
+                                                   smoothing=1, balloon=-3,
                                                    threshold=0.69,
                                                    iter_callback=callback)
         return ls
@@ -94,8 +100,15 @@ class SuperClusterAlgorithm:
                 x = scpixels[:, 0]; y = scpixels[:, 1]
                 corr, p_value = pearsonr(x, y)
                 sclu.pearson = p_value
+                sclu.calibratedIntegral = self.calibrator.calibratedIntegral(sclu.hits_fr)
+                sclu.pathlength = self.calibrator.clusterLength()
                 superClusters.append(sclu)
 
+                # if i==3:
+                #     print(" === hits list ")
+                #     print(scpixels)
+                #     sclu.dumpToFile('supercluster3')
+                    
         # return the supercluster collection
         return superClusters,superClusterContours
     
