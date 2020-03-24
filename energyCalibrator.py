@@ -16,6 +16,7 @@ class EnergyCalibrator:
         self.noiseThreshold = params['noiseThr']
         self.sliceRadius = params['sliceRadius']
         self.photonsPerEv = params['photonsPerEv']
+        self.length = -1
         
     def getClusterMatrix(self,hits):
         xs = [x[0] for x in hits]
@@ -169,9 +170,19 @@ class EnergyCalibrator:
             #remaining_skel_points = np.setdiff1d(remaining_skel_points,circlepoints)
             slices.append(clu_slice)
         #print ("slices ",slices)
-        print ("Found ",len(slices)," slices")
+        #print ("Found ",len(slices)," slices")
+        # this is a better estimate of the length of a curved cluster (in pixels)
+        self.length = len(skeleton)
         return slices
 
+    def clusterLength(self):
+        l = -999
+        if self.length<0:
+            print ("ERROR! You asked for EnergyCalibrator.length() before getting the calibrated energy, and this is not yet set!!")
+        else:
+            l = self.length
+        return l
+            
 if __name__ == '__main__':
 
     # load hits
