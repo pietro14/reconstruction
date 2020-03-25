@@ -158,7 +158,7 @@ class EnergyCalibrator:
             circlepoints = self.points_in_circle_np(self.sliceRadius,p[0],p[1])
             for cp in circlepoints:
                 ix = cp[0]; iy = cp[1];
-                if ix>=cluster_matrix.shape[0] or iy>=cluster_matrix.shape[1]:
+                if ix>=cluster_matrix.shape[0] or iy>=cluster_matrix.shape[1] or ix<0 or iy<0:
                     continue
                 z = cluster_matrix[ix,iy]
                 if remaining_cluster[ix,iy]:
