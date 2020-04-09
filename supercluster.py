@@ -37,7 +37,7 @@ class SuperClusterAlgorithm:
         return _store
 
     def supercluster(self,clustered_data):
-        gimage = inverse_gaussian_gradient(clustered_data,alpha=500,sigma=2)
+        gimage = inverse_gaussian_gradient(clustered_data)
         # Initial level set
         # this makes alternate squares active at the first iteration of 10 macro-pixels
         #init_ls = checkerboard_level_set(clustered_data.shape, 10)
@@ -46,8 +46,8 @@ class SuperClusterAlgorithm:
         # List with intermediate results for plotting the evolution
         evolution = []
         callback = self.store_evolution_in(evolution)
-        ls = morphological_geodesic_active_contour(gimage, 500, init_ls,
-                                                   smoothing=1, balloon=-3,
+        ls = morphological_geodesic_active_contour(gimage, 300, init_ls,
+                                                   smoothing=1, balloon=-1,
                                                    threshold=0.69,
                                                    iter_callback=callback)
         return ls
