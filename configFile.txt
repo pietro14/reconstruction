@@ -16,6 +16,7 @@
 'flag_stats'            : 1,
 'flag_all_it'           : 1,
 'flag_plot_noise'       : 0,
+'flag_supercluster'     : 1,
 
 'camera_mode'            : 1,
 
