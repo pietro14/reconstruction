@@ -232,7 +232,7 @@ class SnakesFactory:
             print('[DEBUG-MODE ON]')
             print('[%s Method]' % (self.options.tip))
 
-            if self.options.flag_full_image or self.options.flag_rebin_image or self.options.flag_edges_image or self.options.flag_first_it or self.options.flag_second_it or self.options.flag_third_it or self.options.flag_all_it:
+            if self.options.flag_full_image or self.options.flag_rebin_image or self.options.flag_edges_image or self.options.flag_first_it or self.options.flag_second_it or self.options.flag_third_it or self.options.flag_all_it or self.options.flag_supercluster :
                 import matplotlib.pyplot as plt
 
             if self.options.flag_full_image == 1:
@@ -397,12 +397,29 @@ class SnakesFactory:
 
                 if len(superclusters):
                     supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2)
-                    supercluster_contour.collections[0].set_label('supercluster it 1+2')
+                    supercluster_contour.collections[0].set_label('supercluster')
                 
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='all', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
                 plt.close('all')
+
+
+            #################### PLOT SUPERCLUSTER ONLY ###############################
+            if self.options.flag_supercluster == 1:
+                if len(superclusters):
+                    fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                    plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                    plt.title("Superclusters found")
+                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2)
+                    supercluster_contour.collections[0].set_label('supercluster it 1+2')
+                
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='sc', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                plt.gcf().clear()
+                plt.close('all')
+            #################### PLOT SUPERCLUSTER ONLY ###############################
+
                 
             if self.options.nclu >= 0:
                 print('[Plotting just the cluster %d]' % (self.options.nclu))
