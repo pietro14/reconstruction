@@ -4,8 +4,28 @@ from array import array
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
 
+if "/functions_cc.so" not in ROOT.gSystem.GetLibraries(): 
+    ROOT.gROOT.ProcessLine(".L functions.cc+")
+
 fe_integral_rescale = 0.1
 cosm_rate_calib = [0.75,0.02] # central value, stat error
+
+def saturationFactor(density):
+    return 1.5/1.8 * math.pow(5979 * math.log(20512./(20512.-density)),1.8)/(0.27*density-0.1)
+
+def saturationFactorNLO(density):
+    if density<=0: # protection for the formula below
+        ret = 0.85 # seems to provide some continuity
+    else:
+        x = density/1.5
+        ret = (0.11 + 1.22*x)/(130283. * (1-math.exp(-1*(math.pow(x,0.56757)/117038.))))/1.2
+    return ret
+
+def is60keVBkg(length,density):
+    # rough linear decrease density vs length
+    central = 14. - length/50.
+    # take +/- 2 band around the central value
+    return (central-2. < density < central+2.) and 120 < length < 250 
 
 def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
     nentries = len(histos)
@@ -184,34 +204,47 @@ def fillSpectra(cluster='sc'):
     
     ## Fe55 region histograms
     ret[('ambe','integral')] = ROOT.TH1F("integral",'',50,0,1e4)
-    ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',200,0,50e4)
+    ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',200,0,25e4)
+    ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',50,0,20)
+    ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',20,0,150)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',50,0,2000)
     ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200)
     ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40)
     ret[('ambe','nhits')]    = ROOT.TH1F("nhits",'',70,0,2000)
     ret[('ambe','slimness')] = ROOT.TH1F("slimness",'',50,0,1)
     ret[('ambe','density')]  = ROOT.TH1F("density",'',45,0,30)
+    ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',45,0,100)
 
     ## CMOS integral variables
     ret[('ambe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',50,1.54e6,2.0e6)
     ret[('ambe','cmos_mean')]     = ROOT.TH1F("cmos_mean",'',50,0.36,0.56)
     ret[('ambe','cmos_rms')]      = ROOT.TH1F("cmos_rms",'',50,2,3)
 
+    ## PMT variables
+    ret[('ambe','pmt_integral')]  = ROOT.TH1F("pmt_integral",'',100,0,150e+3)
+    ret[('ambe','pmt_tot')]  = ROOT.TH1F("pmt_tot",'',100,0,400)
+    ret[('ambe','pmt_density')] = ROOT.TH1F("pmt_density",'',100,0,1000)
+
     ## 2D vars
     ret[('ambe','integralvslength')] =  ROOT.TH2F("integralvslength",'',100,0,300,100,0,15e3)
 
     ret[('ambe','densityvslength')]      =  ROOT.TH2F("densityvslength",''     ,100,0,2000,45,0,30)
     ret[('ambe','densityvslength_zoom')] =  ROOT.TH2F("densityvslength_zoom",'',50,0,1000, 45,0,30)
+    ret[('ambe','calenergyvslength_zoom')] =  ROOT.TH2F("calenergyvslength_zoom",'',50,0,1000, 25,0,150)
 
     # ret[('fe','integralvslength')] = ROOT.TGraph()
     # ret[('fe','sigmavslength')] = ROOT.TGraph()
     # ret[('fe','sigmavsintegral')] = ROOT.TGraph()
     
     # x-axis titles
-    titles = {'integral': 'photons', 'integralExt': 'photons', 'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel', 'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)', 'tgausssigma': '#sigma_{transverse} (pixels)'}
+    titles = {'integral': 'photons', 'integralExt': 'photons', 'calintegral': 'energy (keV)', 'calintegralExt': 'energy (keV)', 'caldensity': 'density (eV/pixel)',
+              'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel',
+              'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
+              'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
+              'tgausssigma': '#sigma_{transverse} (pixels)'}
 
     titles2d = {'integralvslength': ['length (pixels)','photons'], 'densityvslength' : ['length (pixels)','density (ph/pix)'],
-                'densityvslength_zoom' : ['length (pixels)','density (ph/pix)'] }
+                'densityvslength_zoom' : ['length (pixels)','density (ph/pix)'], 'calenergyvslength_zoom' : ['length (pixels)','energy (keV)']}
     
     ## background histograms
     ret2 = {}
@@ -242,6 +275,9 @@ def fillSpectra(cluster='sc'):
         for ie,event in enumerate(tfiles[runtype].Events):
             for cmosvar in ['cmos_integral','cmos_mean','cmos_rms']:
                 ret[runtype,cmosvar].Fill(getattr(event,cmosvar))
+            for pmtvar in ['pmt_integral','pmt_tot']:
+                ret[runtype,pmtvar].Fill(getattr(event,pmtvar))
+            ret[runtype,'pmt_density'].Fill(getattr(event,'pmt_integral')/getattr(event,'pmt_tot'))
             for isc in range(getattr(event,"nSc" if cluster=='sc' else 'nCl')):
                 #if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
                 #    continue
@@ -258,32 +294,59 @@ def fillSpectra(cluster='sc'):
                 integral =  getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
                 slimness = getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
                 # gainCalibnInt = integral*1.1 if runtype=='ambe' else integral 
-                gainCalibnInt = integral
+                ## energy calibrated for saturation
+                calib = saturationFactorNLO(max(0,density)) # ev/ph
+                calibEnergy = integral * calib / 1000. # keV
+                calibDensity  = density * calib # eV/pix
+
+                if not withinFC(xmean,ymean):
+                    continue
+
+                ##########################
+                ## SOME DEBUGGING CUTS...
+                ##########################
                 # if not (30e3 < gainCalibnInt < 40e+3):
                 #     continue
-                if length > 1000:
-                    continue
-                if slimness < 0.3:
-                    continue
-                if density < 5:
-                    continue
+                # if length > 1000:
+                #     continue
+                # if slimness < 0.3:
+                #     continue
+                # if density < 5:
+                #     continue
                 #if length>50:
                 #    continue
                 #if photons < 1000:
                 #    continue
-                #if not withinFCFull(xmin,ymin,xmax,ymax):
-                if not withinFC(xmean,ymean):
-                    continue
+                # if not is60keVBkg(length,density):
+                #      continue
                 #if not slimnessCut(getattr(event,"{clutype}_length".format(clutype=cluster))[isc],getattr(event,"{clutype}_width".format(clutype=cluster))[isc]):
                  #   continue
                 #if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
                 #    continue
+
+                ##########################
+                ## the AmBe selection
+                ##########################
+                # remove long/slim cosmics
+                if length>500 or slimness<0.3:
+                    continue
+                # remove the residual low density background from pieces of cosmics not fully super-clustered
+                if density<5:
+                    continue
+                # remove the 60 keV background in AmBe and
+                if is60keVBkg(length,density):
+                    continue
+                ##########################
+
                 for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
                 ret[(runtype,'integralExt')].Fill(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc])
+                ret[(runtype,'calintegral')].Fill(calibEnergy)
+                ret[(runtype,'calintegralExt')].Fill(calibEnergy)
                 
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
                 ret[(runtype,'density')].Fill(density)
+                ret[(runtype,'caldensity')].Fill(calibDensity)
                 #sigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
                 #length =  getattr(event,"{clutype}_lgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 - sigma # subtract the sigma to remove the diffusion
                 sigma =  getattr(event,"{clutype}_width".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
@@ -292,6 +355,7 @@ def fillSpectra(cluster='sc'):
 
                 ret[(runtype,'densityvslength')]     .Fill(length,density)
                 ret[(runtype,'densityvslength_zoom')].Fill(length,density)
+                ret[(runtype,'calenergyvslength_zoom')].Fill(length,calibEnergy)
                 # ret[(runtype,'integralvslength')].SetPoint(selected,length_sub,integral) 
                 # ret[(runtype,'sigmavslength')].SetPoint(selected,length_sub,sigma)
                 # ret[(runtype,'sigmavsintegral')].SetPoint(selected,integral,sigma)
@@ -299,7 +363,8 @@ def fillSpectra(cluster='sc'):
 
                 ### for debugging purposes:
                 # if 30e3 < integral < 40e+3 and event.run==2156:
-                #     print("population1 density = {d:.1f}\t{r}\t{e}\t{y}\t{x}\t{phot}".format(d=density,r=event.run,e=event.event,y=int(event.sc_ymean[isc]/4.),x=int(event.sc_xmean[isc]/4.),phot=int(event.sc_integral[isc])))
+                # if 2096 < event.run < 2099 and length < 80 and 5 < density < 8:
+                #     print("density = {d:.1f}\tlength = {l:.0f}\t{r}\t{e}\t{y}\t{x}\t{phot}".format(d=density,l=length,r=event.run,e=event.event,y=int(event.sc_ymean[isc]/4.),x=int(event.sc_xmean[isc]/4.),phot=int(event.sc_integral[isc])))
 
                 
     return ret,entries
@@ -422,6 +487,20 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ratios.append(ratio)
     labelsR.append('AmBe - no source')
     stylesR.append('pe')
+
+    ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure
+    ## in principle should fit the bkg-subtracted plot, but too large stat uncertainty on BKG
+    # if histo_sig.GetName()=='calintegralExt':
+    #     g1 = ROOT.TF1("g1","gaus",20,90);
+    #     histo_sig.Fit('g1','RS')
+    #     mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
+    #     sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
+    #     lat = ROOT.TLatex()
+    #     lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
+    #     lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
+    #     lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
+    ###############################
+    
     
     if histo_sig2:
         ratio2 = histo_sig2.Clone(histo_sig.GetName()+"fe_diff")
@@ -558,7 +637,7 @@ def drawSpectra(histos,plotdir,entries,normEntries=False):
                 histos[('cosm',var)].Scale(1./histos[('cosm',var)].Integral())
                 histos[('fe',var)].Scale(1./histos[('fe',var)].Integral())
         if histos[('ambe',var)].InheritsFrom('TH2'):
-            if var in ['integralvslength','densityvslength_zoom']:
+            if var in ['integralvslength','densityvslength_zoom','caldensityvslength_zoom']:
                 drawOne2D(histos[('ambe',var)],histos[('fe',var)],plotdir)
             drawOne2D_raw(histos[('ambe',var)],histos[('fe',var)],histos[('cosm',var)],plotdir)
         elif histos[('ambe',var)].InheritsFrom('TH1'):
@@ -677,14 +756,14 @@ def plotCameraEnergyVsPosition(plotdir,var='integral'):
     gr_mean.GetXaxis().SetTitle('Source Position [cm]')
     gr_mean.GetYaxis().SetTitle('{leg}'.format(leg=leg))
 
-    for ext in ['png','pdf']:
+    for ext in ['png','pdf','root']:
         c.SaveAs("{plotdir}/CameraMean_{var}_60-40.{ext}".format(plotdir=plotdir,var=var,ext=ext))
 
     gr_res.Draw('AP')
     gr_res.GetXaxis().SetTitle('Source Position [cm]')
     gr_res.GetYaxis().SetTitle('Resolution [rms]')
 
-    for ext in ['png','pdf']:
+    for ext in ['png','pdf','root']:
         c.SaveAs("{plotdir}/CameraRMS_{var}_60-40.{ext}".format(plotdir=plotdir,var=var,ext=ext))
     
     
@@ -812,48 +891,67 @@ def plotHistFit(plotdir,var='integral',i=0):
         
     
     if var == 'integral':
-        var1 = 'cl_integral'
+        var1 = 'sc_integral'
         leg = 'Integral [ph]'
         histlimit = 6000
     elif var == 'length':
-        var1 = 'cl_length*125E-3'
+        var1 = 'sc_length*125E-3'
         leg = 'Length [mm]'
         if gas == 70:
             histlimit = 12
         else:
             histlimit = 7
     elif var == 'width':
-        var1 = 'cl_width*125E-3'
+        var1 = 'sc_width*125E-3'
         leg = 'Width [mm]'
         histlimit = 10
     elif var == 'size':
-        var1 = 'cl_size'
-        leg = 'Size [px]'
+        var1 = 'sc_size'
+        leg = 'supercluster area [px]'
+        histlimit = 1600
+    elif var == 'nhits':
+        var1 = 'sc_nhits'
+        leg = 'Supercluster active pixels [px]'
         histlimit = 1600
     elif var == 'slimness':
-        var1 = 'cl_width/cl_length'
+        var1 = 'sc_width/sc_length'
         leg = 'Slimness [w/l]'
         histlimit = 1.2
+    elif var == 'density':
+        var1 = 'sc_integral/sc_nhits'
+        leg = 'Density [photons/pix]'
+        histlimit = 15
+    elif var == 'energy':
+        var1 = 'calibratedEnergy(sc_integral,sc_integral/sc_nhits)'
+        print ("var1  = ",var1)
+        leg = 'calibrated energy (keV)'
+        histlimit = 20
     else:
         exit()
     
     if gas == 70:
         tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280.root')    
     else:
-        tf_fe55 = ROOT.TFile('../reco_run02160_to_run02165.root')
+        tf_fe55 = ROOT.TFile('../runs/AmBeConfigCalib/reco_runs_Fe55_ZScan6040_3D.root')
         
     tree = tf_fe55.Get('Events')
     
     c = ROOT.TCanvas('','',800,600)
 
-    hist = ROOT.TH1F('hist','%.2f cm between Source and GEM' % (dist[i]),100,0,histlimit)
+    hist = ROOT.TH1F('hist','%.2f cm between Source and GEM' % (dist[i]),70,0,histlimit)
     hist.Sumw2()
 
-    cut_base = 'cl_iteration==2 && run=={r}'.format(r=run[i])
-    cut = "{base} && TMath::Hypot(cl_xmean-1024,(cl_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r_max=400)
-
+    cut_base = 'run=={r}'.format(r=run[i])
+    cut = "{base} && TMath::Hypot(sc_xmean-1024,(sc_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r_max=400)
+    ## for the Fe55, remove long and slim tracks
+    cut = "{cut} && sc_length<500".format(cut=cut)
+    
     tree.Draw("{var}>>hist".format(var=var1),cut)
     hist.SetFillStyle(3005)
+    hist.SetMarkerStyle(ROOT.kFullCircle)
+    hist.SetMarkerSize(2)
+    hist.SetLineColor(ROOT.kBlack)
+    hist.SetMarkerColor(ROOT.kBlack)
     mean = hist.GetMean()
     rms  = hist.GetRMS()
     
@@ -862,12 +960,17 @@ def plotHistFit(plotdir,var='integral',i=0):
     
     if func == 'gauss':
         print("Using Gauss fit")
-        f = ROOT.TF1('f','gaus')
+        f = ROOT.TF1('f','gaus',mean-rms,mean+rms) # there is a tail, so +/- 1sigma is sufficient to fit the core
         f.SetParameter(1,mean);
-        f.SetParLimits(1,mean-3*rms,mean+3*rms);
-        f.SetParameter(2,rms);
+        f.SetParLimits(1,mean-2*rms,mean+2*rms);
+        f.SetParameter(2,rms/2.); # there is a tail
         #f.SetParLimits(2,300,600);
-        fitRe = hist.Fit(f,'S')
+        fitr_xmin = mean-rms
+        fitr_xmax = mean+rms
+        if var == 'density':
+            fitr_xmin = 6 if i==0 else 8
+            fitr_xmax = 11
+        fitRe = hist.Fit(f,'S','',fitr_xmin,fitr_xmax)
         rMean  = f.GetParameter(1)
         rSigma = f.GetParameter(2)
     else:
@@ -893,7 +996,7 @@ def plotHistFit(plotdir,var='integral',i=0):
         rMean  = polyaFit.GetParameter(0)
         rSigma = polyaFit.GetParameter(1)
         
-    hist.Draw('hist sames')  
+    hist.Draw('pe1 sames')  
     
     ROOT.gPad.Update()
     #h.GetXaxis().SetRangeUser(0,0.25)
@@ -902,7 +1005,8 @@ def plotHistFit(plotdir,var='integral',i=0):
     #'Position %d' % (pos[i])
     c.SetGrid()
     c.Draw()
-    c.SaveAs("{plotdir}/hist_{var}_pos{pos}_60-40.pdf".format(plotdir=plotdir,var=var,pos=pos[i]))
+    for ext in ['png','pdf','root']:
+        c.SaveAs("{plotdir}/hist_{var}_pos{pos}_60-40.{ext}".format(plotdir=plotdir,var=var,pos=pos[i],ext=ext))
     hist.Reset()
     
     return rMean,rSigma,dist[i],leg
@@ -1051,6 +1155,8 @@ if __name__ == "__main__":
         plotCameraPMTCorr(options.outdir)
         
     if options.make in ['all','cluvsz']:
+        os.system('mkdir -p {od}'.format(od=options.outdir))
+        os.system('cp ../index.php {od}'.format(od=options.outdir))
         plotCameraEnergyVsPosition(options.outdir, options.var)
     
     if options.make in ['all','hist1d']:        
