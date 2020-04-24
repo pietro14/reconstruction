@@ -10,6 +10,14 @@ cosm_rate_calib = [0.75,0.02] # central value, stat error
 def saturationFactor(density):
     return 1.5/1.8 * math.pow(5979 * math.log(20512./(20512.-density)),1.8)/(0.27*density-0.1)
 
+def saturationFactorNLO(density):
+    if density<=0: # protection for the formula below
+        ret = 0.85 # seems to provide some continuity
+    else:
+        x = density/1.5
+        ret = (0.11 + 1.22*x)/(130283. * (1-math.exp(-1*(math.pow(x,0.56757)/117038.))))/1.2
+    return ret
+
 def is60keVBkg(length,density):
     # rough linear decrease density vs length
     central = 14. - length/50.
@@ -212,6 +220,7 @@ def fillSpectra(cluster='sc'):
     ## PMT variables
     ret[('ambe','pmt_integral')]  = ROOT.TH1F("pmt_integral",'',100,0,150e+3)
     ret[('ambe','pmt_tot')]  = ROOT.TH1F("pmt_tot",'',100,0,400)
+    ret[('ambe','pmt_density')] = ROOT.TH1F("pmt_density",'',100,0,1000)
 
     ## 2D vars
     ret[('ambe','integralvslength')] =  ROOT.TH2F("integralvslength",'',100,0,300,100,0,15e3)
@@ -228,7 +237,7 @@ def fillSpectra(cluster='sc'):
     titles = {'integral': 'photons', 'integralExt': 'photons', 'calintegral': 'energy (keV)', 'calintegralExt': 'energy (keV)', 'caldensity': 'density (eV/pixel)',
               'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel',
               'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
-              'pmt_integral': 'PMT integral (V)', 'pmt_tot': 'PMT T.O.T. (ns)',
+              'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
               'tgausssigma': '#sigma_{transverse} (pixels)'}
 
     titles2d = {'integralvslength': ['length (pixels)','photons'], 'densityvslength' : ['length (pixels)','density (ph/pix)'],
@@ -265,6 +274,7 @@ def fillSpectra(cluster='sc'):
                 ret[runtype,cmosvar].Fill(getattr(event,cmosvar))
             for pmtvar in ['pmt_integral','pmt_tot']:
                 ret[runtype,pmtvar].Fill(getattr(event,pmtvar))
+            ret[runtype,'pmt_density'].Fill(getattr(event,'pmt_integral')/getattr(event,'pmt_tot'))
             for isc in range(getattr(event,"nSc" if cluster=='sc' else 'nCl')):
                 #if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
                 #    continue
@@ -282,9 +292,13 @@ def fillSpectra(cluster='sc'):
                 slimness = getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
                 # gainCalibnInt = integral*1.1 if runtype=='ambe' else integral 
                 ## energy calibrated for saturation
-                calib = saturationFactor(max(0,density)) # ev/ph
+                calib = saturationFactorNLO(max(0,density)) # ev/ph
                 calibEnergy = integral * calib / 1000. # keV
                 calibDensity  = density * calib # eV/pix
+
+                if not withinFC(xmean,ymean):
+                    continue
+
                 ##########################
                 ## SOME DEBUGGING CUTS...
                 ##########################
@@ -301,15 +315,15 @@ def fillSpectra(cluster='sc'):
                 #if photons < 1000:
                 #    continue
                 # if not is60keVBkg(length,density):
-                #     continue
+                #      continue
                 #if not slimnessCut(getattr(event,"{clutype}_length".format(clutype=cluster))[isc],getattr(event,"{clutype}_width".format(clutype=cluster))[isc]):
                  #   continue
                 #if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
                 #    continue
+
                 ##########################
-                #if not withinFCFull(xmin,ymin,xmax,ymax):
-                if not withinFC(xmean,ymean):
-                    continue
+                ## the AmBe selection
+                ##########################
                 # remove long/slim cosmics
                 if length>500 or slimness<0.3:
                     continue
@@ -319,6 +333,8 @@ def fillSpectra(cluster='sc'):
                 # remove the 60 keV background in AmBe and
                 if is60keVBkg(length,density):
                     continue
+                ##########################
+
                 for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
                 ret[(runtype,'integralExt')].Fill(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc])
