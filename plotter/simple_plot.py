@@ -4,6 +4,9 @@ from array import array
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
 
+if "/functions_cc.so" not in ROOT.gSystem.GetLibraries(): 
+    ROOT.gROOT.ProcessLine(".L functions.cc+")
+
 fe_integral_rescale = 0.1
 cosm_rate_calib = [0.75,0.02] # central value, stat error
 
@@ -918,6 +921,11 @@ def plotHistFit(plotdir,var='integral',i=0):
         var1 = 'sc_integral/sc_nhits'
         leg = 'Density [photons/pix]'
         histlimit = 15
+    elif var == 'energy':
+        var1 = 'calibratedEnergy(sc_integral,sc_integral/sc_nhits)'
+        print ("var1  = ",var1)
+        leg = 'calibrated energy (keV)'
+        histlimit = 20
     else:
         exit()
     
