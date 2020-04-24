@@ -9,14 +9,21 @@ from skimage.morphology import skeletonize,binary_closing
 import mahotas as mh
 import math
 
+from utilities import bcolors
+
 class EnergyCalibrator:
-    def __init__(self,params):
+    def __init__(self,params,debugmode=False):
         self.p0 = params['p0']
         self.p1 = params['p1']
+        self.p2 = params['p2']
+        self.p3 = params['p3']
+        self.p4 = params['p4']
+        self.norm = params['norm']
+        self.xscale = params['xscale']
         self.noiseThreshold = params['noiseThr']
         self.sliceRadius = params['sliceRadius']
-        self.photonsPerEv = params['photonsPerEv']
         self.length = -1
+        self.debug = debugmode
         
     def getClusterMatrix(self,hits):
         xs = [x[0] for x in hits]
@@ -121,24 +128,31 @@ class EnergyCalibrator:
         integral = max(sum([h[2] for h in sliceOfClu]),0)
         return integral/nhits if nhits>0 else 0
 
-    def density2Integral(self, density):
-        # return # of photons based on measured density vs E (keV) curve
-        
-        return math.pow(self.p0*math.log(self.p1/(self.p1-(density))),1.8) * 1000 * self.photonsPerEv
-
-    def calibratedIntegral(self,hits):
+    def saturationFactorNLO(self,density):
+    ## this gives eV/ph
+        if density<=0: # protection for the formula below
+            ret = 0.85 # seems to provide some continuity
+        else:
+            x = density/self.xscale
+            ret = (self.p3 + self.p4*x)/(self.p0 * (1-math.exp(-1*(math.pow(x,self.p2)/self.p1))))/self.norm
+        return ret
+    
+    def calibratedEnergy(self,hits):
         slices = self.getSlices(hits)
-        slicesInt = [sum([h[2] for h in slicehit]) for slicehit in slices]
+        integrals = [max(0.,sum([h[2] for h in sl])) for sl in slices]
         densities = [self.density(sl) for sl in slices]
-     
-        calibSlicesInt = [self.density2Integral(d) for d in densities]
-        calibIntegral = sum(calibSlicesInt)
-        
-        #print ( "slices bare sum = ",sum(slicesInt))
-        #print ("Slices integral = ", slicesInt)
-        #print ("Slices densities = ", densities)
-        #print ("Slices calib integral = ",calibSlicesInt)
-        return calibIntegral
+
+        ## the energy is now in keV
+        calibSlicesEnergy = [self.saturationFactorNLO(densities[sl]) * integrals[sl] / 1000. for sl in range(len(densities))]
+        calibEnergy = sum(calibSlicesEnergy)
+
+        if self.debug:
+            print (bcolors.OKBLUE + "Slices bare sum = {bsum:.1f}".format(bsum=sum(integrals)) + bcolors.ENDC)
+            print ("Slices integral = " + ', '.join('{:.1f}'.format(i) for i in integrals))
+            print ("Slices densities = " + ', '.join('{:.1f}'.format(i) for i in densities))
+            print ("Slices calib energy = " + ', '.join('{:.1f}'.format(i) for i in calibSlicesEnergy))
+            print (bcolors.OKGREEN + "supercluster calibrated integral = {ene:.1f} keV".format(ene=calibEnergy) + bcolors.ENDC)
+        return calibEnergy
     
     def getSlices(self,hits):
     
@@ -194,9 +208,9 @@ if __name__ == '__main__':
     
     
     uncal = calibrator.uncalibIntegral(hits)
-    print ("Uncalibrated integral  = ",uncal)
-    cal = calibrator.calibratedIntegral(hits)
-    print ("Calibrated integral = ",cal)
+    print ("Uncalibrated integral (photons) = ",uncal)
+    cal = calibrator.calibratedEnergy(hits)
+    print ("Calibrated energy (keV) = ",cal)
 
     # skeleton = skeletonize(image)
     # thinned = thin(image)

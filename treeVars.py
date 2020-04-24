@@ -40,7 +40,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('{name}_integral'.format(name=name),     'F', lenVar=sizeStr)
         # filled only for the supercluster
         if name=='sc':
-            self.outTree.branch('{name}_calibintegral'.format(name=name), 'F', lenVar=sizeStr)
+            self.outTree.branch('{name}_energy'.format(name=name), 'F', lenVar=sizeStr)
             self.outTree.branch('{name}_pathlength'.format(name=name),    'F', lenVar=sizeStr)
         self.outTree.branch('{name}_length'.format(name=name),       'F', lenVar=sizeStr)
         self.outTree.branch('{name}_width'.format(name=name),        'F', lenVar=sizeStr)
@@ -87,7 +87,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('{name}_integral'.format(name=name), [cl.integral() for cl in clusters])
         # filled only for the supercluster
         if name=='sc':
-            self.outTree.fillBranch('{name}_calibintegral'.format(name=name), [cl.calibratedIntegral for cl in clusters])
+            self.outTree.fillBranch('{name}_energy'.format(name=name), [cl.calibratedEnergy for cl in clusters])
             self.outTree.fillBranch('{name}_pathlength'.format(name=name),    [cl.pathlength for cl in clusters])
         self.outTree.fillBranch('{name}_length'.format(name=name),   [cl.shapes['long_width'] for cl in clusters])
         self.outTree.fillBranch('{name}_width'.format(name=name),    [cl.shapes['lat_width'] for cl in clusters])
