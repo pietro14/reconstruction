@@ -213,7 +213,7 @@ class SnakesFactory:
         ## SUPERCLUSTERING
         from supercluster import SuperClusterAlgorithm
         superclusterContours = []
-        scAlgo = SuperClusterAlgorithm(shape=rescale)
+        scAlgo = SuperClusterAlgorithm(shape=rescale,debugmode=self.options.debug_mode)
         u,indices = np.unique(db.labels_,return_index = True)
         allclusters_it1 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
         allclusters_it2 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]

@@ -6,14 +6,15 @@ from scipy.stats import pearsonr
 from energyCalibrator import EnergyCalibrator
 
 class SuperClusterAlgorithm:
-    def __init__(self,shape=512,neighbor_window=3):
+    def __init__(self,shape=512,neighbor_window=3,debugmode=False):
         self.shape = shape
         self.neighbor_window = neighbor_window
+        self.debug = debugmode
 
         # supercluster energy calibration for the saturation effect
         filePar = open('modules_config/energyCalibrator.txt','r')
         params = eval(filePar.read())
-        self.calibrator = EnergyCalibrator(params)
+        self.calibrator = EnergyCalibrator(params,self.debug)
         
     def clusters_neighborood(self,basic_clusters,raw_data):
         neighboroods = np.zeros([self.shape,self.shape],dtype=float)
@@ -100,7 +101,9 @@ class SuperClusterAlgorithm:
                 x = scpixels[:, 0]; y = scpixels[:, 1]
                 corr, p_value = pearsonr(x, y)
                 sclu.pearson = p_value
-                sclu.calibratedIntegral = self.calibrator.calibratedIntegral(sclu.hits_fr)
+                if self.debug:
+                    print ( "SUPERCLUSTER BARE INTEGRAL = {integral:.1f}".format(integral=sclu.integral()) )
+                sclu.calibratedEnergy = self.calibrator.calibratedEnergy(sclu.hits_fr)
                 sclu.pathlength = self.calibrator.clusterLength()
                 superClusters.append(sclu)
 
