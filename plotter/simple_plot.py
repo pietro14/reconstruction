@@ -8,7 +8,11 @@ if "/functions_cc.so" not in ROOT.gSystem.GetLibraries():
     ROOT.gROOT.ProcessLine(".L functions.cc+")
 
 fe_integral_rescale = 0.1
-cosm_rate_calib = [0.75,0.02] # central value, stat error
+cosm_rate_calib = [0.75,0.02]     # central value, stat error
+
+fe_truth = 5.9 # keV
+fe_calib_gauspeak  = [4.50,0.013] # central value, stat error
+fe_calib_gaussigma = [1.07,0.014] # central value, stat error
 
 def saturationFactor(density):
     return 1.5/1.8 * math.pow(5979 * math.log(20512./(20512.-density)),1.8)/(0.27*density-0.1)
@@ -19,13 +23,26 @@ def saturationFactorNLO(density):
     else:
         x = density/1.5
         ret = (0.11 + 1.22*x)/(130283. * (1-math.exp(-1*(math.pow(x,0.56757)/117038.))))/1.2
-    return ret
+    ## rescale the absolute scale for the observed Fe peak
+    return ret * fe_truth / fe_calib_gauspeak[0]
 
 def is60keVBkg(length,density):
     # rough linear decrease density vs length
     central = 14. - length/50.
     # take +/- 2 band around the central value
     return (central-2. < density < central+2.) and 120 < length < 250 
+
+def spotsLowDensity(length,density):
+    return length < 80 and 5<density<8
+
+def cosmicSelection(length,slimness):
+    return length>1000 and slimness<0.1
+
+def isPurpleBlob(length,density):
+    # rough linear decrease density vs length
+    central = 10 - length/50.
+    # take +/- 2 band around the central value
+    return (central-1.5 < density < central+1.5) and 90 < length < 250 
 
 def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
     nentries = len(histos)
@@ -190,13 +207,13 @@ def fillSpectra(cluster='sc'):
 
     ret = {}
     #tf_ambe = ROOT.TFile('../runs/AmBeConfig/reco_runs_2317_to_2320_3D.root')
-    tf_ambe  = ROOT.TFile('../runs/AmBeConfig/reco_runs_2097_to_2098_3D.root') ## 60/40
+    tf_ambe  = ROOT.TFile('../runs/AmBeConfigCalib/reco_ambe6040.root') ## 60/40
     ##tf_ambe =  ROOT.TFile('../runs/AmBeConfig/reco_ambe7030_3D.root') ## AmBe 70/30
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2252_to_2257_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_2311_to_2313_3D.root')
     #tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_fe55_6040_3D.root') # many short runs
-    tf_cosmics = ROOT.TFile('../runs/AmBeConfig/reco_runs_2156_to_2159_3D.root') ## cosmics run
-    tf_fe55 = ROOT.TFile('../runs/AmBeConfig/reco_runs_Fe55.root')
+    tf_cosmics = ROOT.TFile('../runs/AmBeConfigCalib/reco_cosmics6040.root') ## cosmics run
+    tf_fe55 = ROOT.TFile('../runs/AmBeConfigCalib/reco_fe6040.root')
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
 
@@ -205,8 +222,10 @@ def fillSpectra(cluster='sc'):
     ## Fe55 region histograms
     ret[('ambe','integral')] = ROOT.TH1F("integral",'',50,0,1e4)
     ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',200,0,25e4)
-    ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',50,0,20)
-    ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',20,0,150)
+    ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',50,0,30)
+    ret[('ambe','energy')] = ROOT.TH1F("energy",'',50,0,30)
+    ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',15,0,150)
+    ret[('ambe','energyExt')] = ROOT.TH1F("energyExt",'',15,0,150)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',50,0,2000)
     ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200)
     ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40)
@@ -214,6 +233,7 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','slimness')] = ROOT.TH1F("slimness",'',50,0,1)
     ret[('ambe','density')]  = ROOT.TH1F("density",'',45,0,30)
     ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',45,0,100)
+    ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',40,1.,12.)
 
     ## CMOS integral variables
     ret[('ambe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',50,1.54e6,2.0e6)
@@ -237,7 +257,8 @@ def fillSpectra(cluster='sc'):
     # ret[('fe','sigmavsintegral')] = ROOT.TGraph()
     
     # x-axis titles
-    titles = {'integral': 'photons', 'integralExt': 'photons', 'calintegral': 'energy (keV)', 'calintegralExt': 'energy (keV)', 'caldensity': 'density (eV/pixel)',
+    titles = {'integral': 'photons', 'integralExt': 'photons', 'calintegral': 'energy (keV)', 'calintegralExt': 'energy (keV)', 'caldensity': 'density (eV/pixel)', 'dedx': 'dE/dx (keV/cm)',
+              'energy': 'energy (keV)', 'energyExt': 'energy (keV)', # these are like calintegral, but estimated in the reconstruction step
               'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel',
               'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
               'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
@@ -298,7 +319,7 @@ def fillSpectra(cluster='sc'):
                 calib = saturationFactorNLO(max(0,density)) # ev/ph
                 calibEnergy = integral * calib / 1000. # keV
                 calibDensity  = density * calib # eV/pix
-
+                
                 if not withinFC(xmean,ymean):
                     continue
 
@@ -318,12 +339,17 @@ def fillSpectra(cluster='sc'):
                 #if photons < 1000:
                 #    continue
                 # if not is60keVBkg(length,density):
-                #      continue
+                #    continue
                 #if not slimnessCut(getattr(event,"{clutype}_length".format(clutype=cluster))[isc],getattr(event,"{clutype}_width".format(clutype=cluster))[isc]):
                  #   continue
                 #if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
                 #    continue
-
+                # if not spotsLowDensity(length,density):
+                #    continue
+                # if not cosmicSelection(length,slimness):
+                #    continue
+                #if not isPurpleBlob(length,density):
+                #    continue
                 ##########################
                 ## the AmBe selection
                 ##########################
@@ -343,6 +369,10 @@ def fillSpectra(cluster='sc'):
                 ret[(runtype,'integralExt')].Fill(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc])
                 ret[(runtype,'calintegral')].Fill(calibEnergy)
                 ret[(runtype,'calintegralExt')].Fill(calibEnergy)
+                energy_cal = getattr(event,"{clutype}_energy".format(clutype=cluster))[isc] * fe_truth / fe_calib_gauspeak[0]
+                ret[(runtype,'energy')].Fill(energy_cal)
+                ret[(runtype,'energyExt')].Fill(energy_cal)
+                ret[(runtype,'dedx')].Fill(energy_cal/(length*0.0125))
                 
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
                 ret[(runtype,'density')].Fill(density)
@@ -458,9 +488,23 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         histo_sig.GetYaxis().SetTitle('clusters (a.u.)')
     histo_sig.Draw("pe")
     histo_bkg.Draw("hist same")
+
     if histo_sig2:
         histo_sig2.Draw("hist same")
     #padTop.SetLogy(1)
+
+    ### this is to fit the energy/length distribution in the cosmics
+    if histo_sig.GetName()=='dedx':
+        l1 = ROOT.TF1("l1","landau",2,9);
+        histo_bkg.Fit('l1','S')
+        l1.Draw('same')
+        mpv  = l1.GetParameter(1); mErr = l1.GetParError(1)
+        sigma = l1.GetParameter(2); mSigma = l1.GetParError(2)
+        lat1 = ROOT.TLatex()
+        lat1.SetNDC(); lat1.SetTextFont(42); lat1.SetTextSize(0.05)
+        lat1.DrawLatex(0.55, 0.60, "mpv = {m:.2f} #pm {em:.2f} keV".format(m=mpv,em=mErr))
+        lat1.DrawLatex(0.55, 0.50, "#sigma = {s:.2f} #pm {es:.2f} keV".format(s=sigma,es=mSigma))
+    ###############################
 
     ## rescale the Fe bkg by the scale factor in the pure cosmics CR
     histo_bkg.Scale(cosm_rate_calib[0])
@@ -471,6 +515,8 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     
     legend = doLegend(histos,labels,styles,corner="TR")
     legend.Draw()
+
+
     
     padBottom.cd()
     ratios = []; labelsR = []; stylesR = []
@@ -490,15 +536,15 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure
     ## in principle should fit the bkg-subtracted plot, but too large stat uncertainty on BKG
-    # if histo_sig.GetName()=='calintegralExt':
-    #     g1 = ROOT.TF1("g1","gaus",20,90);
-    #     histo_sig.Fit('g1','RS')
-    #     mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
-    #     sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
-    #     lat = ROOT.TLatex()
-    #     lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
-    #     lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
-    #     lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
+    if histo_sig.GetName() in ['calintegralExt','energyExt']:
+        g1 = ROOT.TF1("g1","gaus",20,110);
+        histo_sig.Fit('g1','RS')
+        mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
+        sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
+        lat = ROOT.TLatex()
+        lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
+        lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
+        lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
     ###############################
     
     
@@ -1082,7 +1128,7 @@ def getOneROC(sigh,bkgh,direction='gt'):
     roc = ROOT.TGraph(nbins)
     for i in range(nbins):
         roc.SetPoint(i, efficiencies[0][i], 1-efficiencies[1][i])
-        print ("point {i}, S eff={seff:.2f}, B eff={beff:.3f}".format(i=i,seff=efficiencies[0][i],beff=efficiencies[1][i]))
+        #print ("point {i}, S eff={seff:.2f}, B eff={beff:.3f}".format(i=i,seff=efficiencies[0][i],beff=efficiencies[1][i]))
     roc.SetTitle('')
         
     return roc

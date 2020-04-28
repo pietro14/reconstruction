@@ -152,7 +152,7 @@ class EnergyCalibrator:
             print ("Slices densities = " + ', '.join('{:.1f}'.format(i) for i in densities))
             print ("Slices calib energy = " + ', '.join('{:.1f}'.format(i) for i in calibSlicesEnergy))
             print (bcolors.OKGREEN + "supercluster calibrated integral = {ene:.1f} keV".format(ene=calibEnergy) + bcolors.ENDC)
-        return calibEnergy
+        return calibEnergy,calibSlicesEnergy
     
     def getSlices(self,hits):
     
