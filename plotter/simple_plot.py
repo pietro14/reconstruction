@@ -244,6 +244,7 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',45,0,100)
     ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',40,1.,12.)
     ret[('ambe','inclination')]  = ROOT.TH1F("inclination",'',15,0,90)
+    ret[('ambe','asymmetry')]  = ROOT.TH1F("asymmetry",'',6,0,1.)
 
     ## CMOS integral variables
     ret[('ambe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',50,1.54e6,2.0e6)
@@ -272,7 +273,7 @@ def fillSpectra(cluster='sc'):
               'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel',
               'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
               'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
-              'tgausssigma': '#sigma_{transverse} (pixels)', 'inclination': '#theta_{hor}'}
+              'tgausssigma': '#sigma_{transverse} (pixels)', 'inclination': '#theta_{hor}', 'asymmetry': 'asymmetry: (A-B)/(A+B)'}
 
     titles2d = {'integralvslength': ['length (pixels)','photons'], 'densityvslength' : ['length (pixels)','density (ph/pix)'],
                 'densityvslength_zoom' : ['length (pixels)','density (ph/pix)'], 'calenergyvslength_zoom' : ['length (pixels)','energy (keV)']}
@@ -309,7 +310,16 @@ def fillSpectra(cluster='sc'):
             for pmtvar in ['pmt_integral','pmt_tot']:
                 ret[runtype,pmtvar].Fill(getattr(event,pmtvar))
             ret[runtype,'pmt_density'].Fill(getattr(event,'pmt_integral')/getattr(event,'pmt_tot'))
+            firstSlice = 0
             for isc in range(getattr(event,"nSc" if cluster=='sc' else 'nCl')):
+
+                # let's do this unrolling here, before some continue breaks it
+                slices = []
+                if hasattr(event,"{clutype}_nslices".format(clutype=cluster)): # the Fe55 was recoed w/o that implemented (so far, since it is not needed)
+                    nslices = int(getattr(event,"{clutype}_nslices".format(clutype=cluster))[isc])
+                    slices = range(firstSlice,firstSlice+nslices)
+                    firstSlice += nslices
+                
                 #if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
                 #    continue
                 nhits = getattr(event,"{clutype}_nhits".format(clutype=cluster))[isc]
@@ -401,12 +411,27 @@ def fillSpectra(cluster='sc'):
                 ret[(runtype,'calenergyvslength_zoom')].Fill(length,calibEnergy)
 
 
-                if length>100 and slimness<0.7:
+                if length>110 and slimness<0.7:
                     xmin = getattr(event,"{clutype}_xmin".format(clutype=cluster))[isc]
                     xmax = getattr(event,"{clutype}_xmax".format(clutype=cluster))[isc]
                     ymin = getattr(event,"{clutype}_ymin".format(clutype=cluster))[isc]
                     ymax = getattr(event,"{clutype}_ymax".format(clutype=cluster))[isc]
                     ret[(runtype,'inclination')].Fill( angleWrtHorizontal(xmin,xmax,ymin,ymax) )
+
+                    if hasattr(event,"{clutype}_nslices".format(clutype=cluster)) and len(slices)>1: # the Fe55 was recoed w/o that implemented (so far, since it is not needed)
+                        # this is to check that the loop over slices is right: the sum of the slices should ~ cluster integral
+                        # energy_raw = getattr(event,"{clutype}_energy".format(clutype=cluster))[isc]
+                        # energy_closure = sum([getattr(event,"{clutype}_energyprof".format(clutype=cluster))[islice] for islice in slices])
+                        # print ("run = {run}, event = {event}".format(run=event.run,event=event.event))
+                        # print ("{runtype} ENERGY = {calint:.1f}; SUMSLICES = {mysum:.1f}".format(runtype=runtype,calint=energy_raw,mysum=energy_closure))
+                        slicesA = slices[:len(slices)//2]
+                        slicesB = slices[len(slices)//2:]
+                        A = sum([getattr(event,"{clutype}_energyprof".format(clutype=cluster))[islice] for islice in slicesA])
+                        B = sum([getattr(event,"{clutype}_energyprof".format(clutype=cluster))[islice] for islice in slicesB])
+                        asymmetry = abs(A-B)/(A+B)
+                        ret[(runtype,'asymmetry')].Fill( asymmetry )
+                    else:
+                        ret[(runtype,'asymmetry')].Fill( -1 )
                 
                 # ret[(runtype,'integralvslength')].SetPoint(selected,length_sub,integral) 
                 # ret[(runtype,'sigmavslength')].SetPoint(selected,length_sub,sigma)
@@ -504,6 +529,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     if histo_sig2:
         ymax = max(histo_sig2.GetMaximum(),ymax)
     histo_sig.SetMaximum(1.2*ymax)
+    histo_sig.SetMinimum(0)
     if normEntries:
         histo_sig.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
     else:
