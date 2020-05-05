@@ -244,7 +244,7 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',45,0,100)
     ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',40,1.,12.)
     ret[('ambe','inclination')]  = ROOT.TH1F("inclination",'',15,0,90)
-    ret[('ambe','asymmetry')]  = ROOT.TH1F("asymmetry",'',6,0,1.)
+    ret[('ambe','asymmetry')]  = ROOT.TH1F("asymmetry",'',5,0,1.)
 
     ## CMOS integral variables
     ret[('ambe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',50,1.54e6,2.0e6)
@@ -528,7 +528,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ymax = max(histo_bkg.GetMaximum(),histo_sig.GetMaximum())
     if histo_sig2:
         ymax = max(histo_sig2.GetMaximum(),ymax)
-    histo_sig.SetMaximum(1.2*ymax)
+    histo_sig.SetMaximum(1.5*ymax)
     histo_sig.SetMinimum(0)
     if normEntries:
         histo_sig.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
@@ -577,6 +577,9 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ratio.GetYaxis().SetTitleSize(0.05)
     ratio.GetYaxis().SetTitle("source - nosource")
     ratio.GetYaxis().CenterTitle()
+    # take the first error bar as estimate for all)
+    ratio.SetMaximum(ratio.GetMaximum()+ratio.GetBinError(1))
+    ratio.SetMinimum(ratio.GetMinimum()-ratio.GetBinError(1))
     ratio.Draw('pe')
     ratios.append(ratio)
     labelsR.append('AmBe - no source')
