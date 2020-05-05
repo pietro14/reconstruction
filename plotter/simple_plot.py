@@ -14,6 +14,15 @@ fe_truth = 5.9 # keV
 fe_calib_gauspeak  = [4.50,0.013] # central value, stat error
 fe_calib_gaussigma = [1.07,0.014] # central value, stat error
 
+
+
+def angleWrtHorizontal(xmin,xmax,ymin,ymax):
+    x = xmax-xmin
+    y = ymax-ymin
+    length = math.hypot(x,y)
+    ## figure is rotated by 90 degrees
+    return math.asin(y/length)*180/3.14
+
 def saturationFactor(density):
     return 1.5/1.8 * math.pow(5979 * math.log(20512./(20512.-density)),1.8)/(0.27*density-0.1)
 
@@ -35,8 +44,8 @@ def is60keVBkg(length,density):
 def spotsLowDensity(length,density):
     return length < 80 and 5<density<8
 
-def cosmicSelection(length,slimness):
-    return length>1000 and slimness<0.1
+def cosmicSelection(length,tgaussigma):
+    return length>1000 and tgaussigma<50
 
 def isPurpleBlob(length,density):
     # rough linear decrease density vs length
@@ -234,6 +243,7 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','density')]  = ROOT.TH1F("density",'',45,0,30)
     ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',45,0,100)
     ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',40,1.,12.)
+    ret[('ambe','inclination')]  = ROOT.TH1F("inclination",'',15,0,90)
 
     ## CMOS integral variables
     ret[('ambe','cmos_integral')] = ROOT.TH1F("cmos_integral",'',50,1.54e6,2.0e6)
@@ -262,7 +272,7 @@ def fillSpectra(cluster='sc'):
               'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel',
               'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
               'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
-              'tgausssigma': '#sigma_{transverse} (pixels)'}
+              'tgausssigma': '#sigma_{transverse} (pixels)', 'inclination': '#theta_{hor}'}
 
     titles2d = {'integralvslength': ['length (pixels)','photons'], 'densityvslength' : ['length (pixels)','density (ph/pix)'],
                 'densityvslength_zoom' : ['length (pixels)','density (ph/pix)'], 'calenergyvslength_zoom' : ['length (pixels)','energy (keV)']}
@@ -311,9 +321,12 @@ def fillSpectra(cluster='sc'):
                 xmean = getattr(event,"{clutype}_xmean".format(clutype=cluster))[isc]
                 ymean = getattr(event,"{clutype}_ymean".format(clutype=cluster))[isc]
                 length =  getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
+                width =  getattr(event,"{clutype}_width".format(clutype=cluster))[isc]
                 photons = getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
                 integral =  getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
-                slimness = getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
+                slimness = width/length
+                gsigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc]
+
                 # gainCalibnInt = integral*1.1 if runtype=='ambe' else integral 
                 ## energy calibrated for saturation
                 calib = saturationFactorNLO(max(0,density)) # ev/ph
@@ -346,10 +359,11 @@ def fillSpectra(cluster='sc'):
                 #    continue
                 # if not spotsLowDensity(length,density):
                 #    continue
-                # if not cosmicSelection(length,slimness):
-                #    continue
+                # if not cosmicSelection(length,gsigma):
+                #     continue
                 #if not isPurpleBlob(length,density):
                 #    continue
+
                 ##########################
                 ## the AmBe selection
                 ##########################
@@ -377,7 +391,6 @@ def fillSpectra(cluster='sc'):
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
                 ret[(runtype,'density')].Fill(density)
                 ret[(runtype,'caldensity')].Fill(calibDensity)
-                #sigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
                 #length =  getattr(event,"{clutype}_lgausssigma".format(clutype=cluster))[isc] * 0.125 * 6 - sigma # subtract the sigma to remove the diffusion
                 sigma =  getattr(event,"{clutype}_width".format(clutype=cluster))[isc] * 0.125 * 6 # use 2*3 sigma to contain 99.7% of prob.
                 length_sub = math.sqrt(max(0,length*length - sigma*sigma))
@@ -386,6 +399,15 @@ def fillSpectra(cluster='sc'):
                 ret[(runtype,'densityvslength')]     .Fill(length,density)
                 ret[(runtype,'densityvslength_zoom')].Fill(length,density)
                 ret[(runtype,'calenergyvslength_zoom')].Fill(length,calibEnergy)
+
+
+                if length>100 and slimness<0.7:
+                    xmin = getattr(event,"{clutype}_xmin".format(clutype=cluster))[isc]
+                    xmax = getattr(event,"{clutype}_xmax".format(clutype=cluster))[isc]
+                    ymin = getattr(event,"{clutype}_ymin".format(clutype=cluster))[isc]
+                    ymax = getattr(event,"{clutype}_ymax".format(clutype=cluster))[isc]
+                    ret[(runtype,'inclination')].Fill( angleWrtHorizontal(xmin,xmax,ymin,ymax) )
+                
                 # ret[(runtype,'integralvslength')].SetPoint(selected,length_sub,integral) 
                 # ret[(runtype,'sigmavslength')].SetPoint(selected,length_sub,sigma)
                 # ret[(runtype,'sigmavsintegral')].SetPoint(selected,integral,sigma)
