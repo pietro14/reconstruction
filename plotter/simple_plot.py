@@ -67,7 +67,7 @@ def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBo
     elif corner == "BC":
         (x1,y1,x2,y2) = (.5, .33 + textSize*max(nentries-3,0), .5+legWidth, .35)
     elif corner == "BL":
-        (x1,y1,x2,y2) = (.2, .33 + textSize*max(nentries-3,0), .33+legWidth, .35)
+        (x1,y1,x2,y2) = (.2, .23 + textSize*max(nentries-3,0), .33+legWidth, .35)
     leg = ROOT.TLegend(x1,y1,x2,y2)
     leg.SetNColumns(nColumns)
     leg.SetFillColor(0)
@@ -388,6 +388,10 @@ def fillSpectra(cluster='sc'):
                     continue
                 ##########################
 
+                # cut with 40% sig eff and 1% bkg eff
+                # if density<11:
+                #     continue
+
                 for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
                 ret[(runtype,'integralExt')].Fill(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc])
@@ -587,15 +591,15 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure
     ## in principle should fit the bkg-subtracted plot, but too large stat uncertainty on BKG
-    if histo_sig.GetName() in ['calintegralExt','energyExt']:
-        g1 = ROOT.TF1("g1","gaus",20,110);
-        histo_sig.Fit('g1','RS')
-        mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
-        sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
-        lat = ROOT.TLatex()
-        lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
-        lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
-        lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
+    # if histo_sig.GetName() in ['calintegralExt','energyExt']:
+    #     g1 = ROOT.TF1("g1","gaus",20,110);
+    #     histo_sig.Fit('g1','RS')
+    #     mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
+    #     sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
+    #     lat = ROOT.TLatex()
+    #     lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
+    #     lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
+    #     lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
     ###############################
     
     
@@ -1171,8 +1175,13 @@ def getOneROC(sigh,bkgh,direction='gt'):
     for ip,p in enumerate(plots):
         if direction=='gt':
             eff = [p.Integral(binx,nbins)/integrals[ip] for binx in range(0,nbins)]
+            thr = [p.GetBinLowEdge(binx) for binx in range(0,nbins)]
         else:
             eff = [p.Integral(0,binx)/integrals[ip] for binx in range(0,nbins)]
+            thr = [p.GetBinLowEdge(binx+1) for binx in range(0,nbins)]
+        # this is to find the cut for the wanted eff
+        effdic = dict(zip(thr,eff))
+        #print (effdic)
         efficiencies.append(eff)
 
     ## graph for the roc
@@ -1203,15 +1212,15 @@ def drawROC(varname,odir):
     fe_roc.SetMarkerColor(ROOT.kRed)
     fe_roc.SetLineColor(ROOT.kRed)
 
-    cosm_roc.Draw('APC')
-    cosm_roc.GetXaxis().SetTitle('AmBe efficiency')
-    cosm_roc.GetYaxis().SetTitle('Background rejection')
-    fe_roc.Draw('PC')
+    fe_roc.Draw('APC')
+    fe_roc.GetXaxis().SetTitle('signal efficiency')
+    fe_roc.GetYaxis().SetTitle('Background rejection')
+    #cosm_roc.Draw('PC')
 
     graphs = [cosm_roc,fe_roc]
     labels = ['no source bkg','^{55}Fe bkg']
     styles = ['pl','pl']
-    legend = doLegend(graphs,labels,styles,corner="TR")
+    legend = doLegend(graphs[1:],labels[1:],styles[1:],corner="TR")
     
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/{var}_roc.{ext}".format(plotdir=odir,var=varname,ext=ext))
