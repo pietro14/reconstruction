@@ -79,8 +79,10 @@ def makeEff(f1,histo1,f2,histo2,plotdir):
     teffi90.SetConfidenceLevel(0.90);
     teffi90.SetFillStyle(3005);
     teffi90.SetFillColor(ROOT.kBlue);
-    
+ 
     c = getCanvas()
+    if histo1.startswith('fe'):
+        c.SetLogy()
     teffi68.Draw("A4")
     teffi68.Draw("same pe1")
     teffi90.Draw("same4")
@@ -90,7 +92,7 @@ def makeEff(f1,histo1,f2,histo2,plotdir):
     histos = [teffi68,teffi90]
     labels = ['95%','68%']
     styles = ['F','F']
-    legend = doLegend(histos,labels,styles,corner='BL')
+    legend = doLegend(histos,labels,styles,corner='TL' if histo1.startswith('fe') else 'BL')
     legend.Draw('same')
     
     for ext in ['png','pdf']:
@@ -102,16 +104,21 @@ if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
     parser.add_option('', '--make'   , type='string'       , default='fitfe' , help='run ambe_miscellanea.py (options = fitfe, efficiency)')
-    parser.add_option('', '--outdir' , type='string'       , default='./'      , help='output directory with directory structure and plots')
+    parser.add_option('', '--outdir' , type='string'       , default='./'    , help='output directory with directory structure and plots')
+    parser.add_option('', '--source' , type='string'       , default='ambe'  , help='in case of efficiency plotting, make it for fe/ambe')
     (options, args) = parser.parse_args()
                  
     if  options.make == 'fitfe':
         fitFe('plots/ambe/clusters_3sourcesNloCalNeutronsFex1_2020_05_05/energy.root')
 
+    ## usages:
+    # AmBe efficiency:> python ambe_miscellanea.py --make efficiency --source ambe --outdir './'
+    # Fe55 efficiency:> python ambe_miscellanea.py --make efficiency --source fe --outdir './'
     if options.make == 'efficiency':
-        var = 'energyExt'
-        makeEff('plots/ambe/clusters_3sourcesNloCalNeutronsDensityGt11_2020_05_06/'+var+'.root',var,
-                'plots/ambe/clusters_3sourcesNloCalNeutrons_2020_05_05/'+var+'.root',           var,
+        var = 'energy' if options.source=='fe' else 'energyExt'
+        prefix = '' if options.source=='ambe' else ('fe_' if options.source=='fe' else 'cosm_')
+        makeEff('plots/ambe/clusters_3sourcesNloCalNeutronsDensityGt11_2020_05_06/'+var+'.root',prefix+var,
+                'plots/ambe/clusters_3sourcesNloCalNeutrons_2020_05_05/'+var+'.root',           prefix+var,
                 options.outdir)
                 
                 
