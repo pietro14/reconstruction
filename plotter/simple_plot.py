@@ -55,19 +55,19 @@ def isPurpleBlob(length,density):
 
 def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
     nentries = len(histos)
-    (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .91)
+    (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
     if corner == "TR":
-        (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .91)
+        (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
     elif corner == "TC":
-        (x1,y1,x2,y2) = (.5, .75 - textSize*max(nentries-3,0), .5+legWidth, .91)
+        (x1,y1,x2,y2) = (.5, .7 - textSize*max(nentries-3,0), .5+legWidth, .89)
     elif corner == "TL":
-        (x1,y1,x2,y2) = (.2, .75 - textSize*max(nentries-3,0), .2+legWidth, .91)
+        (x1,y1,x2,y2) = (.2, .7 - textSize*max(nentries-3,0), .2+legWidth, .89)
     elif corner == "BR":
         (x1,y1,x2,y2) = (.85-legWidth, .33 + textSize*max(nentries-3,0), .90, .15)
     elif corner == "BC":
         (x1,y1,x2,y2) = (.5, .33 + textSize*max(nentries-3,0), .5+legWidth, .35)
     elif corner == "BL":
-        (x1,y1,x2,y2) = (.2, .33 + textSize*max(nentries-3,0), .33+legWidth, .35)
+        (x1,y1,x2,y2) = (.2, .23 + textSize*max(nentries-3,0), .33+legWidth, .35)
     leg = ROOT.TLegend(x1,y1,x2,y2)
     leg.SetNColumns(nColumns)
     leg.SetFillColor(0)
@@ -370,7 +370,7 @@ def fillSpectra(cluster='sc'):
                 # if not spotsLowDensity(length,density):
                 #    continue
                 # if not cosmicSelection(length,gsigma):
-                #     continue
+                #    continue
                 #if not isPurpleBlob(length,density):
                 #    continue
 
@@ -387,6 +387,10 @@ def fillSpectra(cluster='sc'):
                 if is60keVBkg(length,density):
                     continue
                 ##########################
+
+                ## cut with 40% sig eff and 1% bkg eff
+                if density<11:
+                    continue
 
                 for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
@@ -440,8 +444,8 @@ def fillSpectra(cluster='sc'):
 
                 ### for debugging purposes:
                 # if 30e3 < integral < 40e+3 and event.run==2156:
-                # if 2096 < event.run < 2099 and length < 80 and 5 < density < 8:
-                #     print("density = {d:.1f}\tlength = {l:.0f}\t{r}\t{e}\t{y}\t{x}\t{phot}".format(d=density,l=length,r=event.run,e=event.event,y=int(event.sc_ymean[isc]/4.),x=int(event.sc_xmean[isc]/4.),phot=int(event.sc_integral[isc])))
+                if 2096 < event.run < 2099: # and length < 80 and 5 < density < 8:
+                     print("density = {d:.1f}\tlength = {l:.0f}\t{r}\t{e}\t{y}\t{x}\t{phot}\t{ene}".format(d=density,l=length,r=event.run,e=event.event,y=int(event.sc_ymean[isc]/4.),x=int(event.sc_xmean[isc]/4.),phot=int(event.sc_integral[isc]),ene=energy_cal))
 
                 
     return ret,entries
@@ -542,16 +546,16 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     #padTop.SetLogy(1)
 
     ### this is to fit the energy/length distribution in the cosmics
-    if histo_sig.GetName()=='dedx':
-        l1 = ROOT.TF1("l1","landau",2,9);
-        histo_bkg.Fit('l1','S')
-        l1.Draw('same')
-        mpv  = l1.GetParameter(1); mErr = l1.GetParError(1)
-        sigma = l1.GetParameter(2); mSigma = l1.GetParError(2)
-        lat1 = ROOT.TLatex()
-        lat1.SetNDC(); lat1.SetTextFont(42); lat1.SetTextSize(0.05)
-        lat1.DrawLatex(0.55, 0.60, "mpv = {m:.2f} #pm {em:.2f} keV".format(m=mpv,em=mErr))
-        lat1.DrawLatex(0.55, 0.50, "#sigma = {s:.2f} #pm {es:.2f} keV".format(s=sigma,es=mSigma))
+    # if histo_sig.GetName()=='dedx':
+    #     l1 = ROOT.TF1("l1","landau",2,9);
+    #     histo_bkg.Fit('l1','S')
+    #     l1.Draw('same')
+    #     mpv  = l1.GetParameter(1); mErr = l1.GetParError(1)
+    #     sigma = l1.GetParameter(2); mSigma = l1.GetParError(2)
+    #     lat1 = ROOT.TLatex()
+    #     lat1.SetNDC(); lat1.SetTextFont(42); lat1.SetTextSize(0.05)
+    #     lat1.DrawLatex(0.55, 0.60, "mpv = {m:.2f} #pm {em:.2f} keV".format(m=mpv,em=mErr))
+    #     lat1.DrawLatex(0.55, 0.50, "#sigma = {s:.2f} #pm {es:.2f} keV".format(s=sigma,es=mSigma))
     ###############################
 
     ## rescale the Fe bkg by the scale factor in the pure cosmics CR
@@ -587,15 +591,15 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure
     ## in principle should fit the bkg-subtracted plot, but too large stat uncertainty on BKG
-    if histo_sig.GetName() in ['calintegralExt','energyExt']:
-        g1 = ROOT.TF1("g1","gaus",20,110);
-        histo_sig.Fit('g1','RS')
-        mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
-        sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
-        lat = ROOT.TLatex()
-        lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
-        lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
-        lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
+    # if histo_sig.GetName() in ['calintegralExt','energyExt']:
+    #     g1 = ROOT.TF1("g1","gaus",20,110);
+    #     histo_sig.Fit('g1','RS')
+    #     mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
+    #     sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
+    #     lat = ROOT.TLatex()
+    #     lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
+    #     lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
+    #     lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
     ###############################
     
     
@@ -1171,8 +1175,13 @@ def getOneROC(sigh,bkgh,direction='gt'):
     for ip,p in enumerate(plots):
         if direction=='gt':
             eff = [p.Integral(binx,nbins)/integrals[ip] for binx in range(0,nbins)]
+            thr = [p.GetBinLowEdge(binx) for binx in range(0,nbins)]
         else:
             eff = [p.Integral(0,binx)/integrals[ip] for binx in range(0,nbins)]
+            thr = [p.GetBinLowEdge(binx+1) for binx in range(0,nbins)]
+        # this is to find the cut for the wanted eff
+        effdic = dict(zip(thr,eff))
+        #print (effdic)
         efficiencies.append(eff)
 
     ## graph for the roc
@@ -1203,29 +1212,53 @@ def drawROC(varname,odir):
     fe_roc.SetMarkerColor(ROOT.kRed)
     fe_roc.SetLineColor(ROOT.kRed)
 
-    cosm_roc.Draw('APC')
-    cosm_roc.GetXaxis().SetTitle('AmBe efficiency')
-    cosm_roc.GetYaxis().SetTitle('Background rejection')
-    fe_roc.Draw('PC')
+    fe_roc.Draw('APC')
+    fe_roc.GetXaxis().SetTitle('signal efficiency')
+    fe_roc.GetYaxis().SetTitle('Background rejection')
+    #cosm_roc.Draw('PC')
 
     graphs = [cosm_roc,fe_roc]
     labels = ['no source bkg','^{55}Fe bkg']
     styles = ['pl','pl']
-    legend = doLegend(graphs,labels,styles,corner="TR")
+    legend = doLegend(graphs[1:],labels[1:],styles[1:],corner="TR")
     
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/{var}_roc.{ext}".format(plotdir=odir,var=varname,ext=ext))
              
+
+def plotPedRMS():
+    rf = ROOT.TFile.Open('../pedestals/pedmap_run2109_rebin1.root')
+    histo_rms = rf.Get('pedrms')
+    canv = getCanvas()
+
+    ROOT.gStyle.SetOptStat(1100)
     
+    histo_rms.GetXaxis().SetTitle("electronics noise (RMS counts)")
+    histo_rms.GetYaxis().SetTitle("Number of pixels")
+    histo_rms.GetXaxis().SetTitleOffset(1.4)
+    histo_rms.GetYaxis().SetTitleOffset(2.0)
+    histo_rms.GetYaxis().SetTitleFont(42)
+    histo_rms.GetXaxis().SetTitleFont(42)
+    histo_rms.SetTitle("")
+    
+    histo_rms.Draw()
+    ROOT.gPad.Update()
+    
+    stats = histo_rms.FindObject("stats")
+    stats.SetX1NDC(0.7); stats.SetX2NDC(0.9);
+    stats.SetY1NDC(0.7); stats.SetY2NDC(0.9);
+
+    canv.SaveAs("sensor_noise.pdf")
+        
 if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
-    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options = tworuns, evsdist, pmtvsz, cluvspmt, cluvsz, multiplicity, hist1d, hist2d)')
+    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options = tworuns, evsdist, pmtvsz, cluvspmt, cluvsz, multiplicity, hist1d, hist2d, pedrms)')
     parser.add_option('', '--outdir' , type='string'       , default='./'      , help='output directory with directory structure and plots')
     parser.add_option('', '--var' , type='string'       , default='integral'      , help='variable to plot the histogram')
     parser.add_option('', '--pos' , type='int'       , default=0      , help='position of the iron source')
     parser.add_option('', '--var2' , type='string'       , default='slimness'      , help='variable2 to plot the histogram 2D')
-   
+    
     (options, args) = parser.parse_args()
 
     ## make the output directory first
@@ -1261,3 +1294,6 @@ if __name__ == "__main__":
         
     if options.make in ['all','hist2d']:
         plotHist2D(options.outdir, options.var, options.var2, options.pos)
+
+    if options.make in ['all','pedrms']:
+        plotPedRMS()

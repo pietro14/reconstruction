@@ -2,6 +2,7 @@
 
 import numpy as np
 import ROOT,math,os,sys
+import pickle
 
 from scipy.ndimage import gaussian_filter, median_filter
 from skimage import img_as_float
@@ -241,6 +242,8 @@ class SnakesFactory:
                 plt.title("Original Image")
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
+                with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), "wb") as fp:
+                    pickle.dump(fig, fp, protocol=4)
                 plt.gcf().clear()
                 plt.close('all')
                 
