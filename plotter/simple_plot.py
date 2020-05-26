@@ -1260,7 +1260,7 @@ def plotSimEoverEtrue():
 
     xmin=0.3
     xmax=1.1
-    nbins = 100
+    nbins = 70
     
     work = ROOT.RooWorkspace()
     work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.5,1.1],sigma[0.05,0.01,0.10],alpha[1,0.1,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
@@ -1340,7 +1340,7 @@ def plotSimEoverEtrue():
 
     for ext in ['pdf','png','root']:
         c.SaveAs('eoveretrue.{ext}'.format(ext=ext))
-    
+        
     
 if __name__ == "__main__":
 
