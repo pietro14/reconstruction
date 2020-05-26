@@ -14,7 +14,13 @@ fe_truth = 5.9 # keV
 fe_calib_gauspeak  = [4.50,0.013] # central value, stat error
 fe_calib_gaussigma = [1.07,0.014] # central value, stat error
 
-
+def printTLatex(tl,color=ROOT.kBlack):
+    tl.SetNDC()
+    tl.SetTextFont(42)
+    tl.SetTextAlign(21)
+    tl.SetTextSize(0.03)
+    tl.SetTextColor(color)
+    tl.Draw()
 
 def angleWrtHorizontal(xmin,xmax,ymin,ymax):
     x = xmax-xmin
@@ -1249,11 +1255,97 @@ def plotPedRMS():
     stats.SetY1NDC(0.7); stats.SetY2NDC(0.9);
 
     canv.SaveAs("sensor_noise.pdf")
-        
+
+def plotSimEoverEtrue():
+
+    xmin=0.3
+    xmax=1.1
+    nbins = 100
+    
+    work = ROOT.RooWorkspace()
+    work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.5,1.1],sigma[0.05,0.01,0.10],alpha[1,0.1,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
+    work.Print()
+    
+    x = work.var('x')
+
+    var = 'sc_integral*6/3000/6'
+
+    ms_nonoise = ROOT.kOpenSquare
+    ms_noise = ROOT.kFullCircle
+    lc_nonoise = ROOT.kAzure-6
+    lc_noise = ROOT.kOrange-3
+    
+    rf_puremc = ROOT.TFile.Open("../sim/Reco_Digi_He_6_kev_petrucci.root")
+    t_puremc = rf_puremc.Get('Events')
+    histo_nonoise = ROOT.TH1F('histo_nonoise','',nbins,xmin,xmax)
+    histo_nonoise.SetMarkerStyle(ms_nonoise)
+    histo_nonoise.SetLineColor(ROOT.kBlack)
+    t_puremc.Draw('{var}>>histo_nonoise'.format(var=var),'{var}>{xmin} && {var}<{xmax}'.format(var=var,xmin=xmin,xmax=xmax))
+
+    rf_noise = ROOT.TFile.Open("../sim/Reco_Digi_He_6_kev_noise_petrucci.root")
+    t_noise = rf_noise.Get('Events')
+    histo_noise = ROOT.TH1F('histo_noise','',nbins,xmin,xmax)
+    histo_noise.SetMarkerStyle(ms_noise)
+    histo_noise.SetLineColor(ROOT.kBlack)
+    t_noise.Draw('{var}>>histo_noise'.format(var=var),'{var}>{xmin} && {var}<{xmax}'.format(var=var,xmin=xmin,xmax=xmax))
+
+    rooData_nonoise = ROOT.RooDataHist("histo_nonoise","histo_nonoise",ROOT.RooArgList(work.var("x")),histo_nonoise)
+    rooData_noise = ROOT.RooDataHist("histo_noise","histo_noise",ROOT.RooArgList(work.var("x")),histo_noise)    
+    
+    getattr(work,'import')(rooData_nonoise)
+    getattr(work,'import')(rooData_noise)
+
+    frame = x.frame()
+    frame.SetTitle('')
+    
+    # fit noiseless sim
+    rooData_nonoise.plotOn(frame,ROOT.RooFit.MarkerStyle(ms_nonoise))
+    pdf = work.pdf('cb')
+    pdf.fitTo(rooData_nonoise,ROOT.RooFit.Save(),ROOT.RooFit.PrintLevel(-1))
+    pdf.plotOn(frame,ROOT.RooFit.LineColor(lc_nonoise))
+    rooData_nonoise.plotOn(frame,ROOT.RooFit.MarkerStyle(ms_nonoise))
+
+    frame.GetYaxis().SetTitle("superclusters")
+    frame.GetXaxis().SetTitle("E_{SC}/E_{true}")
+    frame.GetXaxis().SetTitleOffset(1.2)
+    
+    m1 = work.var('mean').getVal()
+    s1 = work.var('sigma').getVal()
+
+    
+    # fit noisy sim
+    rooData_noise.plotOn(frame,ROOT.RooFit.MarkerStyle(ms_noise))
+    pdf = work.pdf('cb')
+    pdf.fitTo(rooData_noise,ROOT.RooFit.Save(),ROOT.RooFit.PrintLevel(-1))
+    pdf.plotOn(frame,ROOT.RooFit.LineColor(lc_noise))
+    rooData_noise.plotOn(frame,ROOT.RooFit.MarkerStyle(ms_noise))
+
+    m2 = work.var('mean').getVal()
+    s2 = work.var('sigma').getVal()
+    
+    c = getCanvas()
+    frame.Draw()
+
+    plots = [histo_nonoise,histo_noise]
+    labels = ['MC truth','MC sim']
+    styles = ['pe1','pe1']
+    legend = doLegend(plots,labels,styles,corner='TL')
+    legend.Draw()
+    
+    tt1 = ROOT.TLatex(0.65,0.8,'#splitline{{m = {mean:.2f}}}{{#sigma/m = {sigma:.3f}}}'.format(mean=m1,sigma=s1/m1))
+    printTLatex(tt1,lc_nonoise)
+
+    tt2 = ROOT.TLatex(0.4,0.5,'#splitline{{m = {mean:.2f}}}{{#sigma/m = {sigma:.3f}}}'.format(mean=m2,sigma=s2/m2))
+    printTLatex(tt2,lc_noise)
+
+    for ext in ['pdf','png','root']:
+        c.SaveAs('eoveretrue.{ext}'.format(ext=ext))
+    
+    
 if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
-    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options = tworuns, evsdist, pmtvsz, cluvspmt, cluvsz, multiplicity, hist1d, hist2d, pedrms)')
+    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options = tworuns, evsdist, pmtvsz, cluvspmt, cluvsz, multiplicity, hist1d, hist2d, pedrms, eoveretrue)')
     parser.add_option('', '--outdir' , type='string'       , default='./'      , help='output directory with directory structure and plots')
     parser.add_option('', '--var' , type='string'       , default='integral'      , help='variable to plot the histogram')
     parser.add_option('', '--pos' , type='int'       , default=0      , help='position of the iron source')
@@ -1297,3 +1389,6 @@ if __name__ == "__main__":
 
     if options.make in ['all','pedrms']:
         plotPedRMS()
+
+    if options.make in ['all','eoveretrue']:
+        plotSimEoverEtrue()

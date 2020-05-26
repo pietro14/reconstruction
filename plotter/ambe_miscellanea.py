@@ -5,12 +5,12 @@ from simple_plot import getCanvas, doLegend
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(True)
 
-def fitFe(rfile):
+def fitFe(rfile,calib=True):
     tf = ROOT.TFile.Open(rfile)
-    histo_sig = tf.Get("energyfe_diff")
+    histo_sig = tf.Get("energyfe_diff" if calib else "integralfe_diff")
     histo_sig.SetMarkerColor(ROOT.kBlack)
     histo_sig.SetLineColor(ROOT.kBlack)
-    histo_sig.GetXaxis().SetTitle('energy (keV)')
+    histo_sig.GetXaxis().SetTitle('energy (keV)' if calib else 'I_{SC} (counts)')
     histo_sig.GetXaxis().SetTitleSize(0.05)
     histo_sig.GetYaxis().SetTitle('superclusters (bkg subtracted)')
     
@@ -19,23 +19,27 @@ def fitFe(rfile):
 
     par = array( 'd', 6*[0.] )
 
-    g1 = ROOT.TF1("g1","gaus",3,9);
-    g2 = ROOT.TF1("g2","gaus",11,16);
-    total = ROOT.TF1('total','gaus(0)+gaus(3)',3,16)
+    xmin1,xmax1 = (3,9) if calib else (1600,3400)
+    xmin2,xmax2 = (11,16) if calib else (4400,6000)    
+    g1 = ROOT.TF1("g1","gaus",xmin1,xmax1);
+    g2 = ROOT.TF1("g2","gaus",xmin2,xmax2);
+    total = ROOT.TF1('total','gaus(0)+gaus(3)',xmin1,xmax2)
     total.SetLineColor(ROOT.kBlue+1)
     histo_sig.Fit('g1','RS')
     histo_sig.Fit('g2','R+S')
     mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
     sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
     lat = ROOT.TLatex()
+    unit = 'keV' if calib else 'counts'
+    ndigits = 2 if calib else 0
     lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.03)
-    lat.DrawLatex(0.55, 0.70, "m_{{1}} = {m:.2f} #pm {em:.2f} keV".format(m=mean,em=mErr))
-    lat.DrawLatex(0.55, 0.65, "#sigma_{{1}} = {s:.2f} #pm {es:.2f} keV".format(s=sigma,es=mSigma))
+    lat.DrawLatex(0.55, 0.70, "m_{{1}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
+    lat.DrawLatex(0.55, 0.65, "#sigma_{{1}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=mSigma,unit=unit,nd=ndigits))
 
     mean  = g2.GetParameter(1); mErr = g2.GetParError(1)
     sigma = g2.GetParameter(2); mSigma = g2.GetParError(2)
-    lat.DrawLatex(0.55, 0.50, "m_{{2}} = {m:.2f} #pm {em:.2f} keV".format(m=mean,em=mErr))
-    lat.DrawLatex(0.55, 0.45, "#sigma_{{2}} = {s:.2f} #pm {es:.2f} keV".format(s=sigma,es=mSigma))
+    lat.DrawLatex(0.55, 0.50, "m_{{2}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
+    lat.DrawLatex(0.55, 0.45, "#sigma_{{2}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=mSigma,unit=unit,nd=ndigits))
 
 
 
@@ -110,6 +114,8 @@ if __name__ == "__main__":
                  
     if  options.make == 'fitfe':
         fitFe('plots/ambe/clusters_3sourcesNloCalNeutronsFex1_2020_05_05/energy.root')
+    if  options.make == 'fitfeuncalib':
+        fitFe('plots/ambe/clusters_3sourcesNloCalNeutronsFex1_2020_05_05/integral.root',calib=False)
 
     ## usages:
     # AmBe efficiency:> python ambe_miscellanea.py --make efficiency --source ambe --outdir './'
