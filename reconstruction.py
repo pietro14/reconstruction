@@ -202,15 +202,25 @@ class analysis:
 
                     # Upper Threshold full image
                     img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
-                    # zs on full image
-                    img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                    img_fr_zs  = ctools.zsfullres(img_fr_sub,self.noisearr_fr,nsigma=self.options.nsigma)
-                    img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+
+                   # zs on full image + saturation correction on full image
+                    if self.options.saturation_corr:
+                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                        img_fr_satcor = ctools.satur_corr(img_fr_sub) 
+                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                        img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+
+                    # skip saturation and set satcor =img_fr_sub 
+                    else:
+                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                        img_fr_satcor = img_fr_sub  
+                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                        img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
                     
                     # Cluster reconstruction on 2D picture
                     algo = 'DBSCAN'
                     if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_sub, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
+                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
                     plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
                     snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                     snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
@@ -275,11 +285,13 @@ if __name__ == '__main__':
     
     #inputf = inputFile(options.run, options.dir, options.daq)
 
-    if sw.checkfiletmp(int(options.run)):
-        options.tmpname = "/tmp/histograms_Run%05d.root" % int(options.run)
+    if sw.checkfiletmp(int(options.run), options.tmpname):
+       #print("I am checking if there is a file in: " + options.tmpname)
+       options.tmpname = options.tmpname + "/histograms_Run%05d.root" % int(options.run)
+    
     else:
         print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run))
+        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),options.tmpname
     
     if options.justPedestal:
         ana = analysis(options)

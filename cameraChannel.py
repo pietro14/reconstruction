@@ -27,6 +27,21 @@ class cameraTools:
 
     def pedsub(self,img,pedarr):
         return img - pedarr
+
+    def satur_corr(self,img):
+        e = 1.60217662e-7 # electric charge in C
+        d2 = 0.015625 # mm^2
+        omega = 0.00018 #solid  angle  covered  by  thephotocamera
+        alpha = 0.08 # coefficient for varied gas mixture
+        sigma0 = 2.5 # small variable of density of charge, we set it as limit for different fit parameters, unit of pC/mm^2
+        a0 = 0.1855 # 0.2368 
+        #fit function is y=ax^2+bx+c 
+        a = a0*e/(d2*alpha*omega) # from fit of charge densities functions, converted to photon units
+        b = (1.- 2*a0*sigma0)
+        c= a0*sigma0*sigma0*(d2*alpha*omega)/e
+        img0 = sigma0*(d2*alpha*omega)/e  # minimal desity of photons, like sigma0 but in photon unit 
+        img_sat_corr = np.where(img > img0, (a*img*img + b*img + c), img)
+        return img_sat_corr
     
     def zsfullres(self,img_sub,noisearr,nsigma=1):
         img_zs = np.where(img_sub > nsigma * noisearr, img_sub, 0)
