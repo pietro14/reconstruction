@@ -59,7 +59,6 @@ class analysis:
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
-        self.outTree.branch("pedestal_run", "I")
         if self.options.camera_mode:
             self.autotree.createCameraVariables()
             self.autotree.createClusterVariables('cl')
@@ -192,7 +191,6 @@ class analysis:
                 print("Processing Run: ",run,"- Event ",event,"...")
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
-                self.outTree.fillBranch("pedestal_run",int(self.options.pedrun))
 
             if self.options.camera_mode:
                 if obj.InheritsFrom('TH2'):
@@ -202,20 +200,23 @@ class analysis:
 
                     # Upper Threshold full image
                     img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
-
-                   # zs on full image + saturation correction on full image
+                    
+                    # zs on full image + saturation correction on full image
                     if self.options.saturation_corr:
-                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                        img_fr_satcor = ctools.satur_corr(img_fr_sub) 
-                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                        img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
-
+                    	#print("you are in saturation correction mode")
+                    	img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                    	img_fr_satcor = ctools.satur_corr(img_fr_sub) 
+                    	img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                    	img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                    
                     # skip saturation and set satcor =img_fr_sub 
                     else:
-                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                        img_fr_satcor = img_fr_sub  
-                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                        img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                    	#print("you are in poor mode")
+                    	img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                    	img_fr_satcor = img_fr_sub  
+                    	img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                    	img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                    
                     
                     # Cluster reconstruction on 2D picture
                     algo = 'DBSCAN'
@@ -266,6 +267,7 @@ if __name__ == '__main__':
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
+    #parser.add_option(      '--tmppath', dest='tmpname', default='/tmp', type='string', help='Directory where to keep tmp histograms')
     
     (options, args) = parser.parse_args()
     
@@ -289,15 +291,15 @@ if __name__ == '__main__':
        #print("I am checking if there is a file in: " + options.tmpname)
        options.tmpname = options.tmpname + "/histograms_Run%05d.root" % int(options.run)
     
+    #if there is no file in given tmp directory  = options.tmpname it will set tmpname as "/tmp" and look for histograms there
     else:
-        print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),options.tmpname
+        #print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
+        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),options.tmpname)
     
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
-        if options.donotremove == False:
-            sw.swift_rm_root_file(options.tmpname)
+        sw.swift_rm_root_file(options.tmpname)
         sys.exit(0)     
     
     ana = analysis(options)
@@ -324,7 +326,7 @@ if __name__ == '__main__':
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         os.system('{rootsys}/bin/hadd -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
-        os.system('rm {base}_chunk*.root'.format(base=base))
+        os.system('rm {base}_chunk*org.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
         ana.reconstruct()
