@@ -101,9 +101,14 @@ class SuperClusterAlgorithm:
                 x = scpixels[:, 0]; y = scpixels[:, 1]
                 corr, p_value = pearsonr(x, y)
                 sclu.pearson = p_value
+                ## slicesCalEnergy is useful for the profile along the path
+                calEnergy,slicesCalEnergy,centers = self.calibrator.calibratedEnergy(sclu.hits_fr)
                 if self.debug:
                     print ( "SUPERCLUSTER BARE INTEGRAL = {integral:.1f}".format(integral=sclu.integral()) )
-                sclu.calibratedEnergy = self.calibrator.calibratedEnergy(sclu.hits_fr)
+                sclu.calibratedEnergy = calEnergy
+                sclu.nslices = len(slicesCalEnergy)
+                sclu.energyprofile = slicesCalEnergy
+                sclu.centers = centers
                 sclu.pathlength = self.calibrator.clusterLength()
                 superClusters.append(sclu)
 
