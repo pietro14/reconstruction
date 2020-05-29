@@ -34,8 +34,8 @@ class Cluster:
         d2 = 0.015625
         omega = 0.00018 
         alpha = 0.08
-        sigma0 = 2.0
-        a0 = 0.2348
+        sigma0 = 2.5
+        a0 = 0.1855
         a = a0*e/(d2*alpha*omega)
         b = (1.- 2*a0*sigma0)
         c = a0*sigma0*sigma0*(d2*alpha*omega)/e
