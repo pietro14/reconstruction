@@ -38,6 +38,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('{name}_size'.format(name=name),         'F', lenVar=sizeStr)
         self.outTree.branch('{name}_nhits'.format(name=name),        'F', lenVar=sizeStr)
         self.outTree.branch('{name}_integral'.format(name=name),     'F', lenVar=sizeStr)
+        self.outTree.branch('{name}_corrintegral'.format(name=name),     'F', lenVar=sizeStr)
         # filled only for the supercluster
         if name=='sc':
             self.outTree.branch('{name}_nslices'.format(name=name), 'F', lenVar=sizeStr)
@@ -89,6 +90,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('{name}_size'.format(name=name),     [cl.size() for cl in clusters])
         self.outTree.fillBranch('{name}_nhits'.format(name=name),    [cl.sizeActive() for cl in clusters])
         self.outTree.fillBranch('{name}_integral'.format(name=name), [cl.integral() for cl in clusters])
+        self.outTree.fillBranch('{name}_corrintegral'.format(name=name), [cl.corr_integral() for cl in clusters])
         # filled only for the supercluster
         if name=='sc':
             self.outTree.fillBranch('{name}_nslices'.format(name=name), [cl.nslices for cl in clusters])
@@ -127,7 +129,3 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('{name}_lgausssigma'.format(name=name), [cl.shapes['lgausssigma'] for cl in clusters])
         self.outTree.fillBranch('{name}_lchi2'.format(name=name),       [cl.shapes['lchi2'] for cl in clusters]) 
         self.outTree.fillBranch('{name}_lstatus'.format(name=name),     [cl.shapes['lstatus'] for cl in clusters])
-
-
-
-        
