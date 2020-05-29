@@ -199,12 +199,16 @@ class EnergyCalibrator:
         else:
             l = self.length
         return l
-            
+
+from skimage import io
+from skimage.util import img_as_ubyte
+
 if __name__ == '__main__':
 
+
+    ## this tests the calibrator with saved numpy array of one cluster
     # load hits
     hits = np.load('debug_code/supercluster3.npy')
-
     filePar = open('modules_config/energyCalibrator.txt','r')
     params = eval(filePar.read())
     calibrator = EnergyCalibrator(params)
@@ -215,34 +219,53 @@ if __name__ == '__main__':
     cal = calibrator.calibratedEnergy(hits)
     print ("Calibrated energy (keV) = ",cal)
 
-    # skeleton = skeletonize(image)
-    # thinned = thin(image)
-    # pruned = pruning(thinned,10)
+    ## this is to make example figures of the method
+    ## note: morphology functions only work on gray-scale or binary images, so we set as_gray=True.
+    # image = img_as_ubyte(io.imread('pic_run02317_ev8_sc_3D.png', as_gray=True))
+    # print (type(image))
 
+    cluster_matrix = calibrator.getClusterMatrix(hits) # this has x,y,z
+    image = cluster_matrix != 0 # this is the binary version to run the skeletonization
+
+    # skeleton = skeletonize(image)
+    thinned = thin(image)
+    pruned = calibrator.pruning(thinned,10)
 
 
     # #medial_axis = medial_axis(image)
 
-    # fig, axes = plt.subplots(2, 2, figsize=(8, 8), sharex=True, sharey=True)
-    # ax = axes.ravel()
+    fig, ax = plt.subplots(figsize=(10,10))
 
-    # ax[0].imshow(image, cmap=plt.cm.gray)
-    # ax[0].set_title('original')
-    # ax[0].axis('off')
+    
+    #ax[0].imshow(hits, cmap=plt.cm.gray)
+    #ax[0].set_title('original')
+    #ax[0].axis('off')
     
     # ax[1].imshow(skeleton, cmap=plt.cm.gray)
     # ax[1].set_title('skeleton')
     # ax[1].axis('off')
     
-    # ax[2].imshow(thinned, cmap=plt.cm.gray)
-    # ax[2].set_title('thinned')
-    # ax[2].axis('off')
-    
-    # ax[3].imshow(pruned, cmap=plt.cm.gray)
-    # ax[3].set_title('pruned')
-    # ax[3].axis('off')
-    
-    # fig.tight_layout()
-    # plt.show()
+    #ax[0].imshow(thinned, cmap=plt.cm.gray)
+    #ax[0].set_title('thinned')
+    #ax[0].axis('off')
 
+    font = {'family': 'arial',
+            'color':  'black',
+            'weight': 'normal',
+            'size': 24,
+    }
+
+    ax.imshow(pruned, cmap=plt.cm.gray_r)
+    ax.set_title('supercluster axis',font,pad=40)
+    ax.invert_yaxis()
+
+
+    plt.xlabel('x (pixels)', font, labelpad=20)
+    plt.ylabel('y (pixels)', font, labelpad=20)
+
+    fig.tight_layout()
+    # plt.show()
+    
+    for ext in ['pdf','png']:
+        plt.savefig('skeleton_paper.{ext}'.format(ext=ext))
 

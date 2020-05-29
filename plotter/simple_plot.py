@@ -14,7 +14,13 @@ fe_truth = 5.9 # keV
 fe_calib_gauspeak  = [4.50,0.013] # central value, stat error
 fe_calib_gaussigma = [1.07,0.014] # central value, stat error
 
-
+def printTLatex(tl,color=ROOT.kBlack):
+    tl.SetNDC()
+    tl.SetTextFont(42)
+    tl.SetTextAlign(21)
+    tl.SetTextSize(0.03)
+    tl.SetTextColor(color)
+    tl.Draw()
 
 def angleWrtHorizontal(xmin,xmax,ymin,ymax):
     x = xmax-xmin
@@ -55,19 +61,19 @@ def isPurpleBlob(length,density):
 
 def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
     nentries = len(histos)
-    (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .91)
+    (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
     if corner == "TR":
-        (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .91)
+        (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
     elif corner == "TC":
-        (x1,y1,x2,y2) = (.5, .75 - textSize*max(nentries-3,0), .5+legWidth, .91)
+        (x1,y1,x2,y2) = (.5, .7 - textSize*max(nentries-3,0), .5+legWidth, .89)
     elif corner == "TL":
-        (x1,y1,x2,y2) = (.2, .75 - textSize*max(nentries-3,0), .2+legWidth, .91)
+        (x1,y1,x2,y2) = (.2, .7 - textSize*max(nentries-3,0), .2+legWidth, .89)
     elif corner == "BR":
         (x1,y1,x2,y2) = (.85-legWidth, .33 + textSize*max(nentries-3,0), .90, .15)
     elif corner == "BC":
         (x1,y1,x2,y2) = (.5, .33 + textSize*max(nentries-3,0), .5+legWidth, .35)
     elif corner == "BL":
-        (x1,y1,x2,y2) = (.2, .33 + textSize*max(nentries-3,0), .33+legWidth, .35)
+        (x1,y1,x2,y2) = (.2, .23 + textSize*max(nentries-3,0), .33+legWidth, .35)
     leg = ROOT.TLegend(x1,y1,x2,y2)
     leg.SetNColumns(nColumns)
     leg.SetFillColor(0)
@@ -233,8 +239,8 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',200,0,25e4)
     ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',50,0,30)
     ret[('ambe','energy')] = ROOT.TH1F("energy",'',50,0,30)
-    ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',15,0,150)
-    ret[('ambe','energyExt')] = ROOT.TH1F("energyExt",'',15,0,150)
+    ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',20,0,150)
+    ret[('ambe','energyExt')] = ROOT.TH1F("energyExt",'',20,0,200)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',50,0,2000)
     ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200)
     ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40)
@@ -242,7 +248,7 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','slimness')] = ROOT.TH1F("slimness",'',50,0,1)
     ret[('ambe','density')]  = ROOT.TH1F("density",'',45,0,30)
     ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',45,0,100)
-    ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',40,1.,12.)
+    ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',30,1.,20.)
     ret[('ambe','inclination')]  = ROOT.TH1F("inclination",'',15,0,90)
     ret[('ambe','asymmetry')]  = ROOT.TH1F("asymmetry",'',5,0,1.)
 
@@ -260,7 +266,7 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','integralvslength')] =  ROOT.TH2F("integralvslength",'',100,0,300,100,0,15e3)
 
     ret[('ambe','densityvslength')]      =  ROOT.TH2F("densityvslength",''     ,100,0,2000,45,0,30)
-    ret[('ambe','densityvslength_zoom')] =  ROOT.TH2F("densityvslength_zoom",'',50,0,1000, 45,0,30)
+    ret[('ambe','densityvslength_zoom')] =  ROOT.TH2F("densityvslength_zoom",'',50,0,1000, 45,5,30)
     ret[('ambe','calenergyvslength_zoom')] =  ROOT.TH2F("calenergyvslength_zoom",'',50,0,1000, 25,0,150)
 
     # ret[('fe','integralvslength')] = ROOT.TGraph()
@@ -268,12 +274,12 @@ def fillSpectra(cluster='sc'):
     # ret[('fe','sigmavsintegral')] = ROOT.TGraph()
     
     # x-axis titles
-    titles = {'integral': 'photons', 'integralExt': 'photons', 'calintegral': 'energy (keV)', 'calintegralExt': 'energy (keV)', 'caldensity': 'density (eV/pixel)', 'dedx': 'dE/dx (keV/cm)',
+    titles = {'integral': 'I_{SC} (photons)', 'integralExt': 'I_{SC} (photons)', 'calintegral': 'energy (keV)', 'calintegralExt': 'energy (keV)', 'caldensity': 'density (eV/pixel)', 'dedx': 'dE/d#it{l}_p (keV/cm)',
               'energy': 'energy (keV)', 'energyExt': 'energy (keV)', # these are like calintegral, but estimated in the reconstruction step
-              'length':'length (pixels)', 'width':'width (pixels)', 'nhits': 'active pixels', 'slimness': 'width/length', 'density': 'photons/pixel',
+              'length':'#it{l}_{p} (pixels)', 'width':'#it{w} (pixels)', 'nhits': 'n_{p}', 'slimness': '#xi', 'density': '#delta (photons/pixel)',
               'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
               'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
-              'tgausssigma': '#sigma_{transverse} (pixels)', 'inclination': '#theta_{hor}', 'asymmetry': 'asymmetry: (A-B)/(A+B)'}
+              'tgausssigma': '#sigma^{T}_{Gauss} (pixels)', 'inclination': '#theta (deg)', 'asymmetry': 'asymmetry: (A-B)/(A+B)'}
 
     titles2d = {'integralvslength': ['length (pixels)','photons'], 'densityvslength' : ['length (pixels)','density (ph/pix)'],
                 'densityvslength_zoom' : ['length (pixels)','density (ph/pix)'], 'calenergyvslength_zoom' : ['length (pixels)','energy (keV)']}
@@ -370,7 +376,7 @@ def fillSpectra(cluster='sc'):
                 # if not spotsLowDensity(length,density):
                 #    continue
                 # if not cosmicSelection(length,gsigma):
-                #     continue
+                #    continue
                 #if not isPurpleBlob(length,density):
                 #    continue
 
@@ -386,7 +392,11 @@ def fillSpectra(cluster='sc'):
                 # remove the 60 keV background in AmBe and
                 if is60keVBkg(length,density):
                     continue
-                ##########################
+                # ##########################
+
+                # ## cut with 40% sig eff and 1% bkg eff
+                # if density<11:
+                #     continue
 
                 for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
@@ -440,8 +450,8 @@ def fillSpectra(cluster='sc'):
 
                 ### for debugging purposes:
                 # if 30e3 < integral < 40e+3 and event.run==2156:
-                # if 2096 < event.run < 2099 and length < 80 and 5 < density < 8:
-                #     print("density = {d:.1f}\tlength = {l:.0f}\t{r}\t{e}\t{y}\t{x}\t{phot}".format(d=density,l=length,r=event.run,e=event.event,y=int(event.sc_ymean[isc]/4.),x=int(event.sc_xmean[isc]/4.),phot=int(event.sc_integral[isc])))
+                # if 2096 < event.run < 2099: # and length < 80 and 5 < density < 8:
+                #      print("density = {d:.1f}\tlength = {l:.0f}\t{r}\t{e}\t{y}\t{x}\t{phot}\t{ene}".format(d=density,l=length,r=event.run,e=event.event,y=int(event.sc_ymean[isc]/4.),x=int(event.sc_xmean[isc]/4.),phot=int(event.sc_integral[isc]),ene=energy_cal))
 
                 
     return ret,entries
@@ -528,8 +538,14 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ymax = max(histo_bkg.GetMaximum(),histo_sig.GetMaximum())
     if histo_sig2:
         ymax = max(histo_sig2.GetMaximum(),ymax)
-    histo_sig.SetMaximum(1.5*ymax)
+    histo_sig.SetMaximum(1.2*ymax)
     histo_sig.SetMinimum(0)
+    histo_sig.GetXaxis().SetLabelSize(0.05)
+    histo_sig.GetXaxis().SetLabelFont(42)
+    histo_sig.GetYaxis().SetLabelSize(0.05)
+    histo_sig.GetYaxis().SetLabelFont(42)
+    histo_sig.GetYaxis().SetTitleSize(0.05)
+    histo_sig.GetYaxis().SetTitleFont(42)
     if normEntries:
         histo_sig.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
     else:
@@ -542,24 +558,24 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     #padTop.SetLogy(1)
 
     ### this is to fit the energy/length distribution in the cosmics
-    if histo_sig.GetName()=='dedx':
-        l1 = ROOT.TF1("l1","landau",2,9);
-        histo_bkg.Fit('l1','S')
-        l1.Draw('same')
-        mpv  = l1.GetParameter(1); mErr = l1.GetParError(1)
-        sigma = l1.GetParameter(2); mSigma = l1.GetParError(2)
-        lat1 = ROOT.TLatex()
-        lat1.SetNDC(); lat1.SetTextFont(42); lat1.SetTextSize(0.05)
-        lat1.DrawLatex(0.55, 0.60, "mpv = {m:.2f} #pm {em:.2f} keV".format(m=mpv,em=mErr))
-        lat1.DrawLatex(0.55, 0.50, "#sigma = {s:.2f} #pm {es:.2f} keV".format(s=sigma,es=mSigma))
+    # if histo_sig.GetName()=='dedx':
+    #     l1 = ROOT.TF1("l1","landau",2,9);
+    #     histo_bkg.Fit('l1','S')
+    #     l1.Draw('same')
+    #     mpv  = l1.GetParameter(1); mErr = l1.GetParError(1)
+    #     sigma = l1.GetParameter(2); mSigma = l1.GetParError(2)
+    #     lat1 = ROOT.TLatex()
+    #     lat1.SetNDC(); lat1.SetTextFont(42); lat1.SetTextSize(0.05)
+    #     lat1.DrawLatex(0.55, 0.60, "mpv = {m:.2f} #pm {em:.2f} keV".format(m=mpv,em=mErr))
+    #     lat1.DrawLatex(0.55, 0.50, "#sigma = {s:.2f} #pm {es:.2f} keV".format(s=sigma,es=mSigma))
     ###############################
 
     ## rescale the Fe bkg by the scale factor in the pure cosmics CR
     histo_bkg.Scale(cosm_rate_calib[0])
     
-    histos = [histo_sig,histo_bkg,histo_sig2]
-    labels = ['AmBe','%.2f #times no source' % cosm_rate_calib[0], '%.1f #times ^{55}Fe' % fe_integral_rescale]
-    styles = ['pe','f','f']
+    histos = [histo_sig,histo_bkg] + [histo_sig2] if histo_sig2 else []
+    labels = ['AmBe','%.2f #times no source' % cosm_rate_calib[0]] + [ '%.2f #times ^{55}Fe' % fe_integral_rescale] if histo_sig2 else []
+    styles = ['pe','f'] + ['f'] if histo_sig2 else []
     
     legend = doLegend(histos,labels,styles,corner="TR")
     legend.Draw()
@@ -574,8 +590,14 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ratio.SetLineColor(ROOT.kBlack)
     ratio.Sumw2()
     ratio.Add(histo_bkg,-1.0)
-    ratio.GetYaxis().SetTitleSize(0.05)
-    ratio.GetYaxis().SetTitle("source - nosource")
+    ratio.GetXaxis().SetLabelSize(0.05 * 3./2.)
+    ratio.GetXaxis().SetLabelFont(42)
+    ratio.GetYaxis().SetLabelSize(0.05 * 3./2.)
+    ratio.GetYaxis().SetLabelFont(42)
+    ratio.GetYaxis().SetTitleSize(0.05 * 3./2.)
+    ratio.GetYaxis().SetTitleFont(42)
+    ratio.GetYaxis().SetTitleOffset(0.8)
+    ratio.GetYaxis().SetTitle("bkg. subtr. data")
     ratio.GetYaxis().CenterTitle()
     # take the first error bar as estimate for all)
     ratio.SetMaximum(ratio.GetMaximum()+ratio.GetBinError(1))
@@ -587,15 +609,15 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure
     ## in principle should fit the bkg-subtracted plot, but too large stat uncertainty on BKG
-    if histo_sig.GetName() in ['calintegralExt','energyExt']:
-        g1 = ROOT.TF1("g1","gaus",20,110);
-        histo_sig.Fit('g1','RS')
-        mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
-        sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
-        lat = ROOT.TLatex()
-        lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
-        lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
-        lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
+    # if histo_sig.GetName() in ['calintegralExt','energyExt']:
+    #     g1 = ROOT.TF1("g1","gaus",20,110);
+    #     histo_sig.Fit('g1','RS')
+    #     mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
+    #     sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
+    #     lat = ROOT.TLatex()
+    #     lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.07)
+    #     lat.DrawLatex(0.65, 0.60, "mean = {m:.1f} #pm {em:.1f} keV".format(m=mean,em=mErr))
+    #     lat.DrawLatex(0.65, 0.50, "#sigma = {s:.1f} #pm {es:.1f} keV".format(s=sigma,es=mSigma))
     ###############################
     
     
@@ -613,7 +635,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         labelsR.append('%.1f #times ^{55}Fe - no source' % fe_integral_rescale)
         stylesR.append('pe')
         rmax = max(ratio.GetMaximum(),ratio2.GetMaximum())
-        ratio.SetMaximum(rmax)
+        ratio.SetMaximum(1.1*rmax)
         
     legendR = doLegend(ratios,labelsR,stylesR,corner="TR")
     legendR.Draw()
@@ -673,42 +695,45 @@ def drawOne2D_raw(histo_sig,histo_bkg1,histo_bkg2,plotdir='./'):
 def drawOne2D(histo_sig,histo_bkg,plotdir='./',normEntries=False):
     ROOT.gStyle.SetOptStat(0)
 
-    ROOT.TColor.CreateGradientColorTable(3,
-                                      array ("d", [0.00, 0.50, 1.00]),
-                                      ##array ("d", [1.00, 1.00, 0.00]),
-                                      ##array ("d", [0.70, 1.00, 0.34]),
-                                      ##array ("d", [0.00, 1.00, 0.82]),
-                                      array ("d", [0.00, 1.00, 1.00]),
-                                      array ("d", [0.34, 1.00, 0.65]),
-                                      array ("d", [0.82, 1.00, 0.00]),
-                                      255,  0.95)
+    # ROOT.TColor.CreateGradientColorTable(3,
+    #                                   array ("d", [0.00, 0.50, 1.00]),
+    #                                   ##array ("d", [1.00, 1.00, 0.00]),
+    #                                   ##array ("d", [0.70, 1.00, 0.34]),
+    #                                   ##array ("d", [0.00, 1.00, 0.82]),
+    #                                   array ("d", [0.00, 1.00, 1.00]),
+    #                                   array ("d", [0.34, 1.00, 0.65]),
+    #                                   array ("d", [0.82, 1.00, 0.00]),
+    #                                   255,  0.95)
 
-    ROOT.gStyle.SetNumberContours(51)
+    ROOT.gStyle.SetPalette(ROOT.kRainBow)
+    #ROOT.gStyle.SetNumberContours(51)
     ROOT.gErrorIgnoreLevel = 100
     
     c = ROOT.TCanvas('c','',3600,1200)
     c.Divide(3,1)
 
     c.cd(1)
-    histo_sig.SetTitle('AmBe')
+    histo_sig.SetTitle('(AmBe)')
     histo_sig.Draw('colz')
     
     c.cd(2)
-    histo_bkg.SetTitle('no source')
+    histo_bkg.SetTitle('(no source)')
+    histo_bkg.SetMaximum(30)
     histo_bkg.Draw("colz")
 
     c.cd(3)
     ratio = histo_sig.Clone(histo_sig.GetName()+"_diff")
-    ratio.SetTitle('AmBe - NoSource')
+    ratio.SetTitle('(AmBe) - %.2f #times (no source)' % cosm_rate_calib[0])
     ratio.Sumw2()
     ratio.Add(histo_bkg,-1*cosm_rate_calib[0])
-    ratio.GetYaxis().SetTitleSize(0.05)
-    ratio.GetYaxis().SetTitle("left - right")
+    #ratio.GetYaxis().SetTitleSize(0.05)
+    ratio.GetYaxis().SetTitle(histo_sig.GetYaxis().GetTitle())
     ratio.Draw('colz')
     
     maxY = max(ratio.GetMaximum(),abs(ratio.GetMinimum()))
-    ratio.SetMaximum( 0.5 * maxY)
-    ratio.SetMinimum(-0.5 * maxY)
+    ratio.SetMaximum( min(0.5 * maxY,15))
+    ratio.SetMinimum(0)
+    #ratio.SetMinimum(-0.5 * maxY)
     
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/{var}.{ext}".format(plotdir=plotdir,var=histo_sig.GetName(),ext=ext))
@@ -740,12 +765,13 @@ def drawSpectra(histos,plotdir,entries,normEntries=False):
         elif histos[('ambe',var)].InheritsFrom('TH1'):
             histos[('ambe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
             histos[('ambe',var)].SetLineColor(ROOT.kBlack)
-            histos[('cosm',var)].SetFillColor(ROOT.kAzure+6)
-            histos[('cosm',var)].SetFillStyle(3345)
+            histos[('cosm',var)].SetFillColorAlpha(ROOT.kAzure+6,0.3)
+            #histos[('cosm',var)].SetFillStyle(3345)
             if histos[('fe',var)]:
-                histos[('fe',var)].SetFillColor(ROOT.kRed+6)
-                histos[('fe',var)].SetFillStyle(3354)
-            drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
+                histos[('fe',var)].SetFillColorAlpha(ROOT.kGray+2,0.5)
+                #histos[('fe',var)].SetFillStyle(3354)
+            #drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
+            drawOne(histos[('ambe',var)],histos[('cosm',var)],histo_sig2=None,plotdir=plotdir,normEntries=normEntries)
         elif histos[('fe',var)].InheritsFrom('TGraph'):
             drawOneGraph(histos[('ambe',var)],var,plotdir)
             
@@ -1171,8 +1197,13 @@ def getOneROC(sigh,bkgh,direction='gt'):
     for ip,p in enumerate(plots):
         if direction=='gt':
             eff = [p.Integral(binx,nbins)/integrals[ip] for binx in range(0,nbins)]
+            thr = [p.GetBinLowEdge(binx) for binx in range(0,nbins)]
         else:
             eff = [p.Integral(0,binx)/integrals[ip] for binx in range(0,nbins)]
+            thr = [p.GetBinLowEdge(binx+1) for binx in range(0,nbins)]
+        # this is to find the cut for the wanted eff
+        effdic = dict(zip(thr,eff))
+        #print (effdic)
         efficiencies.append(eff)
 
     ## graph for the roc
@@ -1203,29 +1234,139 @@ def drawROC(varname,odir):
     fe_roc.SetMarkerColor(ROOT.kRed)
     fe_roc.SetLineColor(ROOT.kRed)
 
-    cosm_roc.Draw('APC')
-    cosm_roc.GetXaxis().SetTitle('AmBe efficiency')
-    cosm_roc.GetYaxis().SetTitle('Background rejection')
-    fe_roc.Draw('PC')
+    fe_roc.Draw('APC')
+    fe_roc.GetXaxis().SetTitle('signal efficiency')
+    fe_roc.GetYaxis().SetTitle('Background rejection')
+    #cosm_roc.Draw('PC')
 
     graphs = [cosm_roc,fe_roc]
     labels = ['no source bkg','^{55}Fe bkg']
     styles = ['pl','pl']
-    legend = doLegend(graphs,labels,styles,corner="TR")
+    legend = doLegend(graphs[1:],labels[1:],styles[1:],corner="TR")
     
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/{var}_roc.{ext}".format(plotdir=odir,var=varname,ext=ext))
              
+
+def plotPedRMS():
+    rf = ROOT.TFile.Open('../pedestals/pedmap_run2109_rebin1.root')
+    histo_rms = rf.Get('pedrms')
+    canv = getCanvas()
+
+    ROOT.gStyle.SetOptStat(1100)
+    
+    histo_rms.GetXaxis().SetTitle("electronics noise (RMS counts)")
+    histo_rms.GetYaxis().SetTitle("Number of pixels")
+    histo_rms.GetXaxis().SetTitleOffset(1.4)
+    histo_rms.GetYaxis().SetTitleOffset(2.0)
+    histo_rms.GetYaxis().SetTitleFont(42)
+    histo_rms.GetXaxis().SetTitleFont(42)
+    histo_rms.SetTitle("")
+    
+    histo_rms.Draw()
+    ROOT.gPad.Update()
+    
+    stats = histo_rms.FindObject("stats")
+    stats.SetX1NDC(0.7); stats.SetX2NDC(0.9);
+    stats.SetY1NDC(0.7); stats.SetY2NDC(0.9);
+
+    canv.SaveAs("sensor_noise.pdf")
+
+def plotSimEoverEtrue():
+
+    xmin=0.3
+    xmax=1.1
+    nbins = 70
+    
+    work = ROOT.RooWorkspace()
+    work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.5,1.1],sigma[0.05,0.01,0.10],alpha[1,0.1,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
+    work.Print()
+    
+    x = work.var('x')
+
+    var = 'sc_integral*6/3000/6'
+
+    ms_nonoise = ROOT.kOpenSquare
+    ms_noise = ROOT.kFullCircle
+    lc_nonoise = ROOT.kAzure-6
+    lc_noise = ROOT.kOrange-3
+    
+    rf_puremc = ROOT.TFile.Open("../sim/Reco_Digi_He_6_kev_petrucci.root")
+    t_puremc = rf_puremc.Get('Events')
+    histo_nonoise = ROOT.TH1F('histo_nonoise','',nbins,xmin,xmax)
+    histo_nonoise.SetMarkerStyle(ms_nonoise)
+    histo_nonoise.SetLineColor(ROOT.kBlack)
+    t_puremc.Draw('{var}>>histo_nonoise'.format(var=var),'{var}>{xmin} && {var}<{xmax}'.format(var=var,xmin=xmin,xmax=xmax))
+
+    rf_noise = ROOT.TFile.Open("../sim/Reco_Digi_He_6_kev_noise_petrucci.root")
+    t_noise = rf_noise.Get('Events')
+    histo_noise = ROOT.TH1F('histo_noise','',nbins,xmin,xmax)
+    histo_noise.SetMarkerStyle(ms_noise)
+    histo_noise.SetLineColor(ROOT.kBlack)
+    t_noise.Draw('{var}>>histo_noise'.format(var=var),'{var}>{xmin} && {var}<{xmax}'.format(var=var,xmin=xmin,xmax=xmax))
+
+    rooData_nonoise = ROOT.RooDataHist("histo_nonoise","histo_nonoise",ROOT.RooArgList(work.var("x")),histo_nonoise)
+    rooData_noise = ROOT.RooDataHist("histo_noise","histo_noise",ROOT.RooArgList(work.var("x")),histo_noise)    
+    
+    getattr(work,'import')(rooData_nonoise)
+    getattr(work,'import')(rooData_noise)
+
+    frame = x.frame()
+    frame.SetTitle('')
+    
+    # fit noiseless sim
+    rooData_nonoise.plotOn(frame,ROOT.RooFit.MarkerStyle(ms_nonoise))
+    pdf = work.pdf('cb')
+    pdf.fitTo(rooData_nonoise,ROOT.RooFit.Save(),ROOT.RooFit.PrintLevel(-1))
+    pdf.plotOn(frame,ROOT.RooFit.LineColor(lc_nonoise))
+    rooData_nonoise.plotOn(frame,ROOT.RooFit.MarkerStyle(ms_nonoise))
+
+    frame.GetYaxis().SetTitle("superclusters")
+    frame.GetXaxis().SetTitle("E_{SC}/E_{true}")
+    frame.GetXaxis().SetTitleOffset(1.2)
+    
+    m1 = work.var('mean').getVal()
+    s1 = work.var('sigma').getVal()
+
+    
+    # fit noisy sim
+    rooData_noise.plotOn(frame,ROOT.RooFit.MarkerStyle(ms_noise))
+    pdf = work.pdf('cb')
+    pdf.fitTo(rooData_noise,ROOT.RooFit.Save(),ROOT.RooFit.PrintLevel(-1))
+    pdf.plotOn(frame,ROOT.RooFit.LineColor(lc_noise))
+    rooData_noise.plotOn(frame,ROOT.RooFit.MarkerStyle(ms_noise))
+
+    m2 = work.var('mean').getVal()
+    s2 = work.var('sigma').getVal()
+    
+    c = getCanvas()
+    frame.Draw()
+
+    plots = [histo_nonoise,histo_noise]
+    labels = ['MC truth','MC sim']
+    styles = ['pe1','pe1']
+    legend = doLegend(plots,labels,styles,corner='TL')
+    legend.Draw()
+    
+    tt1 = ROOT.TLatex(0.65,0.8,'#splitline{{m = {mean:.2f}}}{{#sigma/m = {sigma:.3f}}}'.format(mean=m1,sigma=s1/m1))
+    printTLatex(tt1,lc_nonoise)
+
+    tt2 = ROOT.TLatex(0.4,0.5,'#splitline{{m = {mean:.2f}}}{{#sigma/m = {sigma:.3f}}}'.format(mean=m2,sigma=s2/m2))
+    printTLatex(tt2,lc_noise)
+
+    for ext in ['pdf','png','root']:
+        c.SaveAs('eoveretrue.{ext}'.format(ext=ext))
+        
     
 if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
-    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options = tworuns, evsdist, pmtvsz, cluvspmt, cluvsz, multiplicity, hist1d, hist2d)')
+    parser.add_option('', '--make'   , type='string'       , default='tworuns' , help='run simple plots (options = tworuns, evsdist, pmtvsz, cluvspmt, cluvsz, multiplicity, hist1d, hist2d, pedrms, eoveretrue)')
     parser.add_option('', '--outdir' , type='string'       , default='./'      , help='output directory with directory structure and plots')
     parser.add_option('', '--var' , type='string'       , default='integral'      , help='variable to plot the histogram')
     parser.add_option('', '--pos' , type='int'       , default=0      , help='position of the iron source')
     parser.add_option('', '--var2' , type='string'       , default='slimness'      , help='variable2 to plot the histogram 2D')
-   
+    
     (options, args) = parser.parse_args()
 
     ## make the output directory first
@@ -1240,7 +1381,7 @@ if __name__ == "__main__":
         os.system('mkdir -p {od}'.format(od=odir))
         drawSpectra(histograms,odir,entries,normEntries=True)
         os.system('cp ../index.php {od}'.format(od=odir))
-        drawROC('density',odir)
+        #drawROC('density',odir)
         
     if options.make in ['all','evsdist']:
         plotEnergyVsDistance(options.outdir)
@@ -1261,3 +1402,9 @@ if __name__ == "__main__":
         
     if options.make in ['all','hist2d']:
         plotHist2D(options.outdir, options.var, options.var2, options.pos)
+
+    if options.make in ['all','pedrms']:
+        plotPedRMS()
+
+    if options.make in ['all','eoveretrue']:
+        plotSimEoverEtrue()

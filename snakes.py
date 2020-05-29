@@ -2,6 +2,7 @@
 
 import numpy as np
 import ROOT,math,os,sys
+import pickle
 
 from scipy.ndimage import gaussian_filter, median_filter
 from skimage import img_as_float
@@ -241,6 +242,8 @@ class SnakesFactory:
                 plt.title("Original Image")
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
+                with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), "wb") as fp:
+                    pickle.dump(fig, fp, protocol=4)
                 plt.gcf().clear()
                 plt.close('all')
                 
@@ -293,6 +296,9 @@ class SnakesFactory:
 
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='1st',ext=ext,tip=self.options.tip), "wb") as fp:
+                    pickle.dump(fig, fp, protocol=4)
+
                 plt.gcf().clear()
                 plt.close('all')
                 
@@ -317,6 +323,9 @@ class SnakesFactory:
 
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='2nd', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='2nd',ext=ext,tip=self.options.tip), "wb") as fp:
+                    pickle.dump(fig, fp, protocol=4)
+
                 plt.gcf().clear()
                 plt.close('all')
                     
@@ -401,6 +410,9 @@ class SnakesFactory:
                 
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='all', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='all',ext=ext,tip=self.options.tip), "wb") as fp:
+                    pickle.dump(fig, fp, protocol=4)
+
                 plt.gcf().clear()
                 plt.close('all')
 
@@ -409,13 +421,16 @@ class SnakesFactory:
             if self.options.flag_supercluster == 1:
                 if len(superclusters):
                     fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2,alhpa=0.5)
+                    #supercluster_contour.collections[0].set_label('supercluster it 1+2')
                     plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                     plt.title("Superclusters found")
-                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2)
-                    supercluster_contour.collections[0].set_label('supercluster it 1+2')
                 
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='sc', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='sc',ext=ext,tip=self.options.tip), "wb") as fp:
+                    pickle.dump(fig, fp, protocol=4)
+
                 plt.gcf().clear()
                 plt.close('all')
             #################### PLOT SUPERCLUSTER ONLY ###############################
