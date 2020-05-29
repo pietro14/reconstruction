@@ -59,7 +59,6 @@ class analysis:
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
-        self.outTree.branch("pedestal_run", "I")
         if self.options.camera_mode:
             self.autotree.createCameraVariables()
             self.autotree.createClusterVariables('cl')
@@ -192,7 +191,6 @@ class analysis:
                 print("Processing Run: ",run,"- Event ",event,"...")
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
-                self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
 
             if self.options.camera_mode:
                 if obj.InheritsFrom('TH2'):
@@ -301,8 +299,7 @@ if __name__ == '__main__':
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
-        if options.donotremove == False:
-            sw.swift_rm_root_file(options.tmpname)
+        sw.swift_rm_root_file(options.tmpname)
         sys.exit(0)     
     
     ana = analysis(options)
@@ -329,7 +326,7 @@ if __name__ == '__main__':
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         os.system('{rootsys}/bin/hadd -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
-        os.system('rm {base}_chunk*.root'.format(base=base))
+        os.system('rm {base}_chunk*org.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
         ana.reconstruct()
