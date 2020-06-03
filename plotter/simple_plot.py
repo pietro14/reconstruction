@@ -7,7 +7,7 @@ ROOT.gROOT.SetBatch(True)
 if "/functions_cc.so" not in ROOT.gSystem.GetLibraries(): 
     ROOT.gROOT.ProcessLine(".L functions.cc+")
 
-fe_integral_rescale = 0.1
+fe_integral_rescale = 1
 cosm_rate_calib = [0.75,0.02]     # central value, stat error
 
 fe_truth = 5.9 # keV
@@ -69,9 +69,9 @@ def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBo
     elif corner == "TL":
         (x1,y1,x2,y2) = (.2, .7 - textSize*max(nentries-3,0), .2+legWidth, .89)
     elif corner == "BR":
-        (x1,y1,x2,y2) = (.85-legWidth, .33 + textSize*max(nentries-3,0), .90, .15)
+        (x1,y1,x2,y2) = (.85-legWidth, .15 + textSize*max(nentries-3,0), .90, .25)
     elif corner == "BC":
-        (x1,y1,x2,y2) = (.5, .33 + textSize*max(nentries-3,0), .5+legWidth, .35)
+        (x1,y1,x2,y2) = (.5, .15 + textSize*max(nentries-3,0), .5+legWidth, .25)
     elif corner == "BL":
         (x1,y1,x2,y2) = (.2, .23 + textSize*max(nentries-3,0), .33+legWidth, .35)
     leg = ROOT.TLegend(x1,y1,x2,y2)
@@ -241,6 +241,9 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','energy')] = ROOT.TH1F("energy",'',50,0,30)
     ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',20,0,150)
     ret[('ambe','energyExt')] = ROOT.TH1F("energyExt",'',20,0,200)
+    #energyBins = array('f',list(range(11))+list(range(12,17,2))+list(range(19,32,3))+list(range(40,101,10))+list(range(150,201,50)))
+    energyBins = array('f',list(range(11))+list(range(12,17,2))+list(range(19,32,3))+list(range(40,51,10))+list(range(75,149,25))+list(range(150,201,50)))
+    ret[('ambe','energyFull')] = ROOT.TH1F("energyFull",'',len(energyBins)-1,energyBins)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',50,0,2000)
     ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200)
     ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40)
@@ -275,7 +278,7 @@ def fillSpectra(cluster='sc'):
     
     # x-axis titles
     titles = {'integral': 'I_{SC} (photons)', 'integralExt': 'I_{SC} (photons)', 'calintegral': 'energy (keV)', 'calintegralExt': 'energy (keV)', 'caldensity': 'density (eV/pixel)', 'dedx': 'dE/d#it{l}_p (keV/cm)',
-              'energy': 'energy (keV)', 'energyExt': 'energy (keV)', # these are like calintegral, but estimated in the reconstruction step
+              'energy': 'energy (keV)', 'energyExt': 'energy (keV)', 'energyFull': 'energy (keV)', # these are like calintegral, but estimated in the reconstruction step
               'length':'#it{l}_{p} (pixels)', 'width':'#it{w} (pixels)', 'nhits': 'n_{p}', 'slimness': '#xi', 'density': '#delta (photons/pixel)',
               'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
               'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
@@ -311,11 +314,17 @@ def fillSpectra(cluster='sc'):
     selected = 0
     for runtype in ['fe','ambe','cosm']:
         for ie,event in enumerate(tfiles[runtype].Events):
+
+            ## eventually, use the PMT TOT threshold to reject the cosmics
+            if getattr(event,'pmt_tot')>250:
+                continue
+            
             for cmosvar in ['cmos_integral','cmos_mean','cmos_rms']:
                 ret[runtype,cmosvar].Fill(getattr(event,cmosvar))
             for pmtvar in ['pmt_integral','pmt_tot']:
                 ret[runtype,pmtvar].Fill(getattr(event,pmtvar))
             ret[runtype,'pmt_density'].Fill(getattr(event,'pmt_integral')/getattr(event,'pmt_tot'))
+
             firstSlice = 0
             for isc in range(getattr(event,"nSc" if cluster=='sc' else 'nCl')):
 
@@ -394,9 +403,10 @@ def fillSpectra(cluster='sc'):
                     continue
                 # ##########################
 
+
                 # ## cut with 40% sig eff and 1% bkg eff
-                # if density<11:
-                #     continue
+                # if density<10:
+                #      continue
 
                 for var in ['integral','length','width','nhits','tgausssigma']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
@@ -406,6 +416,7 @@ def fillSpectra(cluster='sc'):
                 energy_cal = getattr(event,"{clutype}_energy".format(clutype=cluster))[isc] * fe_truth / fe_calib_gauspeak[0]
                 ret[(runtype,'energy')].Fill(energy_cal)
                 ret[(runtype,'energyExt')].Fill(energy_cal)
+                ret[(runtype,'energyFull')].Fill(energy_cal)
                 ret[(runtype,'dedx')].Fill(energy_cal/(length*0.0125))
                 
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
@@ -450,9 +461,14 @@ def fillSpectra(cluster='sc'):
 
                 ### for debugging purposes:
                 # if 30e3 < integral < 40e+3 and event.run==2156:
-                # if 2096 < event.run < 2099: # and length < 80 and 5 < density < 8:
-                #      print("density = {d:.1f}\tlength = {l:.0f}\t{r}\t{e}\t{y}\t{x}\t{phot}\t{ene}".format(d=density,l=length,r=event.run,e=event.event,y=int(event.sc_ymean[isc]/4.),x=int(event.sc_xmean[isc]/4.),phot=int(event.sc_integral[isc]),ene=energy_cal))
+                if 2096 < event.run < 2099 and energy_cal < 7 and density>10: # and length < 80 and 5 < density < 8:
+                    print("density = {d:.1f}\tlength = {l:.0f}\t{r}\t{e}\t{y}\t{x}\t{phot}\t{ene}".format(d=density,l=length,r=event.run,e=event.event,y=int(event.sc_ymean[isc]/4.),x=int(event.sc_xmean[isc]/4.),phot=int(event.sc_integral[isc]),ene=energy_cal))
 
+
+        # energyFull has variable bin size. Normalize entries to the bin size
+        for i in range(1,ret[(runtype,'energyFull')].GetNbinsX()+1):
+            if ret[(runtype,'energyFull')].GetBinWidth(i)==0: print ("zero ",i)
+            ret[(runtype,'energyFull')].SetBinContent(i, ret[(runtype,'energyFull')].GetBinContent(i) / ret[(runtype,'energyFull')].GetBinWidth(i))
                 
     return ret,entries
 
@@ -547,7 +563,8 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     histo_sig.GetYaxis().SetTitleSize(0.05)
     histo_sig.GetYaxis().SetTitleFont(42)
     if normEntries:
-        histo_sig.GetYaxis().SetTitle('clusters (normalized to AmBe events)')
+        binNorm = ' / bin size ' if histo_sig.GetName()=='energyFull' else ' '
+        histo_sig.GetYaxis().SetTitle('clusters{norm}(normalized to AmBe)'.format(norm=binNorm))
     else:
         histo_sig.GetYaxis().SetTitle('clusters (a.u.)')
     histo_sig.Draw("pe")
@@ -555,7 +572,10 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
 
     if histo_sig2:
         histo_sig2.Draw("hist same")
-    #padTop.SetLogy(1)
+    if histo_sig.GetName()=='energyFull':
+        histo_sig.SetMaximum(1e3)
+        histo_sig.SetMinimum(5e-4)
+        padTop.SetLogy(1)
 
     ### this is to fit the energy/length distribution in the cosmics
     # if histo_sig.GetName()=='dedx':
@@ -603,6 +623,12 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ratio.SetMaximum(ratio.GetMaximum()+ratio.GetBinError(1))
     ratio.SetMinimum(ratio.GetMinimum()-ratio.GetBinError(1))
     ratio.Draw('pe')
+    
+    if histo_sig.GetName()=='energyFull':
+        ratio.SetMaximum(1e3)
+        ratio.SetMinimum(8e-4)
+        padBottom.SetLogy(1)
+
     ratios.append(ratio)
     labelsR.append('AmBe - no source')
     stylesR.append('pe')
@@ -770,8 +796,8 @@ def drawSpectra(histos,plotdir,entries,normEntries=False):
             if histos[('fe',var)]:
                 histos[('fe',var)].SetFillColorAlpha(ROOT.kGray+2,0.5)
                 #histos[('fe',var)].SetFillStyle(3354)
-            #drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
-            drawOne(histos[('ambe',var)],histos[('cosm',var)],histo_sig2=None,plotdir=plotdir,normEntries=normEntries)
+            drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
+            #drawOne(histos[('ambe',var)],histos[('cosm',var)],histo_sig2=None,plotdir=plotdir,normEntries=normEntries)
         elif histos[('fe',var)].InheritsFrom('TGraph'):
             drawOneGraph(histos[('ambe',var)],var,plotdir)
             
@@ -1186,7 +1212,7 @@ def plotHist2D(plotdir,v1='integral',v2='slimness',i=0):
     hist.Reset()
 
 
-def getOneROC(sigh,bkgh,direction='gt'):
+def getOneROC(sigh,bkgh,direction='gt',verbose=False):
     
     ## this assumes the same binning, but it is always the case here
     plots = [sigh,bkgh]
@@ -1203,14 +1229,14 @@ def getOneROC(sigh,bkgh,direction='gt'):
             thr = [p.GetBinLowEdge(binx+1) for binx in range(0,nbins)]
         # this is to find the cut for the wanted eff
         effdic = dict(zip(thr,eff))
-        #print (effdic)
+        if verbose: print (effdic)
         efficiencies.append(eff)
 
     ## graph for the roc
     roc = ROOT.TGraph(nbins)
     for i in range(nbins):
         roc.SetPoint(i, efficiencies[0][i], 1-efficiencies[1][i])
-        #print ("point {i}, S eff={seff:.2f}, B eff={beff:.3f}".format(i=i,seff=efficiencies[0][i],beff=efficiencies[1][i]))
+        if verbose: print ("point {i}, S eff={seff:.2f}, B eff={beff:.3f}".format(i=i,seff=efficiencies[0][i],beff=efficiencies[1][i]))
     roc.SetTitle('')
         
     return roc
@@ -1246,7 +1272,11 @@ def drawROC(varname,odir):
     
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/{var}_roc.{ext}".format(plotdir=odir,var=varname,ext=ext))
-             
+
+    fout = ROOT.TFile.Open("{plotdir}/{var}_roc.root".format(plotdir=odir,var=varname),'recreate')
+    fe_roc.Write()
+    fout.Close()
+    
 
 def plotPedRMS():
     rf = ROOT.TFile.Open('../pedestals/pedmap_run2109_rebin1.root')
@@ -1381,7 +1411,7 @@ if __name__ == "__main__":
         os.system('mkdir -p {od}'.format(od=odir))
         drawSpectra(histograms,odir,entries,normEntries=True)
         os.system('cp ../index.php {od}'.format(od=odir))
-        #drawROC('density',odir)
+        drawROC('density',odir)
         
     if options.make in ['all','evsdist']:
         plotEnergyVsDistance(options.outdir)
