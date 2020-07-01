@@ -54,19 +54,30 @@ def fitFe(rfile,calib=True):
     c.SaveAs('fe_diff_simplefit.pdf')
     
 
-def makeEff(f1,histo1,f2,histo2,f3=None,histo3=None,plotdir="./"):
+def makeEff(f1,histo1,f2,histo2,f3=None,histo3=None,plotdir="./",xmax=31):
     # numerator: selected events
     tf1 = ROOT.TFile.Open(f1)
     hpass = tf1.Get(histo1)
     hpass.GetYaxis().SetTitle('efficiency')
-    hpass.GetXaxis().SetRangeUser(0,70)
+    hpass.GetXaxis().SetRangeUser(0,xmax)
+
+    # used to calculate the average efficiency up to a given energy
+    averageXmax = 20 # keV
+    upperBin = hpass.GetXaxis().FindFixBin(averageXmax)
+    passInt = hpass.Integral(0,upperBin+1)
     
     # denominator: all events
     tf2 = ROOT.TFile.Open(f2)
     htotal = tf2.Get(histo2)
-    htotal.GetYaxis().SetTitle('signal efficiency')
-    htotal.GetXaxis().SetRangeUser(0,70)
+    htotal.GetYaxis().SetTitle('signal efficiency ( #varepsilon_{S}^{total} )')
+    htotal.GetXaxis().SetRangeUser(0,xmax)
 
+    totalInt = htotal.Integral(1,upperBin+1)
+
+    eff = passInt/totalInt
+    errEff = math.sqrt(eff*(1-eff)/totalInt)
+    print("Average efficiency from 0 to ",averageXmax," keV = ",eff," +/- ",errEff)
+    
     ## default is 68% CL
     col = ROOT.kRed+1
     teffi = ROOT.TEfficiency(hpass,htotal)
@@ -83,7 +94,7 @@ def makeEff(f1,histo1,f2,histo2,f3=None,histo3=None,plotdir="./"):
         tf3 = ROOT.TFile.Open(f3)
         hpass2 = tf3.Get(histo3)
         hpass2.GetYaxis().SetTitle('efficiency')
-        hpass2.GetXaxis().SetRangeUser(0,70)
+        hpass2.GetXaxis().SetRangeUser(0,xmax)
         
         ## default is 68% CL
         col2 = ROOT.kAzure-6
@@ -107,10 +118,16 @@ def makeEff(f1,histo1,f2,histo2,f3=None,histo3=None,plotdir="./"):
 
     # to change the x-axis range
     ROOT.gPad.Update() 
-    teffi.GetPaintedGraph().GetXaxis().SetRangeUser(0,70)
-    teffi.GetPaintedGraph().GetXaxis().SetTitleOffset(1.5)
+    teffi.GetPaintedGraph().GetXaxis().SetTitle("E (keV)")
+    teffi.GetPaintedGraph().GetXaxis().SetRangeUser(0,xmax)
+    teffi.GetPaintedGraph().GetXaxis().SetTitleOffset(1.3)
     teffi.GetPaintedGraph().GetXaxis().SetTitleFont(42)
+    teffi.GetPaintedGraph().GetXaxis().SetTitleSize(0.05)
+
+    teffi.GetPaintedGraph().GetYaxis().SetTitle('signal efficiency ( #varepsilon_{S}^{total} )')
     teffi.GetPaintedGraph().GetYaxis().SetRangeUser(0,1)
+    teffi.GetPaintedGraph().GetYaxis().SetTitleFont(42)
+    teffi.GetPaintedGraph().GetYaxis().SetTitleSize(0.05)
     ROOT.gPad.Update()    
 
     
@@ -135,14 +152,44 @@ def compareROCs(f1,g1,f2,g2,plotdir):
     graph2.SetName("roc2")
 
     c = getCanvas()
-    graph1.SetMarkerColor(ROOT.kBlue)
-    graph1.SetLineColor(ROOT.kBlue)
+    graph1.SetMarkerStyle(ROOT.kOpenSquare)
+    graph1.SetMarkerSize(0.8)
+    graph1.SetMarkerColor(ROOT.kGray+2)
+    graph1.SetLineColor(ROOT.kGray+2)
 
     graph2.SetMarkerColor(ROOT.kRed+1)
     graph2.SetLineColor(ROOT.kRed+1)
 
     graph1.Draw('APC')
-    graph2.Draw('PC')
+    #graph2.Draw('PC')
+    graph1.GetXaxis().SetTitle("Signal efficiency ( #varepsilon_{S}^{#delta} )")
+    graph1.GetXaxis().SetTitleFont(42)
+    graph1.GetXaxis().SetTitleSize(0.05)
+    graph1.GetXaxis().SetDecimals()
+    graph1.GetYaxis().SetTitle("Background rejection ( 1 - #varepsilon_{B}^{#delta} )")
+    graph1.GetYaxis().SetTitleFont(42)
+    graph1.GetYaxis().SetTitleSize(0.05)
+    graph1.GetYaxis().SetDecimals()
+    
+    
+    lat50 = ROOT.TLatex()
+    lat50.SetNDC(); lat50.SetTextFont(42); lat50.SetTextSize(0.03); lat50.SetTextColor(ROOT.kRed+1)
+    lat50.DrawLatex(0.6, 0.79, "#delta > 10 photons/pixel") 
+    ar50 = ROOT.TArrow(0.52,0.95,0.6,0.95,0.02,"|>");
+    ar50.SetLineWidth(2);
+    ar50.SetLineColor(ROOT.kRed+1)
+    ar50.SetFillColor(ROOT.kRed+1)
+    ar50.Draw();
+
+    lat40 = ROOT.TLatex()
+    lat40.SetNDC(); lat40.SetTextFont(42); lat40.SetTextSize(0.03); lat40.SetTextColor(ROOT.kAzure+7)
+    lat40.DrawLatex(0.3, 0.5, "#delta > 11 photons/pixel") 
+    ar40 = ROOT.TArrow(0.39,0.95,0.39,0.6,0.02,"|>");
+    ar40.SetLineWidth(2);
+    ar40.SetLineColor(ROOT.kAzure+7)
+    ar40.SetFillColor(ROOT.kAzure+7)
+    ar40.Draw();
+
     
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/comp_roc.{ext}".format(plotdir=plotdir,ext=ext))
