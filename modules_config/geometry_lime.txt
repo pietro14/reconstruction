@@ -1,0 +1,5 @@
+{
+# LIME
+'pixelwidth'  : 0.152,  # mm
+'npixx'       : 2304,
+}

@@ -4,13 +4,20 @@ from skimage.segmentation import  inverse_gaussian_gradient,morphological_geodes
 from clusterTools import Cluster
 from scipy.stats import pearsonr
 from energyCalibrator import EnergyCalibrator
+from cameraChannel import cameraGeometry
 
 class SuperClusterAlgorithm:
-    def __init__(self,shape=512,neighbor_window=3,debugmode=False):
+    def __init__(self,options,shape,neighbor_window=3):
+        self.options = options
         self.shape = shape
         self.neighbor_window = neighbor_window
-        self.debug = debugmode
+        self.debug = options.debug_mode
 
+        # geometry
+        geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
+        geometryParams = eval(geometryPSet.read())
+        self.cg = cameraGeometry(geometryParams)
+        
         # supercluster energy calibration for the saturation effect
         filePar = open('modules_config/energyCalibrator.txt','r')
         params = eval(filePar.read())
@@ -93,9 +100,9 @@ class SuperClusterAlgorithm:
             superClusterWithPixels = self.supercluster_points(superClusterContours)
           
             # get a cluster object
-            rebin = int(2048/self.shape)
+            rebin = int(self.cg.npixx/self.shape)
             for i,scpixels in enumerate(superClusterWithPixels):
-                sclu = Cluster(scpixels,rebin,raw_data_fullreso,raw_data_fullreso_zs,debug=False)
+                sclu = Cluster(scpixels,rebin,raw_data_fullreso,raw_data_fullreso_zs,self.options.geometry,debug=False)
                 sclu.iteration=iteration
                 sclu.nclu = i
                 x = scpixels[:, 0]; y = scpixels[:, 1]

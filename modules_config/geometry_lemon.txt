@@ -1,0 +1,5 @@
+{
+# LEMON
+'pixelwidth'  : 0.125,  # mm
+'npixx'       : 2048,
+}
