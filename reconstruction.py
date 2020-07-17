@@ -262,14 +262,12 @@ class analysis:
 if __name__ == '__main__':
     
     from optparse import OptionParser
-    #from debug_code.tools_lib import inputFile
     
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
-    #parser.add_option(      '--tmppath', dest='tmpname', default='/tmp', type='string', help='Directory where to keep tmp histograms')
     
     (options, args) = parser.parse_args()
     
@@ -289,14 +287,11 @@ if __name__ == '__main__':
     
     #inputf = inputFile(options.run, options.dir, options.daq)
 
-    if sw.checkfiletmp(int(options.run), options.tmpname):
-       #print("I am checking if there is a file in: " + options.tmpname)
-       options.tmpname = options.tmpname + "/histograms_Run%05d.root" % int(options.run)
-    
-    #if there is no file in given tmp directory  = options.tmpname it will set tmpname as "/tmp" and look for histograms there
+    if sw.checkfiletmp(int(options.run)):
+        options.tmpname = "/tmp/histograms_Run%05d.root" % int(options.run)
     else:
-        #print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),options.tmpname)
+        print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
+        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run))
     
     if options.justPedestal:
         ana = analysis(options)
