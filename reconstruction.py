@@ -5,7 +5,7 @@ import numpy as np
 import ROOT
 ROOT.gROOT.SetBatch(True)
 from root_numpy import hist2array
-from cameraChannel import cameraTools
+from cameraChannel import cameraTools, cameraGeometry
 
 from snakes import SnakesProducer
 from output import OutputTree
@@ -18,19 +18,22 @@ utilities = utilities.utils()
 class analysis:
 
     def __init__(self,options):
-        self.xmax = 2048
         self.rebin = options.rebin        
         self.options = options
         self.pedfile_fullres_name = options.pedfile_fullres_name
         self.tmpname = options.tmpname
-        
+        geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
+        geometryParams = eval(geometryPSet.read())
+        self.cg = cameraGeometry(geometryParams)
+        self.xmax = self.cg.npixx
+
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
         if not options.justPedestal:
            print("Pulling pedestals...")
            # first the one for clustering with rebin
-           ctools = cameraTools()
+           ctools = cameraTools(self.cg)
            # then the full resolution one
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
@@ -164,7 +167,7 @@ class analysis:
         tf = sw.swift_read_root_file(self.tmpname)
         #tf = ROOT.TFile.Open(self.rfile)
         #c1 = ROOT.TCanvas('c1','',600,600)
-        ctools = cameraTools()
+        ctools = cameraTools(self.cg)
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
@@ -226,7 +229,7 @@ class analysis:
                     snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
                     plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
                     snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
-                    snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
+                    snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
                     clusters,snakes = snprod.run()
                     self.autotree.fillCameraVariables(img_fr_zs)
                     self.autotree.fillClusterVariables(snakes,'sc')

@@ -21,11 +21,12 @@ from iDBSCAN import iDBSCAN
 import debug_code.tools_lib as tl
 
 class SnakesFactory:
-    def __init__(self,img,img_fr,img_fr_zs,img_ori,name,options):
+    def __init__(self,img,img_fr,img_fr_zs,img_ori,name,options,geometry):
         self.name = name
         self.options = options
         self.rebin = options.rebin
-        ct = cameraTools()
+        self.geometry = geometry
+        ct = cameraTools(geometry)
         self.image = img
         self.img_ori = img_ori
         self.imagelog = np.zeros((self.image.shape[0],self.image.shape[1]))
@@ -99,7 +100,7 @@ class SnakesFactory:
         nb_it              = 3
         
         #-----Pre-Processing----------------#
-        rescale=int(2048/self.rebin)
+        rescale=int(self.geometry.npixx/self.rebin)
         rebin_image     = tl.rebin(self.img_ori, (rescale, rescale))
 
         edges = median_filter(self.image, size=4)
@@ -190,7 +191,7 @@ class SnakesFactory:
                             
             # only add the cores to the clusters saved in the event
             if k>-1 and len(x)>1:
-                cl = Cluster(xy,self.rebin,self.image_fr,self.image_fr_zs,debug=False)
+                cl = Cluster(xy,self.rebin,self.image_fr,self.image_fr_zs,self.options.geometry,debug=False)
                 cl.iteration = db.tag_[labels == k][0]
                 cl.nclu = k
                 
@@ -214,7 +215,7 @@ class SnakesFactory:
         ## SUPERCLUSTERING
         from supercluster import SuperClusterAlgorithm
         superclusterContours = []
-        scAlgo = SuperClusterAlgorithm(shape=rescale,debugmode=self.options.debug_mode)
+        scAlgo = SuperClusterAlgorithm(self.options,shape=rescale)
         u,indices = np.unique(db.labels_,return_index = True)
         allclusters_it1 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
         allclusters_it2 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]
@@ -579,7 +580,7 @@ class SnakesFactory:
 
 
 class SnakesProducer:
-    def __init__(self,sources,params,options):
+    def __init__(self,sources,params,options,geometry):
         self.picture     = sources['picture']     if 'picture' in sources else None
         self.pictureHD   = sources['pictureHD']   if 'pictureHD' in sources else None
         self.picturezsHD = sources['picturezsHD'] if 'picturezsHD' in sources else None
@@ -593,14 +594,15 @@ class SnakesProducer:
         self.plotprofiles      = params['plotprofiles'] if 'plotprofiles' in params else False
 
         self.options = options
-
+        self.geometry = geometry
+        
     def run(self):
         ret = []
         if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.picturezsHD.any(),self.name)]):
             return ret
         
         # Cluster reconstruction on 2D picture
-        snfac = SnakesFactory(self.picture,self.pictureHD,self.picturezsHD,self.pictureOri,self.name,self.options)
+        snfac = SnakesFactory(self.picture,self.pictureHD,self.picturezsHD,self.pictureOri,self.name,self.options,self.geometry)
 
         # this plotting is only the pyplot representation.
         # Doesn't work on MacOS with multithreading for some reason... 
