@@ -19,7 +19,7 @@ class cameraGeometry:
         # 0,10 ph/ev - 450V
         # 0,06 ph/ev - 440V
         
-        self.pixelwidth = 1#55E-3#125E-3 # mm
+        self.pixelwidth = 0.125 # mm
         
 class cameraTools:
     def __init__(self):

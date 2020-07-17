@@ -38,6 +38,17 @@ if __name__ == '__main__':
             csize = 160
             plt.xlim(4*240,4*(240+csize))
             plt.ylim(4*70,4*(70+csize))
+        elif int(args[0])==2097 and int(args[1])==317: # ambe 60/40 (6 keV NR candidate)
+            plt.clim(vmin=0,vmax=40)
+            csize = 100
+            plt.xlim(1200,1200+csize)
+            plt.ylim(880,880+csize)
+        elif int(args[0])==2097 and int(args[1])==59: # ambe 60/40 (6 keV NR candidate)
+            plt.clim(vmin=0,vmax=40)
+            csize = 100
+            plt.xlim(660,660+csize)
+            plt.ylim(1020,1020+csize)
+
     else:
         plt.title('Rebinned image', font, pad=40)
         plt.xlabel('x (macro-pixels)', font, labelpad=20)
@@ -53,7 +64,7 @@ if __name__ == '__main__':
             plt.xlim(240,240+csize)
             plt.ylim(70,70+csize)
         elif int(args[0])==2156: # cosmics
-            plt.clim(vmin=98,vmax=110)
+            plt.clim(vmin=98,vmax=110)            
             
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
