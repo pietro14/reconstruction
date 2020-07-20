@@ -239,7 +239,7 @@ class SnakesFactory:
 
             if self.options.flag_full_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image_fr.T,cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='upper' )
+                plt.imshow(np.flipud(self.image_fr),cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='upper' )
                 plt.title("Original Image")
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
@@ -291,7 +291,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
 
@@ -318,7 +318,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-b',linewidth=2.5)
 
@@ -346,7 +346,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-y',linewidth=2.5)
 
@@ -370,7 +370,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             line, = plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
                         if j == 0:
@@ -384,7 +384,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
                     
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             line, = plt.plot(contour[:, 1],contour[:, 0], '-b',linewidth=2.5)
                         if j == 0:
@@ -398,7 +398,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             line, = plt.plot(contour[:, 1],contour[:, 0], '-y',linewidth=2.5)
                         if j == 0:
@@ -422,7 +422,7 @@ class SnakesFactory:
             if self.options.flag_supercluster == 1:
                 if len(superclusters):
                     fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2,alhpa=0.5)
+                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2,alpha=0.5)
                     #supercluster_contour.collections[0].set_label('supercluster it 1+2')
                     plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                     plt.title("Superclusters found")
@@ -451,7 +451,7 @@ class SnakesFactory:
                 ybox = xy[:, 0]
 
                 if (len(ybox) > 0) and (len(xbox) > 0):
-                    contours = tl.findedges(ybox,xbox,self.rebin)
+                    contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                     for n, contour in enumerate(contours):
                         line, = plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
                 for ext in ['png','pdf']:

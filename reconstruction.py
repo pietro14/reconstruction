@@ -38,8 +38,8 @@ class analysis:
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
            self.pedmap_fr.SetDirectory(0)
-           self.pedarr_fr = hist2array(self.pedmap_fr)
-           self.noisearr_fr = ctools.noisearray(self.pedmap_fr)
+           self.pedarr_fr = hist2array(self.pedmap_fr).T
+           self.noisearr_fr = ctools.noisearray(self.pedmap_fr).T
            pedrf_fr.Close()
 
     # the following is needed for multithreading
@@ -76,7 +76,7 @@ class analysis:
         
     def getNEvents(self):
         tf = sw.swift_read_root_file(self.tmpname) #tf = ROOT.TFile.Open(self.rfile)
-        ret = len(tf.GetListOfKeys()) if self.options.daq!='midas' else int(len(tf.GetListOfKeys())/2) 
+        ret = int(len(tf.GetListOfKeys())/2) if (self.options.daq=='midas' and self.options.pmt_mode) else len(tf.GetListOfKeys())
         tf.Close()
         return ret
 
@@ -201,7 +201,7 @@ class analysis:
                 if obj.InheritsFrom('TH2'):
      
                     pic_fullres = obj.Clone(obj.GetName()+'_fr')
-                    img_fr = hist2array(pic_fullres)
+                    img_fr = hist2array(pic_fullres).T
 
                     # Upper Threshold full image
                     img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
@@ -289,9 +289,9 @@ if __name__ == '__main__':
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
     #inputf = inputFile(options.run, options.dir, options.daq)
-
     if sw.checkfiletmp(int(options.run)):
-        options.tmpname = "/tmp/histograms_Run%05d.root" % int(options.run)
+        #options.tmpname = "/tmp/histograms_Run%05d.root" % int(options.run)
+        options.tmpname = "/Users/emanuele/Work/data/cygnus/root/AmBeLime/run%05d.root" % int(options.run)
     else:
         print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
         options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run))
@@ -299,8 +299,8 @@ if __name__ == '__main__':
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
-        if options.donotremove == False:
-            sw.swift_rm_root_file(options.tmpname)
+        # if options.donotremove == False:
+        #     sw.swift_rm_root_file(options.tmpname)
         sys.exit(0)     
     
     ana = analysis(options)
@@ -340,5 +340,5 @@ if __name__ == '__main__':
     # githash.Write()
     # tf.Close()
     
-    if options.donotremove == False:
-        sw.swift_rm_root_file(options.tmpname)
+    # if options.donotremove == False:
+    #     sw.swift_rm_root_file(options.tmpname)

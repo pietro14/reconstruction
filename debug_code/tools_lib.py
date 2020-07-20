@@ -36,12 +36,12 @@ def inputFile(numrun,filedir,formattype):
     filename = '%s%s%s.root' % (filedir,imagename,numrun)
     return filename
 
-def findedges(ybox,xbox,rebin):
+def findedges(ybox,xbox,npixx,rebin):
     from skimage.measure import find_contours
     from numpy import zeros
     from scipy.ndimage import uniform_filter
     
-    rescale = int(2048/rebin)
+    rescale = int(npixx/rebin)
     mm = zeros([rescale,rescale],dtype=int)
     mm[ybox,xbox]=10000
     mm = uniform_filter(mm, size=5)
