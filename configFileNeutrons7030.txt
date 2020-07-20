@@ -1,23 +1,23 @@
 {
 # DETECTOR
-'geometry'  : 'lemon',
+'geometry'  : 'lime',
 
 # DEBUG plots
 'debug_mode'            : 0,
 
-'ev'                    : 564,
+'ev'                    : 0,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
 
-'flag_full_image'       : 0,
-'flag_rebin_image'      : 0,
-'flag_edges_image'      : 0,
-'flag_first_it'         : 0,
-'flag_second_it'        : 0,
+'flag_full_image'       : 1,
+'flag_rebin_image'      : 1,
+'flag_edges_image'      : 1,
+'flag_first_it'         : 1,
+'flag_second_it'        : 1,
 'flag_third_it'         : 0,
 'flag_stats'            : 0,
-'flag_all_it'           : 0,
+'flag_all_it'           : 1,
 'flag_plot_noise'       : 0,
 'flag_supercluster'     : 1,
 
@@ -33,17 +33,17 @@
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
 'rebin'                 : 4,
-'nsigma'                : 1.5,
+'nsigma'                : 2.3,
 'cimax'                 : 200,                     # Upper threshold
-'pedrun'                : '2311',
+'pedrun'                : '3797',
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
 'tag'                   : 'Data',                  # 'Data' for experimental data or 'MC' for Simulated data
 
-'excImages'             : list(range(5))+[],             # To exlude some images of the analysis. Always exclude the first 5 which are messy
+'excImages'             : [], #list(range(5))+[],             # To exlude some images of the analysis. Always exclude the first 5 which are messy
 'min_neighbors_average' : 3.5,                     # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
-'donotremove'           : False,                    # Remove or not the file from the tmp folder
+'donotremove'           : True,                    # Remove or not the file from the tmp folder
 
 # Setting i2DBSCAN parameters
 
@@ -55,7 +55,7 @@
 'saturation_corr'       : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 1,
+'pmt_mode'              : 0,
 
 'time_range'            : [7300,7700],
 'threshold'             : 0,
