@@ -33,7 +33,7 @@ def rootlocation(tag,run):
     if tag == 'Data':
         if (run>=936) and (run<=1601):
             sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<=2321):
+        elif (run>=1632) and (run<=3805):
             sel = 'Data/LAB'
         else:
             print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
