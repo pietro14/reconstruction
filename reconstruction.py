@@ -171,7 +171,7 @@ class analysis:
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            iev = iobj if self.options.daq != 'midas'  else int(iobj/2) # when PMT is present
+            iev = int(iobj/2) if self.options.daq == 'midas' and self.options.pmt_mode else iobj
             #print("max entries = ",self.options.maxEntries)
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
@@ -256,7 +256,10 @@ class analysis:
                     self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
                     
             # fill reco tree (just once/event, and the TGraph is analyses as last)
-            if (self.options.daq == 'midas' and obj.InheritsFrom('TGraph')) or self.options.daq != 'midas':
+            if (self.options.daq == 'midas' and self.options.pmt_mode):
+                if obj.InheritsFrom('TGraph'):
+                    self.outTree.fill()
+            else:
                 self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
@@ -279,13 +282,27 @@ if __name__ == '__main__':
     
     for k,v in params.items():
         setattr(options,k,v)
+
+    run = int(options.run)
+    
     if options.debug_mode == 1:
-        setattr(options,'outFile','reco_run%s_%s_debug.root' % (options.run, options.tip))
+        setattr(options,'outFile','reco_run%d_%s_debug.root' % (run, options.tip))
         if options.ev: options.maxEntries = options.ev + 1
         #if options.daq == 'midas': options.ev +=0.5 
     else:
-        setattr(options,'outFile','reco_run%05d_%s.root' % (int(options.run), options.tip))
-    setattr(options,'pedfile_name', 'pedestals/pedestals/pedmap_run%s_rebin%d.root' % (options.pedrun,options.rebin))
+        setattr(options,'outFile','reco_run%05d_%s.root' % (run, options.tip))
+        
+    if not hasattr(options,"pedrun"):
+        pf = open("pedestals/pedruns.txt","r")
+        peddic = eval(pf.read())
+        options.pedrun = -1
+        for runrange,ped in peddic.items():
+            if int(runrange[0])<run<int(runrange[1]):
+                options.pedrun = int(ped)
+                print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
+                break
+        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/pedruns.txt. Check the dictionary inside it!")
+            
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
     #inputf = inputFile(options.run, options.dir, options.daq)
