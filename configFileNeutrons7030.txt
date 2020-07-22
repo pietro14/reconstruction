@@ -35,7 +35,6 @@
 'rebin'                 : 4,
 'nsigma'                : 2.3,
 'cimax'                 : 200,                     # Upper threshold
-'pedrun'                : '3797',
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
