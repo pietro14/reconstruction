@@ -83,7 +83,7 @@ class SuperClusterAlgorithm:
         # transform to numpy array
         for isc in range(len(superclusters)):
             superclusters[isc] = np.array(superclusters[isc])
-        return np.array(superclusters)
+        return np.array(superclusters,dtype=object)
 
     def findSuperClusters(self,basic_clusters,raw_data,raw_data_fullreso,raw_data_fullreso_zs,iteration):
         superClusters = []; superClusterContours = np.array([])
