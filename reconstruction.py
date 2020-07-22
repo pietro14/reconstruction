@@ -297,7 +297,7 @@ if __name__ == '__main__':
         peddic = eval(pf.read())
         options.pedrun = -1
         for runrange,ped in peddic.items():
-            if int(runrange[0])<run<int(runrange[1]):
+            if int(runrange[0])<=run<=int(runrange[1]):
                 options.pedrun = int(ped)
                 print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
                 break
@@ -307,8 +307,7 @@ if __name__ == '__main__':
     
     #inputf = inputFile(options.run, options.dir, options.daq)
     if sw.checkfiletmp(int(options.run)):
-        #options.tmpname = "/tmp/histograms_Run%05d.root" % int(options.run)
-        options.tmpname = "/Users/emanuele/Work/data/cygnus/root/AmBeLime/run%05d.root" % int(options.run)
+        options.tmpname = "/tmp/histograms_Run%05d.root" % int(options.run)
     else:
         print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
         options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run))
