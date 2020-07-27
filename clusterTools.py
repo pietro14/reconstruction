@@ -118,7 +118,8 @@ class Cluster:
             np.save(filename, self.hits)
 
     def eigenvectors(self):
-        covmat = np.cov([self.x,self.y])
+        mat = np.array([self.x,self.y])
+        covmat = np.cov(mat.astype(float))
         eig_values, eig_vecs = np.linalg.eig(covmat)
         indexes = (np.argmax(eig_values),np.argmin(eig_values))
         eig_vec_vals = (eig_vecs[:, indexes[0]], eig_vecs[:, indexes[-1]])
