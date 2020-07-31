@@ -1,14 +1,25 @@
 #!/bin/env python
 
-jobstring  = '''#!/bin/sh
+PYTHON3_DIR = '/nfs/cygno/software/python3.8'
+PYTHON3     = PYTHON3_DIR+'/pyenv/bin/python3.8'
+PYTHON_PATH = '{pdir}/env/lib/python3.8/site-packages:{pdir}/env/lib/python3.8/site-packages-pipinstalled'.format(pdir=PYTHON3_DIR)
+
+jobstring  = '''#!/bin/bash
 ulimit -c 0 -S
 ulimit -c 0 -H
 set -e
 export CYGNO_BASE="CYGNOBASE"
 cd $CYGNO_BASE
-source scripts/activate_cygno_lngs.sh
+echo "Entering the CYGNO virtual environment software..."
+export PATH="{pdir}/pyenv/bin:$PATH"
+export LD_LIBRARY_PATH="{pdir}/pyenv/lib:$LD_LIBRARY_PATH"
+echo "Setting up ROOT..."
+export PYTHONPATH="{ppath}"
+. /nfs/cygno/software/root-v6-22-00-py36-build/bin/thisroot.sh 
+alias python="python3.8"
+echo "DONE."
 RECOSTRING
-'''
+'''.format(pdir=PYTHON3_DIR,ppath=PYTHON_PATH)
 
 import os, sys, re
 
@@ -66,15 +77,23 @@ if __name__ == "__main__":
         tmp_file = open(job_file_name, 'w')
 
         tmp_filecont = jobstring
-        cmd = 'python3.8 reconstruction.py configFileNeutrons7030.txt -r {r} --max-entries 2'.format(r=run)
+        cmd = '{py3} reconstruction.py configFileNeutrons7030.txt -r {r}'.format(py3=PYTHON3,r=run)
         tmp_filecont = tmp_filecont.replace('RECOSTRING',cmd)
         tmp_filecont = tmp_filecont.replace('CYGNOBASE',abswpath+'/')
         tmp_file.write(tmp_filecont)
         tmp_file.close()
         
-        sub_cmd = 'qsub -q cygno -e localhost:{logf} -o localhost:{logf} -m ae {jobf}'.format(logf=log_file_name,jobf=job_file_name)
+        sub_cmd = 'qsub -q cygno -d {dpath} -e localhost:{logf} -o localhost:{logf} -v LD_LIBRARY_PATH="{pdir}/pyenv/lib:$LD_LIBRARY_PATH",PYTHONPATH="{ppath}",PATH="{pdir}/pyenv/bin:$PATH" -l mem=8000mb,ncpus=8 {jobf}'.format(dpath=abswpath,logf=log_file_name,jobf=job_file_name,pdir=PYTHON3_DIR,ppath=PYTHON_PATH)
         commands.append(sub_cmd)
 
-    print (commands)
+    if options.dryRun:
+        for c in commands:
+            print (c)
+    else:
+        for c in commands:
+            os.system(c)
+
+    print ("DONE")
+
 
         
