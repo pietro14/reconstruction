@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-import ROOT,math,os,sys
+import ROOT,math,os,sys,time
 import pickle
 
 from scipy.ndimage import gaussian_filter, median_filter
@@ -134,9 +134,12 @@ class SnakesFactory:
         # clustering will crash if the vector of pixels is empty (it may happen after the zero-suppression + noise filtering)
         if len(X)==0:
             return clusters,superclusters
-        
+
+        t0 = time.perf_counter()
         # - - - - - - - - - - - - - -
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts, flag_plot_noise = self.options.flag_plot_noise).fit(X)
+        t1 = time.perf_counter()
+        if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         
         if self.options.debug_mode == 1 and self.options.flag_plot_noise == 1:         
             for ext in ['png','pdf']:
@@ -212,6 +215,9 @@ class SnakesFactory:
                 #         for ext in ['png','pdf']:
                 #             canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
 
+        t2 = time.perf_counter()
+        if self.options.debug_mode: print(f"label basic clusters in {t2 - t1:0.4f} seconds")
+
         ## SUPERCLUSTERING
         from supercluster import SuperClusterAlgorithm
         superclusterContours = []
@@ -220,8 +226,13 @@ class SnakesFactory:
         allclusters_it1 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
         allclusters_it2 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]
         allclusters_it12 = allclusters_it1 + allclusters_it2
+        t3 = time.perf_counter()
+        if self.options.debug_mode: print(f"supercl prep in {t3 - t2:0.4f} seconds")
         # note: passing the edges, not the filtered ones for deeper information
         superclusters,superclusterContours = scAlgo.findSuperClusters(allclusters_it12,edges,self.image_fr,self.image_fr_zs,0)
+
+        t4 = time.perf_counter()
+        if self.options.debug_mode: print(f"supercl in {t4 - t3:0.4f} seconds")
                 
         if plot:
             for ext in ['png','pdf']:
@@ -600,6 +611,8 @@ class SnakesProducer:
         ret = []
         if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.picturezsHD.any(),self.name)]):
             return ret
+
+        t0 = time.perf_counter()
         
         # Cluster reconstruction on 2D picture
         snfac = SnakesFactory(self.picture,self.pictureHD,self.picturezsHD,self.pictureOri,self.name,self.options,self.geometry)
@@ -612,7 +625,9 @@ class SnakesProducer:
         elif self.algo=='HOUGH':
             clusters = []
             snakes = snfac.getTracks(plot=self.plotpy)            
-
+        t1 = time.perf_counter()
+        if self.options.debug_mode: print(f"FULL RECO in {t1 - t0:0.4f} seconds")
+            
         # print "Get light profiles..."
         snfac.calcProfiles(snakes,plot=self.plotpy)
         snfac.calcProfiles(clusters,plot=False)
