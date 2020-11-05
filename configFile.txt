@@ -5,7 +5,7 @@
 # DEBUG plots
 'debug_mode'            : 0,
 
-'ev'                    : 0,
+'ev'                    : 11,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -52,6 +52,9 @@
 'vector_min_samples'    : [1, 150, 25, 20], #[5, 100, 40, 50] , # [30,  1180,  360, 80],  # [30,  55,  28, 13],
 'cuts'                  : [500, 100],
 'saturation_corr'       : False,
+
+# Superclusters parameters are hardcoded
+'calibrate_clusters'    : False,
 
 ### PMT waveform reconstruction
 'pmt_mode'              : 0,

@@ -5,6 +5,7 @@ from clusterTools import Cluster
 from scipy.stats import pearsonr
 from energyCalibrator import EnergyCalibrator
 from cameraChannel import cameraGeometry
+import time
 
 class SuperClusterAlgorithm:
     def __init__(self,options,shape,neighbor_window=3):
@@ -12,7 +13,8 @@ class SuperClusterAlgorithm:
         self.shape = shape
         self.neighbor_window = neighbor_window
         self.debug = options.debug_mode
-
+        self.calibrate = self.options.calibrate_clusters
+        
         # geometry
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
         geometryParams = eval(geometryPSet.read())
@@ -92,7 +94,7 @@ class SuperClusterAlgorithm:
             # use the clustered points to get "seeds" for superclustering
             # i.e. open a window to get back unclustered points with low light
             seedsAndNeighbors = self.clusters_neighborood(basic_clusters,raw_data)
-          
+
             # run the superclustering algorithm (GAC with 300 iterations)
             superClusterContours = self.supercluster(seedsAndNeighbors)
           
@@ -102,27 +104,37 @@ class SuperClusterAlgorithm:
             # get a cluster object
             rebin = int(self.cg.npixx/self.shape)
             for i,scpixels in enumerate(superClusterWithPixels):
+                #print ("===> SC ",i)
                 sclu = Cluster(scpixels,rebin,raw_data_fullreso,raw_data_fullreso_zs,self.options.geometry,debug=False)
+                #T2 = time.perf_counter()
+                
                 sclu.iteration=iteration
                 sclu.nclu = i
                 x = scpixels[:, 0]; y = scpixels[:, 1]
                 corr, p_value = pearsonr(x, y)
                 sclu.pearson = p_value
                 ## slicesCalEnergy is useful for the profile along the path
-                calEnergy,slicesCalEnergy,centers = self.calibrator.calibratedEnergy(sclu.hits_fr)
+                ## this is time-consuming, though
+                if self.calibrate:
+                    calEnergy,slicesCalEnergy,centers = self.calibrator.calibratedEnergy(sclu.hits_fr)
+                    #T3 = time.perf_counter()
+                    #print(f"\t calibrated in {T3 - T2:0.4f} seconds")
+                else:
+                    calEnergy,slicesCalEnergy,centers = -1,[],[]
                 if self.debug:
                     print ( "SUPERCLUSTER BARE INTEGRAL = {integral:.1f}".format(integral=sclu.integral()) )
                 sclu.calibratedEnergy = calEnergy
                 sclu.nslices = len(slicesCalEnergy)
                 sclu.energyprofile = slicesCalEnergy
                 sclu.centers = centers
-                sclu.pathlength = self.calibrator.clusterLength()
+                sclu.pathlength = -1 if self.calibrate==False else self.calibrator.clusterLength()
                 superClusters.append(sclu)
 
                 # if i==3:
                 #     print(" === hits list ")
                 #     print(scpixels)
                 #     sclu.dumpToFile('supercluster3')
+
                     
         # return the supercluster collection
         return superClusters,superClusterContours
