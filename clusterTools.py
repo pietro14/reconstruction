@@ -4,13 +4,13 @@ import numpy as np
 import math,itertools
 import ROOT
 from array import array
-from cameraChannel import cameraGeometry, cameraTools
+from cameraChannel import cameraGeometry
 
 import utilities
 utilities = utilities.utils()
 
 class Cluster:
-    def __init__(self,hits,rebin,img_fr,img_fr_zs,debug=False):
+    def __init__(self,hits,rebin,img_fr,img_fr_zs,geometry,debug=False):
         self.hits = hits
         self.rebin = rebin
         self.debug = debug
@@ -21,6 +21,9 @@ class Cluster:
         self.widths = {}
         self.profiles = {}
         self.shapes = {}
+        geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=geometry),'r')
+        geometryParams = eval(geometryPSet.read())
+        self.cg = cameraGeometry(geometryParams)
         
     def integral(self):
         if hasattr(self,'hits_fr'):
@@ -115,7 +118,8 @@ class Cluster:
             np.save(filename, self.hits)
 
     def eigenvectors(self):
-        covmat = np.cov([self.x,self.y])
+        mat = np.array([self.x,self.y])
+        covmat = np.cov(mat.astype(float))
         eig_values, eig_vecs = np.linalg.eig(covmat)
         indexes = (np.argmax(eig_values),np.argmin(eig_values))
         eig_vec_vals = (eig_vecs[:, indexes[0]], eig_vecs[:, indexes[-1]])
@@ -188,8 +192,7 @@ class Cluster:
         xedg = [(x-int(rxmin)) for x in xedg]
         yedg = [(y-int(rymin)) for y in yedg]
 
-        cg = cameraGeometry
-        pixw = 0.125
+        pixw = self.cg.pixelwidth
         length=(rxmax-rxmin); width=(rymax-rymin)
         if len(xedg)>1:
             longprof = ROOT.TH1F(name+'_long','longitudinal profile',len(xedg)-1,array('f',[pixw * x for x in xedg]))

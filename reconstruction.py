@@ -5,7 +5,7 @@ import numpy as np
 import ROOT
 ROOT.gROOT.SetBatch(True)
 from root_numpy import hist2array
-from cameraChannel import cameraTools
+from cameraChannel import cameraTools, cameraGeometry
 
 from snakes import SnakesProducer
 from output import OutputTree
@@ -18,25 +18,28 @@ utilities = utilities.utils()
 class analysis:
 
     def __init__(self,options):
-        self.xmax = 2048
         self.rebin = options.rebin        
         self.options = options
         self.pedfile_fullres_name = options.pedfile_fullres_name
         self.tmpname = options.tmpname
-        
+        geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
+        geometryParams = eval(geometryPSet.read())
+        self.cg = cameraGeometry(geometryParams)
+        self.xmax = self.cg.npixx
+
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
         if not options.justPedestal:
            print("Pulling pedestals...")
            # first the one for clustering with rebin
-           ctools = cameraTools()
+           ctools = cameraTools(self.cg)
            # then the full resolution one
            pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
            self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
            self.pedmap_fr.SetDirectory(0)
-           self.pedarr_fr = hist2array(self.pedmap_fr)
-           self.noisearr_fr = ctools.noisearray(self.pedmap_fr)
+           self.pedarr_fr = hist2array(self.pedmap_fr).T
+           self.noisearr_fr = ctools.noisearray(self.pedmap_fr).T
            pedrf_fr.Close()
 
     # the following is needed for multithreading
@@ -73,7 +76,7 @@ class analysis:
         
     def getNEvents(self):
         tf = sw.swift_read_root_file(self.tmpname) #tf = ROOT.TFile.Open(self.rfile)
-        ret = len(tf.GetListOfKeys()) if self.options.daq!='midas' else int(len(tf.GetListOfKeys())/2) 
+        ret = int(len(tf.GetListOfKeys())/2) if (self.options.daq=='midas' and self.options.pmt_mode) else len(tf.GetListOfKeys())
         tf.Close()
         return ret
 
@@ -164,11 +167,11 @@ class analysis:
         tf = sw.swift_read_root_file(self.tmpname)
         #tf = ROOT.TFile.Open(self.rfile)
         #c1 = ROOT.TCanvas('c1','',600,600)
-        ctools = cameraTools()
+        ctools = cameraTools(self.cg)
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            iev = iobj if self.options.daq != 'midas'  else int(iobj/2) # when PMT is present
+            iev = int(iobj/2) if self.options.daq == 'midas' and self.options.pmt_mode else iobj
             #print("max entries = ",self.options.maxEntries)
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
@@ -198,7 +201,7 @@ class analysis:
                 if obj.InheritsFrom('TH2'):
      
                     pic_fullres = obj.Clone(obj.GetName()+'_fr')
-                    img_fr = hist2array(pic_fullres)
+                    img_fr = hist2array(pic_fullres).T
 
                     # Upper Threshold full image
                     img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
@@ -226,7 +229,7 @@ class analysis:
                     snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
                     plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
                     snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
-                    snprod = SnakesProducer(snprod_inputs,snprod_params,self.options)
+                    snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
                     clusters,snakes = snprod.run()
                     self.autotree.fillCameraVariables(img_fr_zs)
                     self.autotree.fillClusterVariables(snakes,'sc')
@@ -253,7 +256,10 @@ class analysis:
                     self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
                     
             # fill reco tree (just once/event, and the TGraph is analyses as last)
-            if (self.options.daq == 'midas' and obj.InheritsFrom('TGraph')) or self.options.daq != 'midas':
+            if (self.options.daq == 'midas' and self.options.pmt_mode):
+                if obj.InheritsFrom('TGraph'):
+                    self.outTree.fill()
+            else:
                 self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
@@ -262,14 +268,12 @@ class analysis:
 if __name__ == '__main__':
     
     from optparse import OptionParser
-    #from debug_code.tools_lib import inputFile
     
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
-    #parser.add_option(      '--tmppath', dest='tmpname', default='/tmp', type='string', help='Directory where to keep tmp histograms')
     
     (options, args) = parser.parse_args()
     
@@ -278,25 +282,35 @@ if __name__ == '__main__':
     
     for k,v in params.items():
         setattr(options,k,v)
+
+    run = int(options.run)
+    
     if options.debug_mode == 1:
-        setattr(options,'outFile','reco_run%s_%s_debug.root' % (options.run, options.tip))
+        setattr(options,'outFile','reco_run%d_%s_debug.root' % (run, options.tip))
         if options.ev: options.maxEntries = options.ev + 1
         #if options.daq == 'midas': options.ev +=0.5 
     else:
-        setattr(options,'outFile','reco_run%05d_%s.root' % (int(options.run), options.tip))
-    setattr(options,'pedfile_name', 'pedestals/pedestals/pedmap_run%s_rebin%d.root' % (options.pedrun,options.rebin))
+        setattr(options,'outFile','reco_run%05d_%s.root' % (run, options.tip))
+        
+    if not hasattr(options,"pedrun"):
+        pf = open("pedestals/pedruns.txt","r")
+        peddic = eval(pf.read())
+        options.pedrun = -1
+        for runrange,ped in peddic.items():
+            if int(runrange[0])<=run<=int(runrange[1]):
+                options.pedrun = int(ped)
+                print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
+                break
+        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/pedruns.txt. Check the dictionary inside it!")
+            
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
     #inputf = inputFile(options.run, options.dir, options.daq)
-
-    if sw.checkfiletmp(int(options.run), options.tmpname):
-       #print("I am checking if there is a file in: " + options.tmpname)
-       options.tmpname = options.tmpname + "/histograms_Run%05d.root" % int(options.run)
-    
-    #if there is no file in given tmp directory  = options.tmpname it will set tmpname as "/tmp" and look for histograms there
+    if sw.checkfiletmp(int(options.run)):
+        options.tmpname = "/tmp/histograms_Run%05d.root" % int(options.run)
     else:
-        #print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),options.tmpname)
+        print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
+        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run))
     
     if options.justPedestal:
         ana = analysis(options)

@@ -20,11 +20,11 @@ def reporthook(blocknum, blocksize, totalsize):
     else: # total size is unknown
         sys.stderr.write("read %d\n" % (readsofar,))
 
-def swift_download_root_file(url,run,tmppath):
+def swift_download_root_file(url,run):
     import ROOT
     import os
     from urllib.request import urlretrieve
-    tmpname = (tmppath + "/histograms_Run%05d.root" % run)
+    tmpname = ("/tmp/histograms_Run%05d.root" % run)
     urlretrieve(url, tmpname, reporthook)
     return tmpname 
 
@@ -33,7 +33,7 @@ def rootlocation(tag,run):
     if tag == 'Data':
         if (run>=936) and (run<=1601):
             sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<=2321):
+        elif (run>=1632) and (run<=3865):
             sel = 'Data/LAB'
         else:
             print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
@@ -55,9 +55,9 @@ def swift_rm_root_file(tmpname):
     os.remove(tmpname)
     print("tmp file removed")
 
-def checkfiletmp(run,tmppath):
+def checkfiletmp(run):
     import os.path
-    return os.path.isfile(tmppath + "/histograms_Run%05d.root" % run)
+    return os.path.isfile("/tmp/histograms_Run%05d.root" % run)
 
 
 def root_TH2_name(root_file):

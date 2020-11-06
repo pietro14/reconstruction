@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-import ROOT,math,os,sys
+import ROOT,math,os,sys,time
 import pickle
 
 from scipy.ndimage import gaussian_filter, median_filter
@@ -21,11 +21,12 @@ from iDBSCAN import iDBSCAN
 import debug_code.tools_lib as tl
 
 class SnakesFactory:
-    def __init__(self,img,img_fr,img_fr_zs,img_ori,name,options):
+    def __init__(self,img,img_fr,img_fr_zs,img_ori,name,options,geometry):
         self.name = name
         self.options = options
         self.rebin = options.rebin
-        ct = cameraTools()
+        self.geometry = geometry
+        ct = cameraTools(geometry)
         self.image = img
         self.img_ori = img_ori
         self.imagelog = np.zeros((self.image.shape[0],self.image.shape[1]))
@@ -99,7 +100,7 @@ class SnakesFactory:
         nb_it              = 3
         
         #-----Pre-Processing----------------#
-        rescale=int(2048/self.rebin)
+        rescale=int(self.geometry.npixx/self.rebin)
         rebin_image     = tl.rebin(self.img_ori, (rescale, rescale))
 
         edges = median_filter(self.image, size=4)
@@ -133,9 +134,12 @@ class SnakesFactory:
         # clustering will crash if the vector of pixels is empty (it may happen after the zero-suppression + noise filtering)
         if len(X)==0:
             return clusters,superclusters
-        
+
+        t0 = time.perf_counter()
         # - - - - - - - - - - - - - -
         db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts, flag_plot_noise = self.options.flag_plot_noise).fit(X)
+        t1 = time.perf_counter()
+        if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         
         if self.options.debug_mode == 1 and self.options.flag_plot_noise == 1:         
             for ext in ['png','pdf']:
@@ -190,7 +194,7 @@ class SnakesFactory:
                             
             # only add the cores to the clusters saved in the event
             if k>-1 and len(x)>1:
-                cl = Cluster(xy,self.rebin,self.image_fr,self.image_fr_zs,debug=False)
+                cl = Cluster(xy,self.rebin,self.image_fr,self.image_fr_zs,self.options.geometry,debug=False)
                 cl.iteration = db.tag_[labels == k][0]
                 cl.nclu = k
                 
@@ -211,16 +215,24 @@ class SnakesFactory:
                 #         for ext in ['png','pdf']:
                 #             canv.SaveAs('{pdir}/{name}_snake{iclu}_{dir}profile.{ext}'.format(pdir=outname,name=self.name,iclu=k,dir=dir,ext=ext))
 
+        t2 = time.perf_counter()
+        if self.options.debug_mode: print(f"label basic clusters in {t2 - t1:0.4f} seconds")
+
         ## SUPERCLUSTERING
         from supercluster import SuperClusterAlgorithm
         superclusterContours = []
-        scAlgo = SuperClusterAlgorithm(shape=rescale,debugmode=self.options.debug_mode)
+        scAlgo = SuperClusterAlgorithm(self.options,shape=rescale)
         u,indices = np.unique(db.labels_,return_index = True)
         allclusters_it1 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
         allclusters_it2 = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]
         allclusters_it12 = allclusters_it1 + allclusters_it2
+        t3 = time.perf_counter()
+        if self.options.debug_mode: print(f"supercl prep in {t3 - t2:0.4f} seconds")
         # note: passing the edges, not the filtered ones for deeper information
         superclusters,superclusterContours = scAlgo.findSuperClusters(allclusters_it12,edges,self.image_fr,self.image_fr_zs,0)
+
+        t4 = time.perf_counter()
+        if self.options.debug_mode: print(f"supercl in {t4 - t3:0.4f} seconds")
                 
         if plot:
             for ext in ['png','pdf']:
@@ -238,7 +250,7 @@ class SnakesFactory:
 
             if self.options.flag_full_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image_fr.T,cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='upper' )
+                plt.imshow(np.flipud(self.image_fr),cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='upper' )
                 plt.title("Original Image")
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
@@ -290,7 +302,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
 
@@ -317,7 +329,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-b',linewidth=2.5)
 
@@ -345,7 +357,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-y',linewidth=2.5)
 
@@ -369,7 +381,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             line, = plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
                         if j == 0:
@@ -383,7 +395,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
                     
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             line, = plt.plot(contour[:, 1],contour[:, 0], '-b',linewidth=2.5)
                         if j == 0:
@@ -397,7 +409,7 @@ class SnakesFactory:
                     xbox = clu[j][:,1]
 
                     if (len(ybox) > 0) and (len(xbox) > 0):
-                        contours = tl.findedges(ybox,xbox,self.rebin)
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                         for n, contour in enumerate(contours):
                             line, = plt.plot(contour[:, 1],contour[:, 0], '-y',linewidth=2.5)
                         if j == 0:
@@ -421,7 +433,7 @@ class SnakesFactory:
             if self.options.flag_supercluster == 1:
                 if len(superclusters):
                     fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2,alhpa=0.5)
+                    supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2,alpha=0.5)
                     #supercluster_contour.collections[0].set_label('supercluster it 1+2')
                     plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                     plt.title("Superclusters found")
@@ -450,7 +462,7 @@ class SnakesFactory:
                 ybox = xy[:, 0]
 
                 if (len(ybox) > 0) and (len(xbox) > 0):
-                    contours = tl.findedges(ybox,xbox,self.rebin)
+                    contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
                     for n, contour in enumerate(contours):
                         line, = plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
                 for ext in ['png','pdf']:
@@ -579,7 +591,7 @@ class SnakesFactory:
 
 
 class SnakesProducer:
-    def __init__(self,sources,params,options):
+    def __init__(self,sources,params,options,geometry):
         self.picture     = sources['picture']     if 'picture' in sources else None
         self.pictureHD   = sources['pictureHD']   if 'pictureHD' in sources else None
         self.picturezsHD = sources['picturezsHD'] if 'picturezsHD' in sources else None
@@ -593,14 +605,17 @@ class SnakesProducer:
         self.plotprofiles      = params['plotprofiles'] if 'plotprofiles' in params else False
 
         self.options = options
-
+        self.geometry = geometry
+        
     def run(self):
         ret = []
         if any([x==None for x in (self.picture.any(),self.pictureHD.any(),self.picturezsHD.any(),self.name)]):
             return ret
+
+        t0 = time.perf_counter()
         
         # Cluster reconstruction on 2D picture
-        snfac = SnakesFactory(self.picture,self.pictureHD,self.picturezsHD,self.pictureOri,self.name,self.options)
+        snfac = SnakesFactory(self.picture,self.pictureHD,self.picturezsHD,self.pictureOri,self.name,self.options,self.geometry)
 
         # this plotting is only the pyplot representation.
         # Doesn't work on MacOS with multithreading for some reason... 
@@ -610,7 +625,9 @@ class SnakesProducer:
         elif self.algo=='HOUGH':
             clusters = []
             snakes = snfac.getTracks(plot=self.plotpy)            
-
+        t1 = time.perf_counter()
+        if self.options.debug_mode: print(f"FULL RECO in {t1 - t0:0.4f} seconds")
+            
         # print "Get light profiles..."
         snfac.calcProfiles(snakes,plot=self.plotpy)
         snfac.calcProfiles(clusters,plot=False)

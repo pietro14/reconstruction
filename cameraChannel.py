@@ -7,23 +7,13 @@ import math
 import debug_code.tools_lib as tl
 
 class cameraGeometry:
-    def __init__(self):
-        # 240 mm = major axis of the ellipse = 2048 pixels
-        # ORANGE
-        # 1 px - 55*10-6 m
-        # 1 ph/ev - 440 V
-
-        # LEMON
-        # 1 px - 125*10-6 m
-        # 0,12 ph/ev - 460V
-        # 0,10 ph/ev - 450V
-        # 0,06 ph/ev - 440V
-        
-        self.pixelwidth = 0.125 # mm
+    def __init__(self,params):
+        self.pixelwidth = params['pixelwidth']
+        self.npixx = params['npixx']
         
 class cameraTools:
-    def __init__(self):
-        pass
+    def __init__(self,geometry):
+        self.geometry = geometry
 
     def pedsub(self,img,pedarr):
         return img - pedarr
@@ -48,7 +38,7 @@ class cameraTools:
         return img_zs
         
     def arrrebin(self,img,rebin):
-        newshape = int(2048/rebin)
+        newshape = int(self.geometry.npixx/rebin)
         img_rebin = tl.rebin(img,(newshape,newshape))
         return img_rebin
         
