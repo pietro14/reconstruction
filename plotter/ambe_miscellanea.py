@@ -52,7 +52,82 @@ def fitFe(rfile,calib=True):
     histo_sig.Fit( total, 'R+' )
     
     c.SaveAs('fe_diff_simplefit.pdf')
-    
+
+def fitDensity(rfile,plotdir):
+    tf = ROOT.TFile.Open(rfile)
+    histo1 = tf.Get("density")
+    histo1.SetMarkerColor(ROOT.kBlack)
+    histo1.SetLineColor(ROOT.kBlack)
+    histo1.GetXaxis().SetTitle('#delta (photons/pixel)')
+    histo1.GetXaxis().SetTitleSize(0.05)
+    histo1.GetYaxis().SetTitle('superclusters')
+    histo2 = tf.Get("cosm_density")
+    histo3 = tf.Get("fe_density")
+
+    c = getCanvas()
+
+    xmin1,xmax1 = (19,25)
+    xmin2,xmax2 = (16.5,23.5)
+    xmin3,xmax3= (12,18)
+
+    histo3.SetMarkerColor(ROOT.kGray+2)
+    histo3.SetMarkerStyle(ROOT.kFullCircle)
+    histo3.SetLineColor(ROOT.kGray+2)
+    histo3.Scale(1./histo3.Integral())
+    histo3.Sumw2()
+    histo3.Draw("pe 1")
+    g3 = ROOT.TF1("g3","gaus",xmin3,xmax3);
+    g3.SetLineColor(ROOT.kGray+2)
+    histo3.Fit('g3','R+S')
+
+
+    histo1.Sumw2()
+    histo1.SetMaximum(0.5)
+    histo1.GetYaxis().SetRangeUser(0.,0.5)
+    histo1.Scale(1./histo1.Integral())
+    histo1.Draw("pe 1 same")
+
+    g1 = ROOT.TF1("g1","gaus",xmin1,xmax1);
+    g1.SetLineColor(ROOT.kBlack)
+    histo1.Fit('g1','R+S')
+
+    histo2.SetMarkerColor(ROOT.kTeal+4)
+    histo2.SetMarkerStyle(ROOT.kFullCircle)
+    histo2.SetLineColor(ROOT.kTeal+4)
+    histo2.Sumw2()
+    histo2.Scale(1./histo2.Integral())
+    histo2.Draw("pe 1 same")
+    g2 = ROOT.TF1("g2","gaus",xmin2,xmax2);
+    g2.SetLineColor(ROOT.kTeal+4)
+    histo2.Fit('g2','R+S')
+
+
+    mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
+    sigma = g1.GetParameter(2); mSigma = g1.GetParError(2)
+    lat = ROOT.TLatex()
+    unit = ''
+    ndigits = 2
+    lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.03)
+    lat.DrawLatex(0.55, 0.80, "m_{{AmBe}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
+    lat.DrawLatex(0.55, 0.75, "#sigma_{{AmBe}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=mSigma,unit=unit,nd=ndigits))
+
+    mean  = g2.GetParameter(1); mErr = g2.GetParError(1)
+    sigma = g2.GetParameter(2); mSigma = g2.GetParError(2)
+    lat.DrawLatex(0.55, 0.60, "m_{{no source}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
+    lat.DrawLatex(0.55, 0.55, "#sigma_{{no source}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=mSigma,unit=unit,nd=ndigits))
+
+    mean  = g3.GetParameter(1); mErr = g3.GetParError(1)
+    sigma = g3.GetParameter(2); mSigma = g3.GetParError(2)
+    lat.DrawLatex(0.55, 0.40, "m_{{Fe}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
+    lat.DrawLatex(0.55, 0.35, "#sigma_{{Fe}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=mSigma,unit=unit,nd=ndigits))
+
+    par1 = g1.GetParameters()
+    par2 = g2.GetParameters()
+    par3 = g2.GetParameters()
+
+    for ext in ['png','pdf']:
+        c.SaveAs('{pdir}/cosm_scalefit.{ext}'.format(pdir=plotdir,ext=ext))
+
 
 def makeEff(f1,histo1,f2,histo2,f3=None,histo3=None,plotdir="./",xmax=31):
     # numerator: selected events
@@ -207,13 +282,15 @@ if __name__ == "__main__":
                  
     if  options.make == 'fitfe':
         fitFe('plots/ambe/clusters_3sourcesNloCalNeutronsFex1_2020_05_05/energy.root')
-    if  options.make == 'fitfeuncalib':
+    elif options.make == 'fitfeuncalib':
         fitFe('plots/ambe/clusters_3sourcesNloCalNeutronsFex1_2020_05_05/integral.root',calib=False)
+    elif options.make == 'fitdensity':
+        fitDensity('plots/ambe_cosmsel_16-11-2020/density.root',options.outdir)
 
     ## usages:
     # AmBe efficiency:> python ambe_miscellanea.py --make efficiency --source ambe --outdir './'
     # Fe55 efficiency:> python ambe_miscellanea.py --make efficiency --source fe --outdir './'
-    if options.make == 'efficiency':
+    elif options.make == 'efficiency':
         var = 'energy' if options.source=='fe' else 'energyFull'
         prefix = '' if options.source=='ambe' else ('fe_' if options.source=='fe' else 'cosm_')
         ## OLD binning
@@ -226,9 +303,12 @@ if __name__ == "__main__":
                 'plots/ambe/clusters_3sources_WP40Paper_2020_05_29/'+var+'.root',prefix+var,
                 options.outdir)
                 
-    if options.make == 'tworocs':
+    elif options.make == 'tworocs':
         compareROCs('plots/ambe/clusters_3sources_FullSelPaper_2020_05_29/density_roc.root','Graph',
                     'plots/ambe/clusters_3sources_FullSelAndPMTCutPaper_2020_05_29/density_roc.root','Graph',
                     options.outdir)
         
-        
+    else:
+        print ("make ",options.make," not implemented.")
+
+    
