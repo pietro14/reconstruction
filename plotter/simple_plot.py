@@ -10,13 +10,23 @@ ROOT.gROOT.SetBatch(True)
 GEOMETRY = 'lime'
     
 fe_integral_rescale = 0.1
-cosm_rate_calib = [1.26,0.02]     # central value, stat error
+cosm_rate_calib = [1.13,0.02]     # central value, stat error
 
 ### INTERCALIBRATION CONSTANTS CALCULATED WITH COSMICS ###
 # this comes from fitting the raw energy density in the CR. The uncertainty is negligible.
-cosm_energycalib = {'fe'   : 21.83/14.95,
-                    'cosm' : 21.83/19.81,
+
+### inter-calib with cosmics after 2hrs
+# cosm_energycalib = {'fe'   : 21.83/14.95,
+#                     'cosm' : 21.83/19.81,
+#                     'ambe' : 1 }
+### inter-calib with cosmics soon after AmBe
+cosm_energycalib = {'fe'   : 21.83/14.97,
+                    'cosm' : 21.83/21.31,
                     'ambe' : 1 }
+### no inter-calib
+#cosm_energycalib = {'fe'   : 1,
+#                    'cosm' : 1,
+#                    'ambe' : 1 }
 ##########################################################
 
 ### ABSOLUTE ENERGY SCALE ###
@@ -25,6 +35,10 @@ fe_integral_mpv = 1800. # number of photons most probable value
 fe_calib_gaussigma = [1.07,0.014] # central value, stat error
 fe_calib_gauspeak  = [fe_truth*1000./cosm_energycalib['fe']/fe_integral_mpv,0.013] # central value, stat error in eV/ph
 ##########################################################
+
+# rescaling for cosmics dE/dx MPV to be 2.3 keV/cm
+cosmics_cal =  0.29
+fe_calib_gauspeak = [cosmics_cal * x for x in fe_calib_gauspeak]
 
 pixw = 0.152 if GEOMETRY=='lime' else 0.125 # mm
 
@@ -64,8 +78,8 @@ def is60keVBkg(length,density):
 def spotsLowDensity(length,density):
     return length < 80 and 5<density<8
 
-def cosmicSelection(length,slimness):
-    return length*pixw>70
+def cosmicSelection(length,gsigma):
+    return length*pixw>70 and gsigma<1
 
 def isPurpleBlob(length,density):
     # rough linear decrease density vs length
@@ -237,7 +251,7 @@ def fillSpectra(cluster='sc'):
     ret = {}
     data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2020/'
     tf_ambe  = ROOT.TFile('{d}/ambe_lime.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/cosmics_lime.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/cosmics_firstruns_lime.root'.format(d=data_dir))
     tf_fe55 = ROOT.TFile('{d}/fe_lime.root'.format(d=data_dir))
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
@@ -247,21 +261,21 @@ def fillSpectra(cluster='sc'):
     ## Fe55 region histograms
     ret[('ambe','integral')] = ROOT.TH1F("integral",'',50,0,1e4)
     ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',50,0,25e4)
-    ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',50,0,30)
-    ret[('ambe','energy')] = ROOT.TH1F("energy",'',50,0,200)
+    ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',100,0,20)
+    ret[('ambe','energy')] = ROOT.TH1F("energy",'',50,0,60)
     ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',50,0,1000)
-    ret[('ambe','energyExt')] = ROOT.TH1F("energyExt",'',20,0,200)
+    ret[('ambe','energyExt')] = ROOT.TH1F("energyExt",'',50,0,200)
     #energyBins = array('f',list(range(11))+list(range(12,17,2))+list(range(19,32,3))+list(range(40,101,10))+list(range(150,201,50)))
     energyBins = array('f',list(range(11))+list(range(12,17,2))+list(range(19,32,3))+list(range(40,51,10))+list(range(75,149,25))+list(range(150,201,50)))
     ret[('ambe','energyFull')] = ROOT.TH1F("energyFull",'',len(energyBins)-1,energyBins)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',50,0,2304*pixw)
     ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200*pixw)
     ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40*pixw)
-    ret[('ambe','nhits')]    = ROOT.TH1F("nhits",'',100,0,10000)
+    ret[('ambe','nhits')]    = ROOT.TH1F("nhits",'',50,0,10000)
     ret[('ambe','slimness')] = ROOT.TH1F("slimness",'',50,0,1)
-    ret[('ambe','density')]  = ROOT.TH1F("density",'',100,10,50)
-    ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',50,0,120)
-    ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',40,0.,40.)
+    ret[('ambe','density')]  = ROOT.TH1F("density",'',50,10,50)
+    ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',60,0,40)
+    ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',40,0.,10.)
     ret[('ambe','inclination')]  = ROOT.TH1F("inclination",'',15,0,90)
     ret[('ambe','asymmetry')]  = ROOT.TH1F("asymmetry",'',5,0,1.)
 
@@ -360,7 +374,7 @@ def fillSpectra(cluster='sc'):
                 integral =  cosm_energycalib[runtype] * photons
                 density = integral/nhits if nhits>0 else 0
                 slimness = width/length
-                gsigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc]
+                gsigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc]*pixw
 
                 # gainCalibnInt = integral*1.1 if runtype=='ambe' else integral 
                 ## energy calibrated for saturation
@@ -395,7 +409,7 @@ def fillSpectra(cluster='sc'):
                 #    continue
                 # if not spotsLowDensity(length,density):
                 #    continue
-                #if not cosmicSelection(length,gsigma):
+                # if not cosmicSelection(length,gsigma):
                 #    continue
                 #if not isPurpleBlob(length,density):
                 #    continue
@@ -404,7 +418,7 @@ def fillSpectra(cluster='sc'):
                 ## the AmBe selection
                 ##########################
                 # remove long/slim cosmics
-                if length*pixw > 60. or slimness<0.3:
+                if length*pixw > 10. or slimness<0.4:
                     continue
                 # remove the residual low density background from pieces of cosmics not fully super-clustered
                 # if density<19:
