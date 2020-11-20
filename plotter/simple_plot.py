@@ -1,5 +1,7 @@
 import os, math, optparse, ROOT
 from array import array
+from root_numpy import hist2array
+import numpy as np
 
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
@@ -8,7 +10,9 @@ ROOT.gROOT.SetBatch(True)
 #     ROOT.gROOT.ProcessLine(".L functions.cc+")
 
 GEOMETRY = 'lime'
-    
+NX = {'lime':  2304,
+      'lemon': 2048 }
+
 fe_integral_rescale = 0.1
 cosm_rate_calib = [1.13,0.02]     # central value, stat error
 
@@ -68,6 +72,35 @@ def saturationFactorNLO(density):
         ret = (0.11 + 1.22*x)/(130283. * (1-math.exp(-1*(math.pow(x,0.56757)/117038.))))/1.2
     ## rescale the absolute scale for the observed Fe peak
     return ret * fe_truth / fe_calib_gauspeak[0]
+
+# this is for LIME
+# attach to a dict to make it persistent
+vignetteCorrMap = { 'lime' : np.zeros((int(NX['lime']/16),int(NX['lime']/16))) }
+
+def vignettingCorrection(x,y,length,detector='lime'):
+    ## since in these ntuples we have only xmean,ymean, not the slices,
+    ## we don't apply to the cosmics, which are long, and typically cross the center.
+    if length>5:
+        return 1
+    corr = 0
+    if detector == 'lemon':
+        corr = 1
+    elif detector == 'lime':
+        if not vignetteCorrMap[detector].any():
+            print("get vignetting map...")
+            tf = ROOT.TFile.Open('../data/vignette_run03806.root')
+            hmap = tf.Get('normmap')
+            vignetteCorrMap[detector] = hist2array(hmap)
+        rebinx = NX[GEOMETRY]/vignetteCorrMap[detector].shape[0]
+        rebiny = NX[GEOMETRY]/vignetteCorrMap[detector].shape[1]
+        #print ("rebin = ",rebinx," ",rebiny)
+        #print ("x = {x}, y={y}, bx={bx}, by={by}".format(x=x,y=y,bx=int(x/rebinx),by=int(y/rebiny)))
+        corr = 1./(vignetteCorrMap[detector])[int(x/rebinx),int(y/rebiny)]
+        #print ("x = {x}, y={y}, corr = {corr}".format(x=x,y=y,corr=corr))
+    else:
+        print ('WARNING! Detector ',detector,' not foreseen. Return correction 1')
+        corr = 1
+    return corr
 
 def is60keVBkg(length,density):
     # rough linear decrease density vs length
@@ -210,6 +243,9 @@ def withinFCFull(xmin,ymin,xmax,ymax,ax=480,ay=600,shape=2304):
     y2 = (ymax-center)*1.2
     return math.hypot(x1,y1)<ax and math.hypot(x2,y2)<ax
 
+def limeQuietRegion(xmean,ymean,framesize=256):
+    return xmean>framesize and xmean<NX[GEOMETRY]-framesize and ymean>framesize and ymean<NX[GEOMETRY]-framesize
+
 def slimnessCut(l,w,th=0.6):
     
         return (w/l)>th
@@ -244,7 +280,7 @@ def varChoice(var):
         exit()
     
     return var1, leg, histlimit
-    
+
 
 def fillSpectra(cluster='sc'):
 
@@ -371,10 +407,13 @@ def fillSpectra(cluster='sc'):
                 length =  getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
                 width =  getattr(event,"{clutype}_width".format(clutype=cluster))[isc]
                 photons = getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
-                integral =  cosm_energycalib[runtype] * photons
+                integral = vignettingCorrection(xmean,ymean,length) * cosm_energycalib[runtype] * photons
                 density = integral/nhits if nhits>0 else 0
                 slimness = width/length
                 gsigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc]*pixw
+
+                if not limeQuietRegion(xmean,ymean):
+                    continue
 
                 # gainCalibnInt = integral*1.1 if runtype=='ambe' else integral 
                 ## energy calibrated for saturation
@@ -382,9 +421,6 @@ def fillSpectra(cluster='sc'):
                 calib = cosm_energycalib[runtype] * fe_calib_gauspeak[0]
                 calibEnergy = integral * fe_calib_gauspeak[0] / 1000. # keV
                 calibDensity  = density * fe_calib_gauspeak[0] # eV/pix
-                
-                #if not withinFC(xmean,ymean):
-                #    continue
 
                 ##########################
                 ## SOME DEBUGGING CUTS...
@@ -409,7 +445,7 @@ def fillSpectra(cluster='sc'):
                 #    continue
                 # if not spotsLowDensity(length,density):
                 #    continue
-                # if not cosmicSelection(length,gsigma):
+                #if not cosmicSelection(length,gsigma):
                 #    continue
                 #if not isPurpleBlob(length,density):
                 #    continue
