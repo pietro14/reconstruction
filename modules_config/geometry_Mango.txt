@@ -1,0 +1,5 @@
+{
+# MANGO
+'pixelwidth'  : 0.049,  # mm
+'npixx'       : 1652,
+}

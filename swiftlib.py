@@ -33,11 +33,15 @@ def rootlocation(tag,run):
     if tag == 'Data':
         if (run>=936) and (run<=1601):
             sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<=3865):
+        elif (run>=1632) and (run<=3805):
             sel = 'Data/LAB'
         else:
             print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
             exit()
+
+    elif tag == 'DataMango':
+            sel= 'Data/MAN'
+
     elif tag == 'MC':
         sel = 'Simulation'
         print("WARNING: automatic download for Simulated data not implemented yet")
