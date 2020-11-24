@@ -8,7 +8,7 @@ from cameraChannel import cameraGeometry
 import time
 
 class SuperClusterAlgorithm:
-    def __init__(self,options,shape,neighbor_window=3):
+    def __init__(self,options,shape,neighbor_window=6):
         self.options = options
         self.shape = shape
         self.neighbor_window = neighbor_window
@@ -47,6 +47,7 @@ class SuperClusterAlgorithm:
         return _store
 
     def supercluster(self,clustered_data):
+        #print ("clu data = ",clustered_data)
         gimage = inverse_gaussian_gradient(clustered_data)
         # Initial level set
         # this makes alternate squares active at the first iteration of 10 macro-pixels
@@ -54,12 +55,12 @@ class SuperClusterAlgorithm:
         init_ls = np.zeros(clustered_data.shape, dtype=np.int8)
         init_ls[10:-10, 10:-10] = 1
         # List with intermediate results for plotting the evolution
-        evolution = []
-        callback = self.store_evolution_in(evolution)
-        ls = morphological_geodesic_active_contour(gimage, 300, init_ls,
+        #evolution = []
+        #callback = self.store_evolution_in(evolution)
+        ls = morphological_geodesic_active_contour(gimage, 400, init_ls,
                                                    smoothing=1, balloon=-1,
-                                                   threshold=0.69,
-                                                   iter_callback=callback)
+                                                   threshold=0.69)
+                                                   #iter_callback=callback)
         return ls
 
     def supercluster_points(self,levels):
