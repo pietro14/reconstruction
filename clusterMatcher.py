@@ -10,9 +10,12 @@ def array_row_intersection(a,b):
 
 class ClusterMatcher:
     def __init__(self,params):
-        self.min_length = 100
-        self.npixx = 2304
-        self.min_pix_intercept = 10
+        self.min_length = params['min_length']
+        self.npixx = params['npixx']
+        self.min_pix_intercept = params['min_npix_intercept']
+        self.min_samples_ransac = params['min_samples_ransac']
+        self.residual_threshold_ransac = params['residual_threshold_ransac']
+        self.max_trials_ransac = params['max_trials_ransac']
         
     def fitCluster(self,hits,plotting=False):
         #print (hits)
@@ -25,8 +28,8 @@ class ClusterMatcher:
         model.estimate(data)
 
         # robustly fit line only using inlier data with RANSAC algorithm
-        model_robust, inliers = ransac(data, LineModelND, min_samples=4,
-                                       residual_threshold=1, max_trials=1000)
+        model_robust, inliers = ransac(data, LineModelND, min_samples=self.min_samples_ransac,
+                                       residual_threshold=self.residual_threshold_ransac, max_trials=self.max_trials_ransac)
         outliers = inliers == False
 
         line_x = np.arange(0, self.npixx)
@@ -47,14 +50,15 @@ class ClusterMatcher:
             plt.show()
 
         extrap_xy = np.column_stack([line_x, line_y]).astype(int)
-        return extrap_xy
+        extrap_xy_robust = np.column_stack([line_x, line_y_robust]).astype(int)
+        return extrap_xy,extrap_xy_robust
 
     def matchCluster(self,killer,targets):
         if killer.shapes['long_width'] > self.min_length:
             killer_x = np.array([h[0] for h in killer.hits])
             killer_y = np.array([h[1] for h in killer.hits])
             killer_data = np.column_stack([killer_x, killer_y])
-            extrap_xy = self.fitCluster(killer.hits)
+            extrap_xy,extrap_xy_robust = self.fitCluster(killer.hits)
             #print ("KILLER extrap")
             #print(extrap_xy)
             for i,clu in enumerate(targets):
@@ -65,35 +69,50 @@ class ClusterMatcher:
                 #print ("data cluster = ",i)
                 #print (data)
                 intersect = array_row_intersection(extrap_xy,data)
+                intersect_robust = array_row_intersection(extrap_xy_robust,data)
                 #print ('INTERSECT = ')
                 #print (intersect)
                 
-                if len(intersect)>self.min_pix_intercept:
+                if max(len(intersect),len(intersect_robust))>self.min_pix_intercept:
                     # This solution is optimal when data is very large
                     tree = spatial.cKDTree(data)
                     mindist, minid = tree.query(killer_data)
                     #print("Min dist = ",min(mindist))
-                    clu.minDist = min(mindist)
+                    clu.minDistKiller = min(mindist)
+                    clu.nMatchKiller = len(intersect_robust)
+                    clu.nMatchKillerWeak = len(intersect)
 
         
 if __name__ == '__main__':
 
-    hits = np.load('debug_code/sclu_4.npy')
-    fitter = ClusterMatcher({})
-    fitter.fitCluster(hits)
+   cosm_cand = 2
+   hits = np.load('debug_code/sclu_{cand}.npy'.format(cand=cosm_cand))
 
-    # test the cluster matcher
-    killer = Cluster(hits,1,None,None,'lime')
-    killer.shapes['long_width'] = 300 # cluster shapes are not calculated when running standalone. Just set to a value to pass the threshold
-    targets = []
-    for icl in range(7):
-        if icl==4:
-            continue
-        cluhits = np.load('debug_code/sclu_{i}.npy'.format(i=icl))
-        cl = Cluster(cluhits,1,None,None,'lime')
-        targets.append(cl)
-    fitter.matchCluster(killer,targets)
+   fileParModule = open('modules_config/clusterMatcher.txt','r')
+   params = eval(fileParModule.read())
 
-    # check if a cluster has been killed
-    for i,cl in enumerate(targets):
-        print ("Cluster i = ",i,"has min distance from a killer = ",cl.minDist)
+   fileParGeometry = open('modules_config/geometry_lime.txt','r')
+   geo_params = eval(fileParGeometry.read())
+   params.update(geo_params)
+
+   print("full parameter set: ",params)
+   
+   fitter = ClusterMatcher(params)
+   fitter.fitCluster(hits)
+
+   # test the cluster matcher
+   killer = Cluster(hits,1,None,None,'lime')
+   killer.shapes['long_width'] = 300 # cluster shapes are not calculated when running standalone. Just set to a value to pass the threshold
+   targets = []
+   for icl in range(7):
+       if icl==cosm_cand:
+           continue
+       cluhits = np.load('debug_code/sclu_{i}.npy'.format(i=icl))
+       cl = Cluster(cluhits,1,None,None,'lime')
+       targets.append(cl)
+   fitter.matchCluster(killer,targets)
+
+   # check if a cluster has been killed
+   for i,cl in enumerate(targets):
+      print ("Cluster {icl} has min distance from a killer = {mdist:.1f} and number of robust (weak) matching pixels = {nr} ({nw}).".format(icl=i,mdist=cl.minDistKiller,nr=cl.nMatchKiller,nw=cl.nMatchKillerWeak))
+
