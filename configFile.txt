@@ -5,7 +5,7 @@
 # DEBUG plots
 'debug_mode'            : 0,
 
-'ev'                    : 33,
+'ev'                    : 50,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -56,6 +56,9 @@
 
 # Superclusters parameters are hardcoded
 'calibrate_clusters'    : True,
+
+# Run the cosmic killer (linear track extrapolation)
+'cosmic_killer'         : True,
 
 ### PMT waveform reconstruction
 'pmt_mode'              : 0,

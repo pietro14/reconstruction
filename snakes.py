@@ -606,6 +606,18 @@ class SnakesProducer:
 
         self.options = options
         self.geometry = geometry
+        geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
+        geometryParams = eval(geometryPSet.read())
+
+        self.run_cosmic_killer = self.options.cosmic_killer
+        if self.run_cosmic_killer:
+            from clusterMatcher import ClusterMatcher
+            # cosmic killer parameters
+            cosmicKillerPars = open('modules_config/clusterMatcher.txt','r')
+            killer_params = eval(cosmicKillerPars.read())
+            killer_params.update(geometryParams)
+            self.cosmic_killer = ClusterMatcher(killer_params)
+
         
     def run(self):
         ret = []
@@ -631,7 +643,13 @@ class SnakesProducer:
         # print "Get light profiles..."
         snfac.calcProfiles(snakes,plot=self.plotpy)
         snfac.calcProfiles(clusters,plot=False)
-        
+
+        # run the cosmic killer: it makes sense only on superclusters
+        if self.run_cosmic_killer:
+            for ik,killerCand in enumerate(snakes):
+                targets = [snakes[it] for it in range(len(snakes)) if it!=ik]
+                self.cosmic_killer.matchClusters(killerCand,targets)
+
         # snfac.calcProfiles(snakes) # this is for BTF
         
         # sort snakes by light integral

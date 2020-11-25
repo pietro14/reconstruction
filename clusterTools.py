@@ -15,7 +15,7 @@ class Cluster:
         self.rebin = rebin
         self.debug = debug
         self.x = hits[:, 0]; self.y = hits[:, 1]
-        if img_fr and img_fr_zs:
+        if img_fr.any() and img_fr_zs.any():
             self.hits_fr,self.hits_fr_zs = self.fullResHits(img_fr,img_fr_zs)
         else:
             print("WARNING! Cluster created without underlying image... Are you using it standalone?")

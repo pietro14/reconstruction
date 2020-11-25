@@ -19,7 +19,7 @@ class SuperClusterAlgorithm:
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
         geometryParams = eval(geometryPSet.read())
         self.cg = cameraGeometry(geometryParams)
-        
+
         # supercluster energy calibration for the saturation effect
         filePar = open('modules_config/energyCalibrator.txt','r')
         params = eval(filePar.read())
@@ -140,7 +140,7 @@ class SuperClusterAlgorithm:
                 #     print(scpixels)
                 #     sclu.dumpToFile('supercluster3')
 
-                    
+        
         # return the supercluster collection
         return superClusters,superClusterContours
     

@@ -53,18 +53,19 @@ class ClusterMatcher:
         extrap_xy_robust = np.column_stack([line_x, line_y_robust]).astype(int)
         return extrap_xy,extrap_xy_robust
 
-    def matchCluster(self,killer,targets):
-        if killer.shapes['long_width'] > self.min_length:
-            killer_x = np.array([h[0] for h in killer.hits])
-            killer_y = np.array([h[1] for h in killer.hits])
+    def matchClusters(self,killer,targets):
+       # do the fit on the ZS hits to find better the axis wrt the outliers
+       if killer.shapes['long_width'] > self.min_length:
+            killer_x = np.array([h[0] for h in killer.hits_fr_zs])
+            killer_y = np.array([h[1] for h in killer.hits_fr_zs])
             killer_data = np.column_stack([killer_x, killer_y])
-            extrap_xy,extrap_xy_robust = self.fitCluster(killer.hits)
+            extrap_xy,extrap_xy_robust = self.fitCluster(killer.hits_fr_zs)
             #print ("KILLER extrap")
             #print(extrap_xy)
             for i,clu in enumerate(targets):
                 hits = clu.hits
-                x = np.array([h[0] for h in hits])
-                y = np.array([h[1] for h in hits])
+                x = np.array([h[0] for h in clu.hits_fr_zs])
+                y = np.array([h[1] for h in clu.hits_fr_zs])
                 data = np.column_stack([x, y])
                 #print ("data cluster = ",i)
                 #print (data)
@@ -103,14 +104,17 @@ if __name__ == '__main__':
    # test the cluster matcher
    killer = Cluster(hits,1,None,None,'lime')
    killer.shapes['long_width'] = 300 # cluster shapes are not calculated when running standalone. Just set to a value to pass the threshold
+   # this is to set the collection used in the reco
+   killer.hits_fr_zs = hits
    targets = []
    for icl in range(7):
        if icl==cosm_cand:
            continue
        cluhits = np.load('debug_code/sclu_{i}.npy'.format(i=icl))
        cl = Cluster(cluhits,1,None,None,'lime')
+       cl.hits_fr_zs = cluhits
        targets.append(cl)
-   fitter.matchCluster(killer,targets)
+   fitter.matchClusters(killer,targets)
 
    # check if a cluster has been killed
    for i,cl in enumerate(targets):
