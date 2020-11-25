@@ -67,7 +67,7 @@ class utils:
     def get_git_revision_hash(self):
         return subprocess.check_output(['git', 'rev-parse', 'HEAD'])
 
-    def calcVignettingMap(self,run,pedfile,outfile,maxImages=1000,N=2304,rebin=16,det='lime',daq='midas'):
+    def calcVignettingMap(self,run,pedfile,outfile,maxImages=1000,N=2304,rebin=12,det='lime',daq='midas'):
 
         ################ GEOMETRY ###
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=det),'r')
@@ -75,7 +75,7 @@ class utils:
         cg = cameraGeometry(geometryParams)
         ctools = cameraTools(cg)
         #############################
-     
+        
         # pedestal map, full reso
         pedrf_fr = ROOT.TFile.Open(pedfile)
         pedmap_fr = pedrf_fr.Get('pedmap').Clone()
@@ -101,7 +101,7 @@ class utils:
             
         tf_in = sw.swift_read_root_file(infile)
      
-        framesize = 256 if det=='lime' else 0
+        framesize = 216 if det=='lime' else 0
         
         # first calculate the mean 
         for i,e in enumerate(tf_in.GetListOfKeys()):
@@ -112,7 +112,7 @@ class utils:
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pixel sums with event: ",name)
-            arr = hist2array(obj).T
+            arr = hist2array(obj)
             
             # Upper Threshold full image
             img_cimax = np.where(arr < 300, arr, 0)
@@ -121,8 +121,8 @@ class utils:
      
             # for lime, remove the borders of the sensor
             if det=='lime':
-                img_fr_zs[:framesize,:]=0
-                img_fr_zs[-framesize:,:]=0
+                #img_fr_zs[:framesize,:]=0
+                #img_fr_zs[-framesize:,:]=0
                 img_fr_zs[:,:framesize]=0
                 img_fr_zs[:,-framesize:]=0
                 
@@ -137,8 +137,8 @@ class utils:
         mapnorm = mapsum / float(norm)
         if det=='lime':
             framesize_rb = int(framesize/rebin)
-            mapnorm[:framesize_rb,:]=1
-            mapnorm[-framesize_rb:,:]=1
+            #mapnorm[:framesize_rb,:]=1
+            #mapnorm[-framesize_rb:,:]=1
             mapnorm[:,:framesize_rb]=1
             mapnorm[:,-framesize_rb:]=1
         
@@ -152,6 +152,7 @@ class utils:
         normmap.Write()
         tf_out.Close()
         print("Written the mean map with rebinning {rb}x{rb} into file {outf}.".format(rb=rebin,outf=outfile))
+
 
 
 class bcolors:
