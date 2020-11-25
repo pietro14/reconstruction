@@ -131,6 +131,10 @@ class SuperClusterAlgorithm:
                 sclu.pathlength = -1 if self.calibrate==False else self.calibrator.clusterLength()
                 superClusters.append(sclu)
 
+                # test of the supercluster matcher
+                # sclu.dumpToFile('sclu_{i}'.format(i=i),zero_suppressed=True)
+
+                # test of the skeletonization
                 # if i==3:
                 #     print(" === hits list ")
                 #     print(scpixels)

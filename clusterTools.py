@@ -15,7 +15,10 @@ class Cluster:
         self.rebin = rebin
         self.debug = debug
         self.x = hits[:, 0]; self.y = hits[:, 1]
-        self.hits_fr,self.hits_fr_zs = self.fullResHits(img_fr,img_fr_zs)
+        if img_fr and img_fr_zs:
+            self.hits_fr,self.hits_fr_zs = self.fullResHits(img_fr,img_fr_zs)
+        else:
+            print("WARNING! Cluster created without underlying image... Are you using it standalone?")
         self.mean_point = np.array([np.mean(self.x),np.mean(self.y)])
         self.EVs,self.theta = self.eigenvectors()
         self.widths = {}
@@ -24,6 +27,7 @@ class Cluster:
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=geometry),'r')
         geometryParams = eval(geometryPSet.read())
         self.cg = cameraGeometry(geometryParams)
+        self.minDist = self.cg.npixx
         
     def integral(self):
         if hasattr(self,'hits_fr'):
@@ -109,8 +113,11 @@ class Cluster:
             print("DUMPING rebinned hits in absence of full res ones")
             print(self.hits)
 
-    def dumpToFile(self,filename):
-        if hasattr(self,'hits_fr'):
+    def dumpToFile(self,filename,zero_suppressed=False):
+        if zero_suppressed and hasattr(self,'hits_fr_zs'):
+            print("DUMPING zero-suppressed fullres hits to a numpy file: ",filename)
+            np.save(filename, self.hits_fr_zs)
+        elif hasattr(self,'hits_fr'):
             print("DUMPING fullres hits to a numpy file: ",filename)
             np.save(filename, self.hits_fr)
         else:
