@@ -1,11 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.8
 
 import os,math,sys,random
 import numpy as np
+
 import ROOT
 ROOT.gROOT.SetBatch(True)
 from root_numpy import hist2array
 from cameraChannel import cameraTools, cameraGeometry
+
 
 from snakes import SnakesProducer
 from output import OutputTree
@@ -306,8 +308,12 @@ if __name__ == '__main__':
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
     #inputf = inputFile(options.run, options.dir, options.daq)
+
+    USER = os.environ['USER']
+    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     if sw.checkfiletmp(int(options.run)):
-        options.tmpname = "/tmp/histograms_Run%05d.root" % int(options.run)
+        options.tmpname = "%s/%s/histograms_Run%05d.root" % (tmpdir,USER,int(options.run))
     else:
         print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
         options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run))
