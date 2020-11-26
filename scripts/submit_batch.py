@@ -1,4 +1,6 @@
 #!/bin/env python
+# USAGE: python3.8 scripts/submit_batch.py $PWD "[3792-3796]" --outdir cosmics_1stset_261120 --dry-run
+# remove --dry-run to submit for real (otherwise only the scripts are created and commands are printed)
 
 jobstring  = '''#!/bin/bash
 ulimit -c 0 -S
