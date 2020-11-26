@@ -43,6 +43,9 @@ class analysis:
            self.pedarr_fr = hist2array(self.pedmap_fr).T
            self.noisearr_fr = ctools.noisearray(self.pedmap_fr).T
            pedrf_fr.Close()
+           if options.vignetteCorr:
+               self.vignmap = ctools.loadVignettingMap()
+            
 
     # the following is needed for multithreading
     def __call__(self,evrange=(-1,-1,-1)):
@@ -215,25 +218,30 @@ class analysis:
                     	img_fr_satcor = ctools.satur_corr(img_fr_sub) 
                     	img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
                     	img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
-                    
+                        
                     # skip saturation and set satcor =img_fr_sub 
                     else:
-                    	#print("you are in poor mode")
-                    	img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                    	img_fr_satcor = img_fr_sub  
-                    	img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                    	img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                        #print("you are in poor mode")
+                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                        img_fr_satcor = img_fr_sub  
+                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                        if options.vignetteCorr:
+                            # apply the vignetting correction after the ZS, which is on the raw counts (electronic noise)
+                            img_fr_zs_vigcor = ctools.vignette_corr(img_fr_zs,self.vignmap)
+                        else:
+                            img_fr_zs_vigcor = img_fr_zs
+                        img_rb_zs  = ctools.arrrebin(img_fr_zs_vigcor,self.rebin)
                     
                     
                     # Cluster reconstruction on 2D picture
                     algo = 'DBSCAN'
                     if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'name': name, 'algo': algo}
+                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs_vigcor, 'pictureOri': img_fr, 'name': name, 'algo': algo}
                     plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
                     snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                     snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
                     clusters,snakes = snprod.run()
-                    self.autotree.fillCameraVariables(img_fr_zs)
+                    self.autotree.fillCameraVariables(img_fr_zs_vigcor)
                     self.autotree.fillClusterVariables(snakes,'sc')
                     self.autotree.fillClusterVariables(clusters,'cl')
                     
