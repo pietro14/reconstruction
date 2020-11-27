@@ -17,9 +17,10 @@ if __name__ == "__main__":
     
     from optparse import OptionParser
     parser = OptionParser(usage='%prog workdir runs [options] ')
-    parser.add_option(        '--dry-run'       , dest='dryRun'        , action='store_true', default=False, help='Do not run the job, only print the command');
-    parser.add_option(        '--outdir', dest='outdir', type="string", default=None, help='outdirectory');
+    parser.add_option(        '--dry-run',  dest='dryRun',   action='store_true', default=False, help='Do not run the job, only print the command');
+    parser.add_option(        '--outdir',   dest='outdir',   type="string", default=None, help='outdirectory');
     parser.add_option(        '--nthreads', dest='nthreads', type="string", default=24, help='number of threads / job');
+    parser.add_option('-q',   '--queue',    dest='queue',    type="string", default='cygno-custom', help='queue to be used for the jobs');
     (options, args) = parser.parse_args()
 
     if len(args)<2:
@@ -63,7 +64,10 @@ if __name__ == "__main__":
         os.system('mkdir {od}'.format(od=logdir))
 
     # typically for LIME images (~4MP) MEM = 600MB. 1GB for safety
+    if options.queue!='cygno-custom':
+        nThreads = min(8,nThreads)
     RAM = nThreads*1000
+    ssdcache_opt = 'nodes=1:disk10,' if options.queue=='cygno-custom' else ''
     commands = []
     for run in runs:
         job_file_name = jobdir+'/job_run{r}.sh'.format(r=run)
@@ -77,7 +81,7 @@ if __name__ == "__main__":
         tmp_file.write(tmp_filecont)
         tmp_file.close()
         
-        sub_cmd = 'qsub -q cygno-custom -l nodes=1:disk10,ncpus={nt},mem={ram}mb -d {dpath} -e localhost:{logf} -o localhost:{logf} {jobf}'.format(dpath=abswpath,logf=log_file_name,jobf=job_file_name,nt=nThreads,ram=RAM)
+        sub_cmd = 'qsub -q {queue} -l {ssd}ncpus={nt},mem={ram}mb -d {dpath} -e localhost:{logf} -o localhost:{logf} {jobf}'.format(dpath=abswpath,logf=log_file_name,jobf=job_file_name,nt=nThreads,ram=RAM,ssd=ssdcache_opt,queue=options.queue)
         commands.append(sub_cmd)
 
     if options.dryRun:
