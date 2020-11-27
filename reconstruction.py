@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.8
+from multiprocessing import Pool,set_start_method
 
 import os,math,sys,random
 import numpy as np
@@ -276,7 +277,6 @@ class analysis:
 
                 
 if __name__ == '__main__':
-    
     from optparse import OptionParser
     
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
@@ -351,9 +351,10 @@ if __name__ == '__main__':
         nj = int(nev/nThreads)
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(0,nev,nj))]
         print(chunks)
-        from multiprocessing import Pool
         pool = Pool(nThreads)
         ret = pool.map(ana, chunks)
+        pool.close()
+        pool.join()
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         os.system('{rootsys}/bin/hadd -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
