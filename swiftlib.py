@@ -24,7 +24,10 @@ def swift_download_root_file(url,run):
     import ROOT
     import os
     from urllib.request import urlretrieve
-    tmpname = ("/tmp/histograms_Run%05d.root" % run)
+    USER = os.environ['USER']
+    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+    tmpname = ("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
     urlretrieve(url, tmpname, reporthook)
     return tmpname 
 
@@ -33,7 +36,7 @@ def rootlocation(tag,run):
     if tag == 'Data':
         if (run>=936) and (run<=1601):
             sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<=3865):
+        elif (run>=1632) and (run<=4000):
             sel = 'Data/LAB'
         else:
             print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
@@ -61,7 +64,10 @@ def swift_rm_root_file(tmpname):
 
 def checkfiletmp(run):
     import os.path
-    return os.path.isfile("/tmp/histograms_Run%05d.root" % run)
+    USER = os.environ['USER']
+    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+    return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
 
 
 def root_TH2_name(root_file):
