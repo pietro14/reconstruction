@@ -66,20 +66,20 @@ def fitDensity(rfile,plotdir):
 
     c = getCanvas()
 
-    xmin1,xmax1 = (19,25)
-    xmin2,xmax2 = (18.5,24.5)
+    xmin1,xmax1 = (15,25)
+    xmin2,xmax2 = (15,25)
     xmin3,xmax3= (12,18)
 
-    histo3.SetMarkerColor(ROOT.kGray+2)
-    histo3.SetMarkerStyle(ROOT.kFullCircle)
-    histo3.SetLineColor(ROOT.kGray+2)
-    histo3.Scale(1./histo3.Integral())
-    histo3.Sumw2()
-    histo3.Draw("pe 1")
-    g3 = ROOT.TF1("g3","gaus",xmin3,xmax3);
-    g3.SetLineColor(ROOT.kGray+2)
-    histo3.Fit('g3','R+S')
-
+    if histo3.Integral():
+        histo3.SetMarkerColor(ROOT.kGray+2)
+        histo3.SetMarkerStyle(ROOT.kFullCircle)
+        histo3.SetLineColor(ROOT.kGray+2)
+        histo3.Scale(1./histo3.Integral())
+        histo3.Sumw2()
+        histo3.Draw("pe 1")
+        g3 = ROOT.TF1("g3","gaus",xmin3,xmax3);
+        g3.SetLineColor(ROOT.kGray+2)
+        histo3.Fit('g3','R+S')
 
     histo1.Sumw2()
     histo1.SetMaximum(0.5)
@@ -116,14 +116,11 @@ def fitDensity(rfile,plotdir):
     lat.DrawLatex(0.55, 0.60, "m_{{no source}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
     lat.DrawLatex(0.55, 0.55, "#sigma_{{no source}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=mSigma,unit=unit,nd=ndigits))
 
-    mean  = g3.GetParameter(1); mErr = g3.GetParError(1)
-    sigma = g3.GetParameter(2); mSigma = g3.GetParError(2)
-    lat.DrawLatex(0.55, 0.40, "m_{{Fe}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
-    lat.DrawLatex(0.55, 0.35, "#sigma_{{Fe}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=mSigma,unit=unit,nd=ndigits))
-
-    par1 = g1.GetParameters()
-    par2 = g2.GetParameters()
-    par3 = g2.GetParameters()
+    if histo3.Integral():
+        mean  = g3.GetParameter(1); mErr = g3.GetParError(1)
+        sigma = g3.GetParameter(2); mSigma = g3.GetParError(2)
+        lat.DrawLatex(0.55, 0.40, "m_{{Fe}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
+        lat.DrawLatex(0.55, 0.35, "#sigma_{{Fe}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=mSigma,unit=unit,nd=ndigits))
 
     for ext in ['png','pdf']:
         c.SaveAs('{pdir}/cosm_scalefit.{ext}'.format(pdir=plotdir,ext=ext))
@@ -285,7 +282,7 @@ if __name__ == "__main__":
     elif options.make == 'fitfeuncalib':
         fitFe('plots/ambe/clusters_3sourcesNloCalNeutronsFex1_2020_05_05/integral.root',calib=False)
     elif options.make == 'fitdensity':
-        fitDensity('plots/ambe_cosmsel_firstruns_18-11-2020/density.root',options.outdir)
+        fitDensity('plots/ambeV3_cosmcalib_firstruns_30-11-2020/density.root',options.outdir)
 
     ## usages:
     # AmBe efficiency:> python ambe_miscellanea.py --make efficiency --source ambe --outdir './'

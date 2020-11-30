@@ -67,7 +67,7 @@ class utils:
     def get_git_revision_hash(self):
         return subprocess.check_output(['git', 'rev-parse', 'HEAD'])
 
-    def calcVignettingMap(self,run,pedfile,outfile,maxImages=1000,N=2304,rebin=12,det='lime',daq='midas'):
+    def calcVignettingMap(self,run,pedfile,outfile,maxImages=1000,rebin=12,det='lime',daq='midas'):
 
         ################ GEOMETRY ###
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=det),'r')
@@ -87,14 +87,16 @@ class utils:
         
         outname_base = os.path.basename(outfile).split('.')[0]
         tf_out = ROOT.TFile.Open(outname_base+'.root','recreate')
-     
+
+        N = cg.npixx
         nx=int(N/rebin); ny=int(N/rebin);
         normmap = ROOT.TH2D('normmap','normmap',nx,0,N,nx,0,N)
         
         mapsum = np.zeros((nx,nx))
-     
+
+        USER = os.environ['USER']
         if sw.checkfiletmp(int(run)):
-            infile = "/tmp/histograms_Run%05d.root" % int(run)
+            infile = "/tmp/%s/histograms_Run%05d.root" % (USER,int(run))
         else:
             print ('Downloading file: ' + sw.swift_root_file('Data', int(run)))
             infile = sw.swift_download_root_file(sw.swift_root_file('Data', int(run)),int(run))
@@ -115,10 +117,11 @@ class utils:
             arr = hist2array(obj)
             
             # Upper Threshold full image
-            img_cimax = np.where(arr < 300, arr, 0)
+            #img_cimax = np.where(arr < 300, arr, 0)
+            img_cimax = arr
             img_fr_sub = ctools.pedsub(img_cimax,pedarr_fr)
-            img_fr_zs  = ctools.zsfullres(img_fr_sub,noisearr_fr,nsigma=1)
-     
+            img_fr_zs  = ctools.zsfullres(img_fr_sub,noisearr_fr,nsigma=1)*1e-8
+            
             # for lime, remove the borders of the sensor
             if det=='lime':
                 #img_fr_zs[:framesize,:]=0
@@ -128,11 +131,14 @@ class utils:
                 
             img_rb_zs  = ctools.arrrebin(img_fr_zs,rebin)
             mapsum = np.add(mapsum,img_rb_zs)
+        print (mapsum)
      
         # calc the normalized map wrt the center area
-        CA = 96
+        CA = 16
         central_square = mapsum[int((N-CA)/rebin/2):int((N+CA)/rebin/2),int((N-CA)/rebin/2):int((N+CA)/rebin/2)]
+        print (central_square)
         norm = np.mean(central_square)
+        norm = 1
         print ("Now normalizing to the central area value = ",norm)
         mapnorm = mapsum / float(norm)
         if det=='lime':
@@ -171,9 +177,9 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     if options.make == 'calcVignette':
-        run = 3806
-        pedfile = 'pedestals/pedmap_run3807_rebin1.root'
+        run = 3930
+        pedfile = '../../analysis/pedestals/pedmap_run2109_rebin1.root'
         ut = utils()
-        ut.calcVignettingMap(run,"pedestals/pedmap_run3797_rebin1.root","vignette_run%05d.root" % run)
+        ut.calcVignettingMap(run,pedfile,"vignette_run%05d.root" % run,det='lemon',rebin=8,maxImages=1)
 
         

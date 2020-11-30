@@ -13,8 +13,8 @@ GEOMETRY = 'lime'
 NX = {'lime':  2304,
       'lemon': 2048 }
 
-fe_integral_rescale = 0.1
-cosm_rate_calib = [1.13,0.02]     # central value, stat error
+fe_integral_rescale = 0
+cosm_rate_calib = [1.0,0.02]     # central value, stat error
 
 ### INTERCALIBRATION CONSTANTS CALCULATED WITH COSMICS ###
 # this comes from fitting the raw energy density in the CR. The uncertainty is negligible.
@@ -25,7 +25,7 @@ cosm_rate_calib = [1.13,0.02]     # central value, stat error
 #                     'ambe' : 1 }
 ### inter-calib with cosmics soon after AmBe
 cosm_energycalib = {'fe'   : 21.83/14.97,
-                    'cosm' : 21.83/21.31,
+                    'cosm' : 20.0/19.5,
                     'ambe' : 1 }
 ### no inter-calib
 #cosm_energycalib = {'fe'   : 1,
@@ -61,6 +61,10 @@ def angleWrtHorizontal(xmin,xmax,ymin,ymax):
     ## figure is rotated by 90 degrees
     return math.asin(y/length)*180/3.14
 
+def angleWrtVertical(reco_theta):
+    abstheta = abs(reco_theta)
+    return abstheta if abstheta < 45 else abstheta-90
+    
 def saturationFactor(density):
     return 1.5/1.8 * math.pow(5979 * math.log(20512./(20512.-density)),1.8)/(0.27*density-0.1)
 
@@ -111,9 +115,15 @@ def is60keVBkg(length,density):
 def spotsLowDensity(length,density):
     return length < 80 and 5<density<8
 
-def cosmicSelection(length,gsigma):
-    return length*pixw>70 and gsigma<1
+def cosmicSelection(length,pathlength,gsigma):
+    return length*pixw>70 and abs(1-pathlength/length)<0.2 and gsigma<1
 
+def noiseSuppression(nhits,size,latrms,mindist): 
+    ## nhits/size suppresses the fake clusters in the low LY regions (because they have only sparse hits above ZS)
+    ## latrms=0 kills the single-macropixel clusters
+    ## mindist removes the non-joined clusters matched by a cosmic killer
+    return nhits/size>0.07 and latrms>0 and mindist>1000
+    
 def isPurpleBlob(length,density):
     # rough linear decrease density vs length
     central = 10 - length/50.
@@ -286,9 +296,9 @@ def fillSpectra(cluster='sc'):
 
     ret = {}
     data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2020/'
-    tf_ambe  = ROOT.TFile('{d}/ambe_lime.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/cosmics_firstruns_lime.root'.format(d=data_dir))
-    tf_fe55 = ROOT.TFile('{d}/fe_lime.root'.format(d=data_dir))
+    tf_ambe  = ROOT.TFile('{d}/v3/ambe_lime.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/v3/cosmics_firstruns_lime.root'.format(d=data_dir))
+    tf_fe55 = ROOT.TFile('{d}/v2/fe_lime.root'.format(d=data_dir))
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
 
@@ -297,7 +307,7 @@ def fillSpectra(cluster='sc'):
     ## Fe55 region histograms
     ret[('ambe','integral')] = ROOT.TH1F("integral",'',50,0,1e4)
     ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',50,0,25e4)
-    ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',100,0,20)
+    ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',50,0,30)
     ret[('ambe','energy')] = ROOT.TH1F("energy",'',50,0,60)
     ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',50,0,1000)
     ret[('ambe','energyExt')] = ROOT.TH1F("energyExt",'',50,0,200)
@@ -305,14 +315,15 @@ def fillSpectra(cluster='sc'):
     energyBins = array('f',list(range(11))+list(range(12,17,2))+list(range(19,32,3))+list(range(40,51,10))+list(range(75,149,25))+list(range(150,201,50)))
     ret[('ambe','energyFull')] = ROOT.TH1F("energyFull",'',len(energyBins)-1,energyBins)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',50,0,NX[GEOMETRY]*pixw)
-    ret[('ambe','width')]    = ROOT.TH1F("width",'',100,0,200*pixw)
+    ret[('ambe','width')]    = ROOT.TH1F("width",'',100,5,10)
     ret[('ambe','tgausssigma')]    = ROOT.TH1F("tgausssigma",'',100,0,40*pixw)
     ret[('ambe','nhits')]    = ROOT.TH1F("nhits",'',50,0,10000)
     ret[('ambe','slimness')] = ROOT.TH1F("slimness",'',50,0,1)
-    ret[('ambe','density')]  = ROOT.TH1F("density",'',50,10,50)
-    ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',60,0,40)
+    ret[('ambe','density')]  = ROOT.TH1F("density",'',100,10,50)
+    ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',80,0,40)
     ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',40,0.,10.)
-    ret[('ambe','inclination')]  = ROOT.TH1F("inclination",'',15,0,90)
+    ret[('ambe','inclination')]  = ROOT.TH1F("inclination",'',10,0,90)
+    ret[('ambe','curliness')]  = ROOT.TH1F("curliness",'',100,-0.5,1)
     ret[('ambe','asymmetry')]  = ROOT.TH1F("asymmetry",'',5,0,1.)
     ret[('ambe','lengthvsdistance_prof')]   = ROOT.TProfile("lengthvsdistance_prof",'',8,0,NX[GEOMETRY]/math.sqrt(2)*pixw*0.1)
     ret[('ambe','multiplicityvsdistance_prof')]   = ROOT.TProfile("multiplicityvsdistance_prof",'',12,0,NX[GEOMETRY]/math.sqrt(2)*pixw*0.1)
@@ -341,10 +352,10 @@ def fillSpectra(cluster='sc'):
     # x-axis titles
     titles = {'integral': 'I_{SC} (photons)', 'integralExt': 'I_{SC} (photons)', 'calintegral': 'E (keV)', 'calintegralExt': 'E (keV)', 'caldensity': 'density (eV/pixel)', 'dedx': 'dE/d#it{l}_{p} (keV/cm)',
               'energy': 'E (keV)', 'energyExt': 'E (keV)', 'energyFull': 'E (keV)', # these are like calintegral, but estimated in the reconstruction step
-              'length':'#it{l}_{p} (mm)', 'width':'#it{w} (mm)', 'nhits': 'n_{p}', 'slimness': '#xi', 'density': '#delta (photons/pixel)',
+              'length':'#it{l}_{p} (mm)', 'width':'#it{w} (mm)', 'nhits': 'n_{p}', 'slimness': '#xi', 'curliness': '#zeta', 'density': '#delta (photons/pixel)',
               'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
               'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
-              'tgausssigma': '#sigma^{T}_{Gauss} (mm)', 'inclination': '#theta (deg)', 'asymmetry': 'asymmetry: (A-B)/(A+B)',
+              'tgausssigma': '#sigma^{T}_{Gauss} (mm)', 'inclination': '#theta (wrt vertical) (deg)', 'asymmetry': 'asymmetry: (A-B)/(A+B)',
               'lengthvsdistance_prof': 'lenghthvsdistance', 'multiplicityvsdistance_prof': 'multiplicityvsdistance'}
 
     titles2d = {'integralvslength': ['l_{p} (mm)','photons'], 'densityvslength' : ['l_{p} (mm)','#delta (photons/pix)'],
@@ -381,6 +392,10 @@ def fillSpectra(cluster='sc'):
             ## eventually, use the PMT TOT threshold to reject the cosmics
             #if getattr(event,'pmt_tot')>250:
             #    continue
+
+            # use only the central position in the Z-scan for Fe
+            if runtype=='fe' and getattr(event,"run")!=3689:
+                continue
             
             for cmosvar in ['cmos_integral','cmos_mean','cmos_rms']:
                 ret[runtype,cmosvar].Fill(getattr(event,cmosvar))
@@ -401,6 +416,7 @@ def fillSpectra(cluster='sc'):
                 #if getattr(event,"{clutype}_iteration".format(clutype=cluster))[isc]!=2:
                 #    continue
                 nhits = getattr(event,"{clutype}_nhits".format(clutype=cluster))[isc]
+                size = getattr(event,"{clutype}_size".format(clutype=cluster))[isc]
                 xmin = getattr(event,"{clutype}_xmin".format(clutype=cluster))[isc]
                 xmax = getattr(event,"{clutype}_xmax".format(clutype=cluster))[isc]
                 ymin = getattr(event,"{clutype}_ymin".format(clutype=cluster))[isc]
@@ -408,16 +424,25 @@ def fillSpectra(cluster='sc'):
                 xmean = getattr(event,"{clutype}_xmean".format(clutype=cluster))[isc]
                 ymean = getattr(event,"{clutype}_ymean".format(clutype=cluster))[isc]
                 length =  getattr(event,"{clutype}_length".format(clutype=cluster))[isc]
+                pathlength =  getattr(event,"{clutype}_pathlength".format(clutype=cluster))[isc]
                 width =  getattr(event,"{clutype}_width".format(clutype=cluster))[isc]
                 photons = getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]
-                integral = vignettingCorrection(xmean,ymean,length) * cosm_energycalib[runtype] * photons
+                theta = getattr(event,"{clutype}_theta".format(clutype=cluster))[isc] if runtype!='fe' else 3000
+                integral = cosm_energycalib[runtype] * photons
                 density = integral/nhits if nhits>0 else 0
                 slimness = width/length
                 gsigma =  getattr(event,"{clutype}_tgausssigma".format(clutype=cluster))[isc]*pixw
+                latrms = getattr(event,"{clutype}_latrms".format(clutype=cluster))[isc]
+                mindist = getattr(event,"{clutype}_mindist".format(clutype=cluster))[isc] if runtype!='fe' else 2000 ## because I haven't rerun FE with V3
 
                 distFromCenter = math.hypot((xmean-NX[GEOMETRY]/2),(ymean-NX[GEOMETRY]/2))*pixw
 
+                ##########################
+                ## PRESELECTION (NOISE)
+                ##########################
                 if not limeQuietRegion(xmean,ymean):
+                    continue
+                if not noiseSuppression(nhits,size,latrms,mindist):
                     continue
 
                 # gainCalibnInt = integral*1.1 if runtype=='ambe' else integral 
@@ -436,7 +461,8 @@ def fillSpectra(cluster='sc'):
                     if isc!=isc2 and dist < 50: # 5cm radius
                         neighbors += 1
                 ret[(runtype,'multiplicityvsdistance_prof')].Fill(distFromCenter*0.1,neighbors)
-                        
+
+                
                 ##########################
                 ## SOME DEBUGGING CUTS...
                 ##########################
@@ -460,7 +486,7 @@ def fillSpectra(cluster='sc'):
                 #    continue
                 # if not spotsLowDensity(length,density):
                 #    continue
-                #if not cosmicSelection(length,gsigma):
+                #if not cosmicSelection(length,pathlength,gsigma):
                 #    continue
                 #if not isPurpleBlob(length,density):
                 #    continue
@@ -469,8 +495,8 @@ def fillSpectra(cluster='sc'):
                 ## the AmBe selection
                 ##########################
                 # remove long/slim cosmics
-                #if length*pixw > 10. or slimness<0.4:
-                #    continue
+                if length*pixw > 10. or slimness<0.9 or width*pixw>6.54:
+                    continue
                 # remove the residual low density background from pieces of cosmics not fully super-clustered
                 # if density<19:
                 #     continue
@@ -487,6 +513,7 @@ def fillSpectra(cluster='sc'):
                 for var in ['length','width','nhits','tgausssigma']:
                     geomfact = pixw if var in ['length','width','tgausssigma'] else 1.
                     ret[(runtype,var)].Fill(geomfact * getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
+                ret[(runtype,'curliness')].Fill(pathlength/length-1)
                 ret[(runtype,'lengthvsdistance_prof')].Fill(distFromCenter*0.1,length*pixw*0.1)
                 ret[(runtype,'integral')].Fill(integral)
                 ret[(runtype,'integralExt')].Fill(integral)
@@ -518,7 +545,7 @@ def fillSpectra(cluster='sc'):
                     xmax = getattr(event,"{clutype}_xmax".format(clutype=cluster))[isc]
                     ymin = getattr(event,"{clutype}_ymin".format(clutype=cluster))[isc]
                     ymax = getattr(event,"{clutype}_ymax".format(clutype=cluster))[isc]
-                    ret[(runtype,'inclination')].Fill( angleWrtHorizontal(xmin,xmax,ymin,ymax) )
+                    ret[(runtype,'inclination')].Fill( angleWrtVertical(theta) )
 
                     if hasattr(event,"{clutype}_nslices".format(clutype=cluster)) and len(slices)>1: # the Fe55 was recoed w/o that implemented (so far, since it is not needed)
                         # this is to check that the loop over slices is right: the sum of the slices should ~ cluster integral
