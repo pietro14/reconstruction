@@ -38,12 +38,11 @@ def rootlocation(tag,run):
             sel = 'Data/LTD/Data_Camera/ROOT'
         elif (run>=1632) and (run<=4000):
             sel = 'Data/LAB'
+        elif tag == 'DataMango':
+            sel= 'Data/MAN'
         else:
             print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
             exit()
-            
-        elif tag == 'DataMango':
-            sel= 'Data/MAN'
             
     elif tag == 'MC':
         sel = 'Simulation'
