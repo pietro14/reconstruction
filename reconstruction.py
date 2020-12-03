@@ -46,6 +46,8 @@ class analysis:
            pedrf_fr.Close()
            if options.vignetteCorr:
                self.vignmap = ctools.loadVignettingMap()
+           else:
+               self.vignmap = np.ones((self.xmax, self.xmax))
             
 
     # the following is needed for multithreading
@@ -106,12 +108,13 @@ class analysis:
         # first calculate the mean 
         numev = 0
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas'  else i/2 # when PMT is present
+            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/2 # when PMT is present
             if iev in self.options.excImages: continue
-
-            if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
+            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+            
             name=e.GetName()
             obj=e.ReadObj()
+
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pedestal mean with event: ",name)
             if rebin>1:
@@ -123,12 +126,13 @@ class analysis:
         pedmean = pedsum / float(numev)
 
         # now compute the rms (two separate loops is faster than one, yes)
+        numev=0
         pedsqdiff = np.zeros((nx,ny))
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas'  else i/2 # when PMT is present
+            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/2 # when PMT is present
             if iev in self.options.excImages: continue
-
-            if maxImages>-1 and i<len(tf.GetListOfKeys())-maxImages: continue
+            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+            
             name=e.GetName()
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
@@ -138,6 +142,7 @@ class analysis:
                 obj.RebinY(rebin); 
             arr = hist2array(obj)
             pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
+            numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
 
         # now save in a persistent ROOT object
@@ -232,23 +237,18 @@ class analysis:
                         img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
                         img_fr_satcor = img_fr_sub  
                         img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                        if options.vignetteCorr:
-                            # apply the vignetting correction after the ZS, which is on the raw counts (electronic noise)
-                            img_fr_zs_vigcor = ctools.vignette_corr(img_fr_zs,self.vignmap)
-                        else:
-                            img_fr_zs_vigcor = img_fr_zs
-                        img_rb_zs  = ctools.arrrebin(img_fr_zs_vigcor,self.rebin)
+                        img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
                     
                     
                     # Cluster reconstruction on 2D picture
                     algo = 'DBSCAN'
                     if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs_vigcor, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
+                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
                     plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
-                    snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
+                    snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': True}
                     snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
                     clusters,snakes = snprod.run()
-                    self.autotree.fillCameraVariables(img_fr_zs_vigcor)
+                    self.autotree.fillCameraVariables(img_fr_zs)
                     self.autotree.fillClusterVariables(snakes,'sc')
                     self.autotree.fillClusterVariables(clusters,'cl')
                     
