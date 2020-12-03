@@ -245,7 +245,7 @@ class analysis:
                     if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
                     snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
                     plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
-                    snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': True}
+                    snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                     snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
                     clusters,snakes = snprod.run()
                     self.autotree.fillCameraVariables(img_fr_zs)
