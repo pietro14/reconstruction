@@ -26,7 +26,7 @@ class SnakesFactory:
         self.options = options
         self.rebin = options.rebin
         self.geometry = geometry
-        ct = cameraTools(geometry)
+        self.ct = cameraTools(geometry)
         self.image = img
         self.img_ori = img_ori
         self.imagelog = np.zeros((self.image.shape[0],self.image.shape[1]))
@@ -82,8 +82,8 @@ class SnakesFactory:
         
         #   Plot parameters  #
         
-        vmin=99
-        vmax=125
+        vmin=1
+        vmax=5
         
         #   IDBSCAN parameters  #
         
@@ -102,10 +102,9 @@ class SnakesFactory:
         
         #-----Pre-Processing----------------#
         rescale=int(self.geometry.npixx/self.rebin)
-        rebin_image     = tl.rebin(self.img_ori, (rescale, rescale))
-        rebin_vignette  = tl.rebin(self.vignette,(rescale, rescale)) if self.options.vignetteCorr else np.ones(rescale, rescale)
-        
-        edges = median_filter(self.image, size=6)
+
+        filtimage = median_filter(self.image_fr_zs, size=2)
+        edges = self.ct.arrrebin(filtimage,self.rebin)
         edcopy = edges.copy()
         edcopyTight = tl.noisereductor(edcopy,rescale,self.options.min_neighbors_average)
 
@@ -114,12 +113,16 @@ class SnakesFactory:
         points = np.array(np.nonzero(np.round(edcopyTight))).astype(int).T
         lp = points.shape[0]
 
+        ## apply vignetting (if not applied, vignette map is all ones)
+        ## this is done only for energy calculation, not for clustering (would make it crazy)
+        image_fr_vignetted = self.ct.vignette_corr(self.image_fr,self.vignette)
+        image_fr_zs_vignetted = self.ct.vignette_corr(self.image_fr_zs,self.vignette)
+                
         if tip=='3D':
             Xl = [(ix,iy) for ix,iy in points]          # Aux variable to simulate the Z-dimension
             X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
             for ix,iy in points:                        # Looping over the non-empty coordinates
-                cut_vignette = min(rebin_vignette[ix,iy],2) # don't reduce the seeding threshold more than 1/2
-                nreplicas = max(int(self.image[ix,iy]/cut_vignette)-1,0) # divide by the vignette correction the pixel to equivalently increase the "seeding threshold" of the cluster
+                nreplicas = int(self.image[ix,iy])-1
                 for count in range(nreplicas):                                # Looping over the number of 'photons' in that coordinate
                     Xl.append((ix,iy))                              # add a coordinate repeatedly 
             X = np.array(Xl)                                        # Convert the list to an array
@@ -180,7 +183,7 @@ class SnakesFactory:
             #plt.imshow(self.image.T, cmap='gray', vmin=0, vmax=1, origin='lower' ) 
             #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
             fig = plt.figure(figsize=(10, 10))
-            plt.imshow(self.image,cmap='viridis', vmin=1, vmax=25, interpolation=None, origin='lower' ) 
+            plt.imshow(self.image,cmap='viridis', vmin=1, vmax=10, interpolation=None, origin='lower' ) 
             #plt.savefig('{pdir}/{name}_edges.png'.format(pdir=outname,name=self.name))
             
         for k, col in zip(unique_labels, colors):
@@ -197,7 +200,7 @@ class SnakesFactory:
                             
             # only add the cores to the clusters saved in the event
             if k>-1 and len(x)>1:
-                cl = Cluster(xy,self.rebin,self.image_fr,self.image_fr_zs,self.options.geometry,debug=False)
+                cl = Cluster(xy,self.rebin,image_fr_vignetted,image_fr_zs_vignetted,self.options.geometry,debug=False)
                 cl.iteration = db.tag_[labels == k][0]
                 cl.nclu = k
                 
@@ -232,7 +235,7 @@ class SnakesFactory:
         t3 = time.perf_counter()
         if self.options.debug_mode: print(f"supercl prep in {t3 - t2:0.4f} seconds")
         # note: passing the edges, not the filtered ones for deeper information
-        superclusters,superclusterContours = scAlgo.findSuperClusters(allclusters_it12,edges,self.image_fr,self.image_fr_zs,0)
+        superclusters,superclusterContours = scAlgo.findSuperClusters(allclusters_it12,edges,image_fr_vignetted,image_fr_zs_vignetted,0)
 
         t4 = time.perf_counter()
         if self.options.debug_mode: print(f"supercl in {t4 - t3:0.4f} seconds")
@@ -253,7 +256,8 @@ class SnakesFactory:
 
             if self.options.flag_full_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(np.flipud(self.image_fr),cmap=self.options.cmapcolor, vmin=1, vmax=25,origin='upper' )
+                #plt.imshow(np.flipud(self.image_fr_zs),cmap=self.options.cmapcolor, vmin=0, vmax=10,origin='upper' )
+                plt.imshow(np.flipud(self.image_fr_zs),cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='upper' )
                 plt.title("Original Image")
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
@@ -264,7 +268,7 @@ class SnakesFactory:
                 
             if self.options.flag_rebin_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax, origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1, vmax=vmax, origin='lower' )
                 plt.title("Rebin Image")
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='rebinIma',ext=ext), bbox_inches='tight', pad_inches=0)
@@ -296,7 +300,7 @@ class SnakesFactory:
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Clusters found in iteration 1")
 
                 for j in range(0,np.shape(clu)[0]):
@@ -323,7 +327,7 @@ class SnakesFactory:
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 2)[0])].tolist()]
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Clusters found in iteration 2")
 
                 for j in range(0,np.shape(clu)[0]):
@@ -351,7 +355,7 @@ class SnakesFactory:
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 3)[0])].tolist()]
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Clusters found in iteration 3")
 
                 for j in range(0,np.shape(clu)[0]):
@@ -375,7 +379,7 @@ class SnakesFactory:
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Final Image")
 
                 for j in range(0,np.shape(clu)[0]):
@@ -438,7 +442,7 @@ class SnakesFactory:
                     fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                     supercluster_contour = plt.contour(superclusterContours, [0.5], colors='limegreen', linewidths=2,alpha=0.5)
                     #supercluster_contour.collections[0].set_label('supercluster it 1+2')
-                    plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                    plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                     plt.title("Superclusters found")
                 
                 for ext in ['png','pdf']:
@@ -455,7 +459,7 @@ class SnakesFactory:
                 print('[Plotting just the cluster %d]' % (self.options.nclu))
 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(rebin_image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title('Plotting just the cluster %d' % (self.options.nclu))
                 
                 cl_mask = (db.labels_ == self.options.nclu)
