@@ -121,7 +121,7 @@ def spotsLowDensity(length,density):
     return length < 80 and 5<density<8
 
 def cosmicSelection(length,pathlength,slimness,gsigma):
-    return length*pixw>100 and abs(1-pathlength/length)<0.1 and gsigma < 1./pixw and slimness<0.15
+    return length*pixw>120 and abs(1-pathlength/length)<0.1 and gsigma < 1./pixw and slimness<0.15
 
 def noiseSuppression(nhits,size,latrms,mindist): 
     ## nhits/size suppresses the fake clusters in the low LY regions (because they have only sparse hits above ZS)
@@ -324,8 +324,8 @@ def fillSpectra(cluster='sc'):
 
     ret = {}
     data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2020/'
-    tf_ambe  = ROOT.TFile('{d}/v3/ambe_lime.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/v3/cosmics_firstruns_lime.root'.format(d=data_dir))
+    tf_ambe  = ROOT.TFile('{d}/v4/ambe_lime_v4.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/v4/cosmics_lime_v4.root'.format(d=data_dir))
     tf_fe55 = ROOT.TFile('{d}/v3/fe55_runs3686to3691_3D.root'.format(d=data_dir))
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
@@ -353,8 +353,8 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','gslimness')] = ROOT.TH1F("gslimness",'',25,0,2)
     ret[('ambe','gslimnessnorm')] = ROOT.TH1F("gslimnessnorm",'',25,0,2)
     ret[('ambe','gtallness')] = ROOT.TH1F("gtallness",'',25,0,2)
-    ret[('ambe','density')]  = ROOT.TH1F("density",'',50,10,50)
-    ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',40,0,40)
+    ret[('ambe','density')]  = ROOT.TH1F("density",'',50,0,60)
+    ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',50,0,200)
     ret[('ambe','denseness')]  = ROOT.TH1F("denseness",'',50,0,50)
     ret[('ambe','caldenseness')]  = ROOT.TH1F("caldenseness",'',50,0,50)
     ret[('ambe','dedx')]  = ROOT.TH1F("dedx",'',50,0.,40.)
@@ -501,8 +501,8 @@ def fillSpectra(cluster='sc'):
                     continue
                 #if not LimeEfficientRegion(xmean,ymean):
                 #    continue
-                if not noiseSuppression(nhits,size,latrms,mindist):
-                    continue
+                #if not noiseSuppression(nhits,size,latrms,mindist):
+                #    continue
 
                 # gainCalibnInt = integral*1.1 if runtype=='ambe' else integral 
                 ## energy calibrated for saturation
@@ -595,7 +595,7 @@ def fillSpectra(cluster='sc'):
                 
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
                 ret[(runtype,'gslimness')].Fill(tgsigma/lgsigma)
-                ret[(runtype,'gslimnessnorm')].Fill(lgsigma/tgsigma/length*width)
+                ret[(runtype,'gslimnessnorm')].Fill(lgsigma/tgsigma/length*width if tgsigma*length!=0 else -1)
                 ret[(runtype,'gtallness')].Fill(lgamp/tgamp)
                 ret[(runtype,'density')].Fill(density)
                 ret[(runtype,'caldensity')].Fill(calibDensity)
