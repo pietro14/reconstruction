@@ -4,7 +4,7 @@ import subprocess
 import os,sys,optparse
 import numpy as np
 from root_numpy import hist2array
-import ROOT
+import ROOT,math
 import swiftlib as sw
 from cameraChannel import cameraTools, cameraGeometry
 
@@ -100,15 +100,19 @@ class utils:
         else:
             print ('Downloading file: ' + sw.swift_root_file('Data', int(run)))
             infile = sw.swift_download_root_file(sw.swift_root_file('Data', int(run)),int(run))
-            
+           
         tf_in = sw.swift_read_root_file(infile)
-     
+
         framesize = 216 if det=='lime' else 0
+
+        #files = ["~/Work/data/cygnus/run03930.root","~/Work/data/cygnus/run03931.root","~/Work/data/cygnus/run03932.root"]
+        #for f in files:
+        tf_in = ROOT.TFile(f)
         
         # first calculate the mean 
         for i,e in enumerate(tf_in.GetListOfKeys()):
             iev = i if daq != 'midas'  else i/2 # when PMT is present
-     
+        
             if maxImages>-1 and i<len(tf_in.GetListOfKeys())-maxImages: continue
             name=e.GetName()
             obj=e.ReadObj()
@@ -138,7 +142,6 @@ class utils:
         central_square = mapsum[int((N-CA)/rebin/2):int((N+CA)/rebin/2),int((N-CA)/rebin/2):int((N+CA)/rebin/2)]
         print (central_square)
         norm = np.mean(central_square)
-        norm = 1
         print ("Now normalizing to the central area value = ",norm)
         mapnorm = mapsum / float(norm)
         if det=='lime':
@@ -159,7 +162,56 @@ class utils:
         tf_out.Close()
         print("Written the mean map with rebinning {rb}x{rb} into file {outf}.".format(rb=rebin,outf=outfile))
 
+    def getVignette1D(self,filevignette):
 
+        tf_in = ROOT.TFile.Open(filevignette)
+        vignettemap = tf_in.Get('normmap')
+        xmax = vignettemap.GetXaxis().GetBinLowEdge(vignettemap.GetNbinsX()+1)
+        rmax = xmax/math.sqrt(2)
+        arr = hist2array(vignettemap)
+        tf_in.Close()
+
+        nbinsx = arr.shape[0]
+        nbinsR = int(nbinsx/math.sqrt(2))
+        binsizeR = rmax/nbinsR
+        print("rmax = ",rmax," nbinsr = ", nbinsR,"  binsizer = ",binsizeR)
+        
+        centerx = nbinsx/2; centery = centerx
+
+        x = np.arange(0, nbinsx)
+        y = np.arange(0, nbinsx)
+        
+        tf_out = ROOT.TFile.Open('vign1d.root','recreate')
+
+        vign1d = ROOT.TH1F('vign1d','',nbinsR,0,rmax)
+
+        for ib in range(nbinsR):
+            rlow  = vign1d.GetXaxis().GetBinLowEdge(ib+1)
+            rhigh = vign1d.GetXaxis().GetBinLowEdge(ib+2)
+            maskInner = (x[np.newaxis,:]-centerx)**2 + (y[:,np.newaxis]-centery)**2  < (ib+1)**2
+            maskOuter = (x[np.newaxis,:]-centerx)**2 + (y[:,np.newaxis]-centery)**2 >= ib**2
+            mask = (maskInner == 1) & (maskOuter == 1)
+            vals = arr[mask]
+            mean = np.mean(vals) 
+            meanerr = np.std(vals)/math.sqrt(len(vals))
+            print ("bin = ",ib,"\trlow = ",rlow,"\trhigh = ",rhigh,"\tmean = ",mean,"\tin = ",np.count_nonzero(maskInner),"\tout=",np.count_nonzero(maskOuter),"\tnumber=",np.count_nonzero(mask))
+            vign1d.SetBinContent(ib+1,mean)
+            vign1d.SetBinError(ib+1,meanerr)
+
+        vign1d.SetLineColor(ROOT.kBlack)
+        vign1d.SetMarkerColor(ROOT.kBlack)
+        vign1d.SetMarkerSize(0.3)
+        vign1d.SetMarkerStyle(ROOT.kFullCircle)
+        vign1d.SetLineWidth(1)
+        vign1d.SetMinimum(0)
+        vign1d.GetXaxis().SetTitle("Distance from center (pixels)")
+        vign1d.GetYaxis().SetTitle("Avg. LY ratio")
+        
+        tf_out.cd()
+        vign1d.Write()
+        tf_out.Close()
+        
+        
 
 class bcolors:
     HEADER = '\033[95m'
@@ -180,6 +232,8 @@ if __name__ == "__main__":
         run = 3930
         pedfile = '../../analysis/pedestals/pedmap_run2109_rebin1.root'
         ut = utils()
-        ut.calcVignettingMap(run,pedfile,"vignette_run%05d.root" % run,det='lemon',rebin=8,maxImages=1)
+        ut.calcVignettingMap(run,pedfile,"vignette_run%05d.root" % run,det='lemon',rebin=8,maxImages=1000)
 
-        
+    if options.make == 'vignette1d':
+        ut = utils()
+        ut.getVignette1D('vignette_run03930.root')
