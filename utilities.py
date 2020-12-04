@@ -168,6 +168,14 @@ class utils:
         vignettemap = tf_in.Get('normmap')
         xmax = vignettemap.GetXaxis().GetBinLowEdge(vignettemap.GetNbinsX()+1)
         rmax = xmax/math.sqrt(2)
+        if int(xmax)==2048:
+            det = 'lemon'
+            extrap = 'lime'
+        else:
+            det = 'lime'
+            extrap = 'lemon'
+        vignettemap_meas = vignettemap.Clone('normmap_'+det)
+        vignettemap_meas.SetDirectory(0)
         arr = hist2array(vignettemap)
         tf_in.Close()
 
@@ -206,8 +214,23 @@ class utils:
         vign1d.SetMinimum(0)
         vign1d.GetXaxis().SetTitle("Distance from center (pixels)")
         vign1d.GetYaxis().SetTitle("Avg. LY ratio")
-        
+
+        # now make the vignette map for the other camera (stretching the measured one)
+        print ("Now extrapolating from ",det," to the other camera...")
+        xmax2 = 2304 if det == 'lemon' else 2048
+        nbins2 = int(xmax2/binsizeR)
+        vignettemap_stretched = ROOT.TH2F('normmap_'+extrap,'',nbins2,0,xmax2,nbins2,0,xmax2)
+        stretch_factor = xmax2/xmax
+        center2 = nbins2/2
+        for ix in range(nbins2):
+            for iy in range(nbins2):
+                r_meas = math.hypot(ix-center2,iy-center2)/stretch_factor * binsizeR
+                i1d = vign1d.GetXaxis().FindFixBin(r_meas)
+                vignettemap_stretched.SetBinContent(ix+1,iy+1,vign1d.GetBinContent(i1d))
+
         tf_out.cd()
+        vignettemap_meas.Write()        
+        vignettemap_stretched.Write()        
         vign1d.Write()
         tf_out.Close()
         

@@ -80,7 +80,7 @@ class cameraTools:
         elif det == 'lime':
             if not self.vignetteMap[det].any():
                 tf = ROOT.TFile.Open(self.geometry.vignette)
-                hmap = tf.Get('normmap')
+                hmap = tf.Get('normmap_'+self.geometry.name)
                 vignetteMapRebinned = hist2array(hmap)
                 tf.Close()
                 rebinx = int(self.geometry.npixx/vignetteMapRebinned.shape[0])
