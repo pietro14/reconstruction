@@ -3,5 +3,5 @@
 'name'        : 'lemon',
 'pixelwidth'  : 0.125,  # mm
 'npixx'       : 2048,
-'vignette'    : 'data/vignette_run03806.root',
+'vignette'    : 'data/vignette_runs03930to03932.root',
 }

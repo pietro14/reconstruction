@@ -68,7 +68,7 @@ def fitDensity(rfile,plotdir):
 
     xmin1,xmax1 = (15,25)
     xmin2,xmax2 = (15,25)
-    xmin3,xmax3= (12,18)
+    xmin3,xmax3= (15,24)
 
     if histo3.Integral():
         histo3.SetMarkerColor(ROOT.kGray+2)
@@ -282,7 +282,7 @@ if __name__ == "__main__":
     elif options.make == 'fitfeuncalib':
         fitFe('plots/ambe/clusters_3sourcesNloCalNeutronsFex1_2020_05_05/integral.root',calib=False)
     elif options.make == 'fitdensity':
-        fitDensity('plots/ambeV3_cosmcalib_firstruns_30-11-2020/density.root',options.outdir)
+        fitDensity('plots/ambeV3_cosmsel_compareCosm_01-12-2020/density.root',options.outdir)
 
     ## usages:
     # AmBe efficiency:> python ambe_miscellanea.py --make efficiency --source ambe --outdir './'

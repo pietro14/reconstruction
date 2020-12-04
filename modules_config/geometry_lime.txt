@@ -3,5 +3,5 @@
 'name'        : 'lime',
 'pixelwidth'  : 0.152,  # mm
 'npixx'       : 2304,
-'vignette'    : 'data/vignette_run03806.root',
+'vignette'    : 'data/vignette_runs03930to03932.root',
 }
