@@ -266,7 +266,101 @@ def compareROCs(f1,g1,f2,g2,plotdir):
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/comp_roc.{ext}".format(plotdir=plotdir,ext=ext))
         
+def fitFeVsPosition(filename,outfile):
+
+    tf_out = ROOT.TFile(outfile,'recreate')
     
+    tf_in = ROOT.TFile(filename,'read')
+    tree = tf_in.Get('Events')
+    
+    presel = 'sc_length*0.152<10 && sc_width/sc_length>0.9'
+
+    xmax = 2304
+    binsize = 256
+    nbinsx = int(xmax/binsize)
+    cenb = int(nbinsx/2)+1
+    scaleMap = ROOT.TH2F('scale','',nbinsx,0,xmax,nbinsx,0,xmax)
+    scaleMap.GetXaxis().SetTitle('x')
+    scaleMap.GetYaxis().SetTitle('y')
+    resMap = scaleMap.Clone('res')
+
+    counts = ROOT.TH1F('counts','',24,0,5000)
+    counts.SetFillStyle(3005)
+    counts.SetMarkerStyle(ROOT.kFullCircle)
+    counts.SetMarkerSize(2)
+    counts.SetLineColor(ROOT.kBlack)
+    counts.SetMarkerColor(ROOT.kBlack)
+
+    for ix in range(nbinsx):
+        for iy in range(nbinsx):
+            hname = 'bin_ix{ix}_iy{iy}'.format(ix=ix,iy=iy)
+            print ("Fitting ",hname)
+            xlo = scaleMap.GetXaxis().GetBinLowEdge(ix+1)
+            xhi = xlo+binsize
+            ylo = scaleMap.GetYaxis().GetBinLowEdge(iy+1)
+            yhi = ylo+binsize
+            fullsel = '{pres} && sc_xmean>{xlo} && sc_xmean<{xhi} && sc_ymean>{ylo} && sc_ymean<{yhi}'.format(pres=presel,xlo=xlo,xhi=xhi,ylo=ylo,yhi=yhi)
+            #print ("Fullsel = ",fullsel)
+            hist = counts.Clone(hname)
+            tree.Draw("sc_integral>>{hname}".format(hname=hname),fullsel)
+            #print ("number of entries = ",hist.GetEntries())
+            nentries = hist.GetEntries()
+            if nentries>20:
+                if nentries<50:
+                    hist.Rebin(2)
+                mean = counts.GetMean()
+                rms  = counts.GetRMS()
+                f = ROOT.TF1('f','gaus',mean-rms,mean+rms) # there is the double-spot peak, skip it
+                f.SetParameter(1,mean);
+                f.SetParLimits(1,mean-rms,mean+rms);
+                f.SetParameter(2,rms/2.); # there is a tail
+                fitr_xmin = mean-rms/2.
+                fitr_xmax = mean+rms/2.
+                fitRe = hist.Fit(f,'SQ','',fitr_xmin,fitr_xmax)
+                rMean  = f.GetParameter(1); rMeanErr = f.GetParError(1)
+                rSigma = f.GetParameter(2); rSigmaErr = f.GetParError(1)
+                scaleMap.SetBinContent(iy+1,ix+1,rMean); scaleMap.SetBinError(iy+1,ix+1,rMeanErr)
+                resMap.SetBinContent(iy+1,ix+1,rSigma/rMean if rMean>0 else 0); resMap.SetBinError(iy+1,ix+1,rSigmaErr/rMean if rMean>0 else 0)
+                tf_out.cd()
+                hist.Write()
+            else:
+                scaleMap.SetBinContent(iy+1,ix+1,0)
+                resMap.SetBinContent(iy+1,ix+1,0)
+
+    print ("central bin = ",cenb)
+    normval = scaleMap.GetBinContent(cenb,cenb)
+    for ix in range(nbinsx):
+        for iy in range(nbinsx):
+            val = scaleMap.GetBinContent(iy+1,ix+1)
+            err = scaleMap.GetBinError(iy+1,ix+1)
+            scaleMap.SetBinContent(iy+1,ix+1,val/normval)
+            scaleMap.SetBinError(iy+1,ix+1,err/normval)
+
+    tf_out.cd()
+    scaleMap.Write()
+    resMap.Write()
+
+    ROOT.gStyle.SetPaintTextFormat("2.2f");
+
+    cScale = getCanvas('cscale')
+    scaleMap.SetMinimum(0.3)
+    scaleMap.SetMaximum(1.5)
+    scaleMap.Draw('colz')
+    scaleMap.Draw('texte same')
+    cScale.SaveAs(outfile.replace('.root','_scale.pdf'))
+    cScale.Write()
+    
+    cRes = getCanvas('cres')
+    resMap.SetMinimum(0.1)
+    resMap.SetMaximum(0.4)
+    resMap.Draw('colz')
+    resMap.Draw('texte same')
+    cRes.SaveAs(outfile.replace('.root','_resolution.pdf'))
+    cRes.Write()
+    
+    tf_out.Close()
+    tf_in.Close()
+            
     
 ### this is meant to be run on top of ROOT files produced by simple_plots, not on the trees
 if __name__ == "__main__":
@@ -304,6 +398,10 @@ if __name__ == "__main__":
         compareROCs('plots/ambe/clusters_3sources_FullSelPaper_2020_05_29/density_roc.root','Graph',
                     'plots/ambe/clusters_3sources_FullSelAndPMTCutPaper_2020_05_29/density_roc.root','Graph',
                     options.outdir)
+    elif options.make == 'scalevspos':
+        fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v2/fe_lime.root','fe_novign.root')
+        fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v4/fe55_runs3686to3691_v4.root','fe_v4.root')
+        fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v4/fe55_runs3686to3691_v4_OptVignetting.root','fe_v4_OptVignetting.root')
         
     else:
         print ("make ",options.make," not implemented.")

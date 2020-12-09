@@ -655,8 +655,13 @@ def fillSpectra(cluster='sc'):
                 
     return ret,entries
 
-def getCanvas():
-    c = ROOT.TCanvas('c','',1200,1200)
+def getCanvas(name='c'):
+
+    ROOT.gStyle.SetPalette(ROOT.kRainBow)
+    ROOT.gStyle.SetNumberContours(51)
+    ROOT.gErrorIgnoreLevel = 100
+
+    c = ROOT.TCanvas(name,'',1200,1200)
     lMargin = 0.14
     rMargin = 0.10
     bMargin = 0.15
