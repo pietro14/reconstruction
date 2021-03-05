@@ -9,7 +9,7 @@ ROOT.gROOT.SetBatch(True)
 # if "/functions_cc.so" not in ROOT.gSystem.GetLibraries(): 
 #     ROOT.gROOT.ProcessLine(".L functions.cc+")
 
-CCR = False
+CCR = True
 
 GEOMETRY = 'lime'
 NX = {'lime':  2304,
@@ -121,7 +121,7 @@ def spotsLowDensity(length,density):
     return length < 80 and 5<density<8
 
 def cosmicSelection(length,pathlength,slimness,gsigma):
-    return length*pixw>120 and abs(1-pathlength/length)<0.1 and gsigma < 1./pixw and slimness<0.15
+    return length*pixw>50 and abs(1-pathlength/length)<0.1 and gsigma < 1./pixw and slimness<0.15
 
 def noiseSuppression(nhits,size,latrms,mindist): 
     ## nhits/size suppresses the fake clusters in the low LY regions (because they have only sparse hits above ZS)
@@ -324,8 +324,8 @@ def fillSpectra(cluster='sc'):
 
     ret = {}
     data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2020/'
-    tf_ambe  = ROOT.TFile('{d}/v4/ambe_lime_v4.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/v4/cosmics_lime_v4.root'.format(d=data_dir))
+    tf_ambe  = ROOT.TFile('{d}/v4/cs137_lime_v4.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/v4/cosmics_preCs_lime_v4.root'.format(d=data_dir))
     tf_fe55 = ROOT.TFile('{d}/v3/fe55_runs3686to3691_3D.root'.format(d=data_dir))
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
@@ -339,8 +339,8 @@ def fillSpectra(cluster='sc'):
     ret[('ambe','energy')] = ROOT.TH1F("energy",'',50,0,60)
     ret[('ambe','calintegralExt')] = ROOT.TH1F("calintegralExt",'',50,0,1000)
     ret[('ambe','energyExt')] = ROOT.TH1F("energyExt",'',50,0,200)
-    #energyBins = array('f',list(range(11))+list(range(12,17,2))+list(range(19,32,3))+list(range(40,101,10))+list(range(150,201,50)))
     energyBins = array('f',list(range(11))+list(range(12,17,2))+list(range(19,32,3))+list(range(40,51,10))+list(range(75,149,25))+list(range(150,201,50)))
+    ## energyBins = array('f',list(range(11))+list(range(12,17,2))+list(range(19,32,3))+list(range(40,51,10))+list(range(75,149,25))+list(range(150,200,50))+list(range(201,1000,50)))
     ret[('ambe','energyFull')] = ROOT.TH1F("energyFull",'',len(energyBins)-1,energyBins)
     ret[('ambe','length')]   = ROOT.TH1F("length",'',50,0,NX[GEOMETRY]*pixw)
     ret[('ambe','width')]    = ROOT.TH1F("width",'',100,5,10)
@@ -557,7 +557,7 @@ def fillSpectra(cluster='sc'):
                     ## the AmBe selection
                     ##########################
                     # remove long/slim cosmics
-                    if length*pixw > 10. or slimness<0.9 or width*pixw>6.54:
+                    if length*pixw > 20. or slimness<0.9 or width*pixw>6.54:
                         continue
                     # remove the bad cluster shapes cosmics
                     #if not clusterShapeQuality(gamp,gsigma,gchi2,gstatus):
