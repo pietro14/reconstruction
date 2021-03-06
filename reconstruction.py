@@ -247,10 +247,9 @@ class analysis:
                     plotpy = options.jobs < 2 # for some reason on macOS this crashes in multicore
                     snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
                     snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
-                    clusters,snakes = snprod.run()
+                    snakes = snprod.run()
                     self.autotree.fillCameraVariables(img_fr_zs)
                     self.autotree.fillClusterVariables(snakes,'sc')
-                    self.autotree.fillClusterVariables(clusters,'cl')
                     
             if self.options.pmt_mode:
                 if obj.InheritsFrom('TGraph'):
