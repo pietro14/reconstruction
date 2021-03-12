@@ -21,7 +21,7 @@ from sklearn.neighbors import NearestNeighbors
 from ddbscan_inner import ddbscaninner
 import time
 
-def ddbscan(X, eps=0.5, epsransac=1.0, epsisolation=50, min_samples=5, metric='minkowski', metric_params=None,
+def ddbscan(X, eps=0.5, epsransac=1.0, min_samples=5, metric='minkowski', metric_params=None,
            algorithm='auto', leaf_size=30, p=2, sample_weight=None,
            n_jobs=None):
     """Perform DBSCAN clustering from vector array or distance matrix.
@@ -147,21 +147,16 @@ def ddbscan(X, eps=0.5, epsransac=1.0, epsisolation=50, min_samples=5, metric='m
 
         X_mask = X.data <= eps
         X_mask2 = X.data <= epsransac
-        X_mask3 = X.data <= epsisolation
         masked_indices = X.indices.astype(np.intp, copy=False)[X_mask]
         masked_indices2 = X.indices.astype(np.intp, copy=False)[X_mask2]
-        masked_indices3 = X.indices.astype(np.intp, copy=False)[X_mask3]
         masked_indptr = np.concatenate(([0], np.cumsum(X_mask)))
         masked_indptr2 = np.concatenate(([0], np.cumsum(X_mask2)))
-        masked_indptr3 = np.concatenate(([0], np.cumsum(X_mask3)))
         masked_indptr = masked_indptr[X.indptr[1:-1]]
         masked_indptr2 = masked_indptr2[X.indptr[1:-1]]
-        masked_indptr3 = masked_indptr3[X.indptr[1:-1]]        
 
         # split into rows
         neighborhoods[:] = np.split(masked_indices, masked_indptr)
         neighborhoods2[:] = np.split(masked_indices2, masked_indptr2)
-        neighborhoods3[:] = np.split(masked_indices3, masked_indptr3)
     else:
         neighbors_model = NearestNeighbors(radius=eps, algorithm=algorithm,
                                            leaf_size=leaf_size,
@@ -177,19 +172,10 @@ def ddbscan(X, eps=0.5, epsransac=1.0, epsisolation=50, min_samples=5, metric='m
                                            metric_params=metric_params, p=p,
                                            n_jobs=n_jobs)
         neighbors_model2.fit(X)
-        #For the isolation calculation
-        neighbors_model3 = NearestNeighbors(radius=epsisolation, algorithm=algorithm,
-                                           leaf_size=leaf_size,
-                                           metric=metric,
-                                           metric_params=metric_params, p=p,
-                                           n_jobs=n_jobs)
-        neighbors_model3.fit(X)
         # This has worst case O(n^2) memory complexity
         neighborhoods = neighbors_model.radius_neighbors(X, eps,
                                                          return_distance=False)
         neighborhoods2 = neighbors_model.radius_neighbors(X, epsransac,
-                                                         return_distance=False)
-        neighborhoods3 = neighbors_model.radius_neighbors(X, epsisolation,
                                                          return_distance=False)
 
     if sample_weight is None:
@@ -205,7 +191,7 @@ def ddbscan(X, eps=0.5, epsransac=1.0, epsisolation=50, min_samples=5, metric='m
     # A list of all core samples found.
     core_samples = np.asarray(n_neighbors >= min_samples, dtype=np.uint8)
     start = time.time()
-    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, neighborhoods3, labels)
+    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels)
     final = time.time()
     print("The ddbscaninner needed %d seconds." %(final-start))
     return np.where(core_samples)[0], labels
@@ -321,12 +307,11 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
     and Data Mining, Portland, OR, AAAI Press, pp. 226-231. 1996
     """
 
-    def __init__(self, eps=0.5, epsransac=1.0, epsisolation=50, min_samples=5, metric='euclidean',
+    def __init__(self, eps=0.5, epsransac=1.0, min_samples=5, metric='euclidean',
                  metric_params=None, algorithm='auto', leaf_size=30, p=None,
                  n_jobs=None):
         self.eps = eps
         self.epsransac = epsransac
-        self.epsisolation = epsisolation
         self.min_samples = min_samples
         self.metric = metric
         self.metric_params = metric_params
