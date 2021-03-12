@@ -129,10 +129,8 @@ class SnakesFactory:
             X = np.array(Xl)                                        # Convert the list to an array
         else:
             X = points.copy()
-            X1 = X       
+            X1 = X
         
-        if self.options.debug_mode == 0:
-            self.options.flag_plot_noise = 0
 
         # returned collections
         superclusters = []
@@ -144,40 +142,43 @@ class SnakesFactory:
         t0 = time.perf_counter()
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
-        ddb = DDBSCAN(eps=5.8, epsransac = 15.5, min_samples = 100,n_jobs=-1).fit(X)
+        ddb = DDBSCAN(eps=5.8, epsransac = 15.5, min_samples = 70,n_jobs=-1).fit(X)
         if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
         
-        if self.options.debug_mode == 1 and self.options.flag_plot_noise == 1:         
-            for ext in ['png','pdf']:
-                plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='0th',ext=ext), bbox_inches='tight', pad_inches=0)
-            plt.gcf().clear()
-            plt.close('all')
+        print ("ddb.labels_ = ",ddb.labels_[:,0],"\nwith shape = ",ddb.labels_.shape[0])
         
-        # Returning to '2' dimensions
-        if tip == '3D':
-            ddb.labels_              = ddb.labels_[range(0,lp)]               # Returning theses variables to the length
-        # - - - - - - - - - - - - - -
-        
-        # Number of polynomial clusters in labels, ignoring noise if present.
-        n_superclusters = len(set(ddb.labels_[:,0])) - (1 if -1 in ddb.labels_[:,0] else 0)
-
         # Black removed and is used for noise instead.
         unique_labels = set(ddb.labels_[:,0])
 
+        # Number of polynomial clusters in labels, ignoring noise if present.
+        n_superclusters = len(unique_labels) - (1 if -1 in ddb.labels_[:,0] else 0)
+
+        print ("n supercl = ",n_superclusters)
+        
         for k in unique_labels:
             if k == -1:
                 break # noise: the unclustered
 
-            class_member_mask = (labels == k)
-         
-            #xy = X[class_member_mask & core_samples_mask]
-            xy = X1[class_member_mask]
+            class_member_mask = (ddb.labels_[:,0] == k)
+            
+            # print("X1 = ")
+            # print("X1 has a shape = ",X1.shape)
+            # print(X1)
+            
+            xy = np.unique(X[class_member_mask],axis=0)
+
+            # print("xy = ")
+            # print("xy has a shape = ",xy.shape)
+            # print(xy)
+            
             
             x = xy[:, 0]; y = xy[:, 1]
-                            
-            # only add the cores to the clusters saved in the event
+
+#            print ("x = ",x)
+            
+            # both core and neighbor samples are saved in the cluster in the event
             if k>-1 and len(x)>1:
                 cl = Cluster(xy,self.rebin,image_fr_vignetted,image_fr_zs_vignetted,self.options.geometry,debug=False)
                 cl.iteration = 0
@@ -232,7 +233,7 @@ class SnakesFactory:
                 print('[Statistics]')
                 print("Polynomial clusters found: %d" % n_superclusters)
 
-            if 1:
+            if self.options.flag_polycluster == 1:
                 print('[Plotting 0th iteration]')
                 u,indices = np.unique(ddb.labels_,return_index = True)
                 clu = [X[ddb.labels_[:,0] == i] for i in range(len(set(ddb.labels_[:,0])) - (1 if -1 in ddb.labels_[:,0] else 0))]
