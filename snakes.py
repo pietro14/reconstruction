@@ -18,6 +18,7 @@ from clusterTools import Cluster
 from cameraChannel import cameraTools
 from iDBSCAN import iDBSCAN
 from ddbscan_ import DDBSCAN
+from energyCalibrator import EnergyCalibrator
 
 import debug_code.tools_lib as tl
 
@@ -142,12 +143,10 @@ class SnakesFactory:
         t0 = time.perf_counter()
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
-        ddb = DDBSCAN(eps=5.8, epsransac = 15.5, min_samples = 70,n_jobs=-1).fit(X)
+        ddb = DDBSCAN(eps=5.8, epsransac = 20, min_samples = 70,n_jobs=-1).fit(X)
         if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
-        
-        print ("ddb.labels_ = ",ddb.labels_[:,0],"\nwith shape = ",ddb.labels_.shape[0])
         
         # Black removed and is used for noise instead.
         unique_labels = set(ddb.labels_[:,0])
@@ -155,39 +154,22 @@ class SnakesFactory:
         # Number of polynomial clusters in labels, ignoring noise if present.
         n_superclusters = len(unique_labels) - (1 if -1 in ddb.labels_[:,0] else 0)
 
-        print ("n supercl = ",n_superclusters)
-        
         for k in unique_labels:
             if k == -1:
                 break # noise: the unclustered
 
             class_member_mask = (ddb.labels_[:,0] == k)
-            
-            # print("X1 = ")
-            # print("X1 has a shape = ",X1.shape)
-            # print(X1)
-            
             xy = np.unique(X[class_member_mask],axis=0)
-
-            # print("xy = ")
-            # print("xy has a shape = ",xy.shape)
-            # print(xy)
-            
-            
             x = xy[:, 0]; y = xy[:, 1]
-
-#            print ("x = ",x)
             
             # both core and neighbor samples are saved in the cluster in the event
             if k>-1 and len(x)>1:
                 cl = Cluster(xy,self.rebin,image_fr_vignetted,image_fr_zs_vignetted,self.options.geometry,debug=False)
                 cl.iteration = 0
                 cl.nclu = k
-                
-                #corr, p_value = pearsonr(x, y)
                 cl.pearson = 999#p_value
-                
                 superclusters.append(cl)
+                
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"label basic clusters in {t2 - t1:0.4f} seconds")
 
@@ -201,7 +183,6 @@ class SnakesFactory:
 
             if self.options.flag_full_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                #plt.imshow(np.flipud(self.image_fr_zs),cmap=self.options.cmapcolor, vmin=0, vmax=10,origin='upper' )
                 plt.imshow(np.flipud(self.image_fr_zs),cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='upper' )
                 plt.title("Original Image")
                 for ext in ['png','pdf']:
@@ -237,15 +218,12 @@ class SnakesFactory:
                 print('[Plotting 0th iteration]')
                 u,indices = np.unique(ddb.labels_,return_index = True)
                 clu = [X[ddb.labels_[:,0] == i] for i in range(len(set(ddb.labels_[:,0])) - (1 if -1 in ddb.labels_[:,0] else 0))]
-
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Polynomial clusters found in iteration 0")
-
                 colorpix = np.zeros([rescale,rescale,3])
                 for j in range(0,np.shape(clu)[0]):
 
-                    print ("plotting ddbscan colorpixels n ",j)
                     a = np.random.rand(3)
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
                     
@@ -254,7 +232,6 @@ class SnakesFactory:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='1st',ext=ext,tip=self.options.tip), "wb") as fp:
                     pickle.dump(fig, fp, protocol=4)
-
                 plt.gcf().clear()
                 plt.close('all')
                 
@@ -426,6 +403,24 @@ class SnakesProducer:
         # Doesn't work on MacOS with multithreading for some reason... 
         if self.algo=='DBSCAN':
             snakes = snfac.getClusters(plot=self.plotpy)
+
+            # supercluster energy calibration for the saturation effect
+            fileCalPar = open('modules_config/energyCalibrator.txt','r')
+            params = eval(fileCalPar.read())
+            calibrator = EnergyCalibrator(params,self.options.debug_mode)
+            
+            for sclu in snakes:
+                if self.options.calibrate_clusters:
+                    calEnergy,slicesCalEnergy,centers = calibrator.calibratedEnergy(sclu.hits_fr)
+                else:
+                    calEnergy,slicesCalEnergy,centers = -1,[],[]
+                if self.options.debug_mode:
+                    print ( "SUPERCLUSTER BARE INTEGRAL = {integral:.1f}".format(integral=sclu.integral()) )
+                sclu.calibratedEnergy = calEnergy
+                sclu.nslices = len(slicesCalEnergy)
+                sclu.energyprofile = slicesCalEnergy
+                sclu.centers = centers
+                sclu.pathlength = -1 if self.options.calibrate_clusters==False else calibrator.clusterLength()    
             
         elif self.algo=='HOUGH':
             clusters = []

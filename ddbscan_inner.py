@@ -91,15 +91,16 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                 ransac.fit(np.expand_dims(x, axis=1), y)
             accuracy = sum(ransac.inlier_mask_)/len(y)
             center_i = (np.average(np.unique(x)),np.average(np.unique(y)))
-            print ("cluster with center = ",center_i)
+            #print ("cluster with center = ",center_i)
             #print("this clu data = ",data[labels==label_num])
             mask_other_points = np.logical_and(labels!=label_num,labels!=-1)
             #print("other clu data = ",data[mask_other_points])
 
             cludata   = np.unique(data[labels==label_num],axis=0)
+            # N.B. exclude only the noise, and not also cluster's own points because it could be that the first DBSCAN glued together many tracks in a region of overlap. Better to consider this as non-isolated
             #otherdata = np.unique(data[mask_other_points],axis=0)
             otherdata = np.unique(data[labels!=label_num],axis=0)
-            print ("number of otherdata = ",len(otherdata))
+            #print ("number of otherdata = ",len(otherdata))
 
             otherclosedata = []
             for point in otherdata:
@@ -111,10 +112,10 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
             #otherclosedata = np.array(filter(lambda point: math.dist((point[0],point[1]),center_i)<100,otherdata))
             #print ("otherclosedata = ",otherclosedata)
             
-            print("points clu = ",len(cludata))
-            print("ISOL neighb clu = ",len(otherclosedata))
+            #print("points clu = ",len(cludata))
+            #print("ISOL neighb clu = ",len(otherclosedata))
             isosum = float(len(otherclosedata))/float(len(cludata))
-            print("cluster n. ",label_num," has isolation = ",isosum, "  and accuracy = ",accuracy)
+            #print("cluster n. ",label_num," has isolation = ",isosum, "  and accuracy = ",accuracy)
             
             if accuracy > acc_th:
                 clu_stra.append(label_num)
@@ -146,14 +147,14 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
         for u in range(len(clu_stra)):
             lt = (labels==vet_aux[u][0])*is_core
             auxiliar_points.append(np.where(lt)[0][0])
-            print("The point %d has been assigned as part of a good fit" %(np.where(lt)[0][0]))
+            #print("The point %d has been assigned as part of a good fit" %(np.where(lt)[0][0]))
         
         #Now the clusterization will begin from zero with directionality enabled for the clusters that have a good fit model
         label_num = 0
         labels = np.full(data.shape[0], -1, dtype=np.intp)
         stack = []
         for i in auxiliar_points:
-            print("Auxiliar point ",i)
+            #print("Auxiliar point ",i)
             if labels[i] != -1 or not is_core[i]:
                 continue
             while True:
@@ -253,10 +254,9 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                         counter = counter + 1
                         if (pts1 == pts0) or (sum(fit_model == None) != 0):
                             if control == 0:
-                                print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
+                                #print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
                                 break
                             else:
-                                print ("trying to fit with order 3 poly? And then?")
                                 fit_model, fit_deri = ransac_polyfit(x,y,order=3, t = t)
                                 control = 0
                                 if sum(fit_model == None) != 0:
