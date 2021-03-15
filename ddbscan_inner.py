@@ -42,15 +42,8 @@ def ransac_polyfit(x,y,order, t, n=0.8,k=10,f=0.9):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius_search, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, dir_isolation):
     #Definitions
-    
-    acc_th = 0.80     #Accuracy of the RANSAC to save one point of the cluster for the directional search
-    points_th = 80   #Minimum number of points to test the ransac
-    t = 4  #The thickness of the track
-    time_threshold = np.inf #Maximum ammount of time that the directional search is enabled for each cluster (marked as infinite to see the results)
-    max_attempts = 4
-    eps_isol = 20
     
     #Beginning of the algorithm - DBSCAN check part
     label_num = 0
@@ -81,7 +74,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
 
 
         #Ransac part
-        if sum(labels==label_num) > points_th:
+        if sum(labels==label_num) > dir_minsamples:
             x = data[labels==label_num][:,0]
             y = data[labels==label_num][:,1]
             if (np.median(np.abs(y - np.median(y))) == 0):
@@ -104,12 +97,12 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
             for point in otherdata:
                 dist = math.dist((point[0],point[1]),center_i)
                 #print("point p = ",point," has dist wrt ",center_i," = ",dist)
-                if dist < eps_isol:
+                if dist < dir_isolation:
                     otherclosedata.append(point)
             otherclosedata = np.array(otherclosedata)
             isosum = float(len(otherclosedata))/float(len(cludata))
             
-            if accuracy > acc_th:
+            if accuracy > dir_min_accuracy:
                 clu_stra.append(label_num)
                 acc.append(accuracy)
                 length.append(sum(labels==label_num))
@@ -166,7 +159,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                 del(stack[len(stack)-1])
             
             #Now that the provisional cluster has been found, directional search begins
-            if sum(labels==label_num) > points_th:
+            if sum(labels==label_num) > dir_minsamples:
                 
                 #Taking unique points to use on the ransac
                 clu_coordinates = [tuple(row) for row in data[labels==label_num]] 
@@ -176,7 +169,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                 
                 
                 #RANSAC fit
-                fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = t)
+                fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = dir_thickness)
                 counter = 1
                 #Adding new points to the cluster (If the fit_model output is None, then no model was found)
                 if sum(fit_model == None) == 0:
@@ -199,7 +192,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                         if len(stack) == 0:
                             break
                         
-                        res_th = t / np.cos(np.arctan(np.polyval(fit_deri,data[:,0])))
+                        res_th = dir_thickness / np.cos(np.arctan(np.polyval(fit_deri,data[:,0])))
                         inliers_bool = np.abs(np.polyval(fit_model, data[:,0])-data[:,1]) < res_th
                         inliers = np.where(inliers_bool)[0]
                             
@@ -232,9 +225,9 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
 
                         #Updating the ransac model
                         if control == 1:
-                            fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = t)
+                            fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = dir_thickness)
                         else:
-                            fit_model, fit_deri = ransac_polyfit(x,y,order=5, t = t)
+                            fit_model, fit_deri = ransac_polyfit(x,y,order=5, t = dir_thickness)
                         pts1 = sum(labels==label_num)
                         #Stop criteria - time
                         t2 = time.time()
@@ -250,7 +243,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                                 #print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
                                 break
                             else:
-                                fit_model, fit_deri = ransac_polyfit(x,y,order=5, t = t)
+                                fit_model, fit_deri = ransac_polyfit(x,y,order=5, t = dir_thickness)
                                 control = 0
                                 if sum(fit_model == None) != 0:
                                     break
