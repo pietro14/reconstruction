@@ -16,8 +16,7 @@ from morphsnakes import(morphological_chan_vese,
 
 from clusterTools import Cluster
 from cameraChannel import cameraTools
-from iDBSCAN import iDBSCAN
-from ddbscan_ import DDBSCAN
+from cluster.ddbscan_ import DDBSCAN
 from energyCalibrator import EnergyCalibrator
 
 import debug_code.tools_lib as tl
@@ -48,30 +47,9 @@ class SnakesFactory:
             lst.append(np.copy(x))
         return _store
     
-    def getContours(self,iterations,threshold=0.69):
-        
-        # Morphological GAC
-        image = img_as_float(self.image)
-        gimage = inverse_gaussian_gradient(image)
-
-        # Initial level set
-        init_ls = np.zeros(image.shape, dtype=np.int8)
-        init_ls[10:-10, 10:-10] = 1
-        # List with intermediate results for plotting the evolution
-        evolution = []
-        callback = self.store_evolution_in(evolution)
-        ls = morphological_geodesic_active_contour(gimage, iterations, init_ls,
-                                                   smoothing=1, balloon=-1,
-                                                   threshold=threshold,
-                                                   iter_callback=callback)
-        # before returning the snakes, put them in the event
-        self.contours = ls
-        return ls
-
     def getClusters(self,plot=False):
 
         from sklearn.cluster import DBSCAN
-        from iDBSCAN import iDBSCAN
         from sklearn import metrics
         from scipy.spatial import distance
         from scipy.stats import pearsonr
@@ -87,20 +65,7 @@ class SnakesFactory:
         vmin=1
         vmax=5
         
-        #   IDBSCAN parameters  #
-        
         tip = self.options.tip
-        
-        scale              = 1
-        iterative          = self.options.iterative                         # number of iterations for the IDBSC
-        
-        vector_eps         = self.options.vector_eps
-        vector_min_samples = self.options.vector_min_samples
-
-        vector_eps         = list(np.array(vector_eps, dtype=float)*scale)
-        vector_min_samples = list(np.array(vector_min_samples, dtype=float)*scale)
-        cuts               = self.options.cuts
-        nb_it              = 3
         
         #-----Pre-Processing----------------#
         rescale=int(self.geometry.npixx/self.rebin)
@@ -125,7 +90,7 @@ class SnakesFactory:
             X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
             for ix,iy in points:                        # Looping over the non-empty coordinates
                 nreplicas = int(self.image[ix,iy])-1
-                for count in range(nreplicas):                                # Looping over the number of 'photons' in that coordinate
+                for count in range(nreplicas):                      # Looping over the number of 'photons' in that coordinate
                     Xl.append((ix,iy))                              # add a coordinate repeatedly 
             X = np.array(Xl)                                        # Convert the list to an array
         else:
@@ -143,7 +108,8 @@ class SnakesFactory:
         t0 = time.perf_counter()
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
-        ddb = DDBSCAN(eps=5.8, epsransac = 20, min_samples = 70,n_jobs=-1).fit(X)
+        #ddb = DDBSCAN(eps=5.8, epsransac = 20, min_samples = 70,n_jobs=-1).fit(X)
+        ddb = DDBSCAN('modules_config/clustering.txt').fit(X)
         if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
@@ -325,39 +291,6 @@ class SnakesFactory:
                     prof.Draw("pe1")
                     for ext in ['pdf']:
                         canv.SaveAs('{pdir}/{name}profile.{ext}'.format(pdir=outname,name=profName,ext=ext))
-        
-    def plotContours(self,contours):
-
-        image = img_as_float(self.image)
-        #fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-        #ax = axes.flatten()
-        fig, ax = plt.subplots()
-        
-        ax.imshow(image, cmap="gray")
-        ax.set_axis_off()
-        ax.contour(contours, [0.5], colors='r')
-        #ax.set_title("Morphological GAC segmentation", fontsize=12)
-        (run,event) = self.name.split('_')
-        ax.set_title('Run={run}, Event={event}'.format(run=run,event=event), fontsize=12)
-        
-        # ax[1].imshow(contours, cmap="gray")
-        # ax[1].set_axis_off()
-        # contour = ax[1].contour(evolution[0], [0.5], colors='g')
-        # contour.collections[0].set_label("Iteration 0")
-        # contour = ax[1].contour(evolution[50], [0.5], colors='y')
-        # contour.collections[0].set_label("Iteration 50")
-        # contour = ax[1].contour(evolution[-1], [0.5], colors='r')
-        # contour.collections[0].set_label("Iteration 100")
-        # ax[1].legend(loc="upper right")
-        # title = "Morphological GAC evolution"
-        # ax[1].set_title(title, fontsize=12)
-        
-        fig.tight_layout()
-        #plt.show()
-        for ext in ['pdf']:
-            plt.savefig('{name}.{ext}'.format(name=self.name,ext=ext))
-
-
 
 class SnakesProducer:
     def __init__(self,sources,params,options,geometry):

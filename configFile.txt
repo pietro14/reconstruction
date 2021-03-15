@@ -5,7 +5,7 @@
 # DEBUG plots
 'debug_mode'            : 1,
 
-'ev'                    : 18,
+'ev'                    : 19,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -13,13 +13,8 @@
 'flag_full_image'       : 1,
 'flag_rebin_image'      : 1,
 'flag_edges_image'      : 1,
-'flag_first_it'         : 1,
-'flag_second_it'        : 1,
-'flag_third_it'         : 0,
+'flag_polycluster'      : 1,
 'flag_stats'            : 1,
-'flag_all_it'           : 1,
-'flag_plot_noise'       : 0,
-'flag_supercluster'     : 1,
 
 'camera_mode'            : 1,
 

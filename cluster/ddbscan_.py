@@ -10,7 +10,6 @@ DBSCAN: Density-Based Spatial Clustering of Applications with Noise
 # Modified by: Igor Pains <igor.pains@engenharia.ufjf.br>
 # License: BSD 3 clause
 
-from numba import jit
 import numpy as np
 from scipy import sparse
 
@@ -19,7 +18,7 @@ from sklearn.utils import check_array, check_consistent_length
 from sklearn.utils.testing import ignore_warnings
 from sklearn.neighbors import NearestNeighbors
 
-from ddbscan_inner import ddbscaninner
+from cluster.ddbscan_inner import ddbscaninner
 import time
 
 def ddbscan(X, eps=0.5, min_samples=5, epsransac=1.0, dir_radius_search=25, dir_min_accuracy=0.8,dir_minsamples=20, time_threshold=np.inf, max_attempts=np.inf, dir_isolation=20, dir_thickness=4, metric='minkowski', metric_params=None,  algorithm='auto', leaf_size=30, p=2, sample_weight=None, n_jobs=None):

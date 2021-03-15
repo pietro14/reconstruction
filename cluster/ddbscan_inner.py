@@ -1,6 +1,5 @@
 from __future__ import division
 
-from numba import jit
 import numpy as np
 from sklearn.linear_model import RANSACRegressor
 from sklearn.metrics import mean_squared_error
