@@ -18,12 +18,10 @@ from sklearn.utils import check_array, check_consistent_length
 from sklearn.utils.testing import ignore_warnings
 from sklearn.neighbors import NearestNeighbors
 
-from ddbscan_inner import ddbscaninner
+from cluster.ddbscan_inner import ddbscaninner
 import time
 
-def ddbscan(X, eps=0.5, epsransac=1.0, min_samples=5, metric='minkowski', metric_params=None,
-           algorithm='auto', leaf_size=30, p=2, sample_weight=None,
-           n_jobs=None):
+def ddbscan(X, eps=0.5, min_samples=5, epsransac=1.0, dir_radius_search=25, dir_min_accuracy=0.8,dir_minsamples=20, time_threshold=np.inf, max_attempts=np.inf, dir_isolation=20, dir_thickness=4, metric='minkowski', metric_params=None,  algorithm='auto', leaf_size=30, p=2, sample_weight=None, n_jobs=None):
     """Perform DBSCAN clustering from vector array or distance matrix.
 
     Read more in the :ref:`User Guide <dbscan>`.
@@ -191,11 +189,10 @@ def ddbscan(X, eps=0.5, epsransac=1.0, min_samples=5, metric='minkowski', metric
     # A list of all core samples found.
     core_samples = np.asarray(n_neighbors >= min_samples, dtype=np.uint8)
     start = time.time()
-    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels)
+    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels,  dir_radius_search, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, dir_isolation)
     final = time.time()
     print("The ddbscaninner needed %d seconds." %(final-start))
     return np.where(core_samples)[0], labels
-
 
 class DDBSCAN(BaseEstimator, ClusterMixin):
     """Perform DBSCAN clustering from vector array or distance matrix.
@@ -307,18 +304,25 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
     and Data Mining, Portland, OR, AAAI Press, pp. 226-231. 1996
     """
 
-    def __init__(self, eps=0.5, epsransac=1.0, min_samples=5, metric='euclidean',
-                 metric_params=None, algorithm='auto', leaf_size=30, p=None,
-                 n_jobs=None):
-        self.eps = eps
-        self.epsransac = epsransac
-        self.min_samples = min_samples
-        self.metric = metric
-        self.metric_params = metric_params
-        self.algorithm = algorithm
-        self.leaf_size = leaf_size
-        self.p = p
-        self.n_jobs = n_jobs
+    def __init__(self, configFile):
+        filePar = open(configFile,'r')
+        params = eval(filePar.read())
+        self.eps           = params['dbscan_eps']
+        self.min_samples   = params['dbscan_minsamples']
+        self.epsransac     = params['dir_radius_search']
+        self.dir_radius_search = params['dir_radius_search']
+        self.dir_min_accuracy  = params['dir_min_accuracy']
+        self.dir_minsamples    = params['dir_minsamples']
+        self.dir_thickness     = params['dir_thickness']
+        self.time_threshold    = params['time_threshold']
+        self.max_attempts      = params['max_attempts']
+        self.dir_isolation     = params['dir_isolation']
+        self.metric        = params['metric']
+        self.metric_params = params['metric_params']
+        self.algorithm     = params['algorithm']
+        self.leaf_size     = params['leaf_size']
+        self.p             = params['p']
+        self.n_jobs        = params['n_jobs']
 
     def fit(self, X, y=None, sample_weight=None):
         """Perform DBSCAN clustering from features or distance matrix.
@@ -339,8 +343,11 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
 
         """
         X = check_array(X, accept_sparse='csr')
-        clust = ddbscan(X, sample_weight=sample_weight,
-                       **self.get_params())
+        clust = ddbscan(X, eps=self.eps, min_samples=self.min_samples, epsransac=self.epsransac,
+                        dir_radius_search=self.dir_radius_search, dir_min_accuracy=self.dir_min_accuracy,
+                        dir_minsamples=self.dir_minsamples, time_threshold=self.time_threshold, max_attempts=self.max_attempts,
+                        dir_isolation=self.dir_isolation, dir_thickness=self.dir_thickness, metric=self.metric, metric_params=self.metric_params,
+                        algorithm=self.algorithm, leaf_size=self.leaf_size, p=self.p, sample_weight=sample_weight, n_jobs=self.n_jobs)
         self.core_sample_indices_, self.labels_ = clust
         if len(self.core_sample_indices_):
             # fix for scipy sparse indexing issue
