@@ -3,10 +3,10 @@
 ## DBSCAN seeding
 'dim'                : '3D',
 'dbscan_eps'         : 5.8,
-'dbscan_minsamples'  : 70,
+'dbscan_minsamples'  : 40,
 
 ## directional clustering
-'dir_radius_search'  : 25,
+'dir_radius_search'  : 50,
 'dir_min_accuracy'   : 0.8, # minimum accuracy of the RANSAC to save one point of the cluster for the directional search
 'dir_minsamples'     : 20,
 'dir_thickness'      : 5.5,
