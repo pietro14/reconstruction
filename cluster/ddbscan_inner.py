@@ -6,7 +6,7 @@ from sklearn.metrics import mean_squared_error
 from operator import itemgetter
 import time,math
 
-def ransac_polyfit(x,y,order, t, n=0.8,k=10,f=0.9):
+def ransac_polyfit(x,y,order,t,n=0.8,k=10,f=0.9):
 
     besterr = np.inf
     bestfit = np.array([None])

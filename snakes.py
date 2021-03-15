@@ -39,14 +39,6 @@ class SnakesFactory:
         self.vignette = vignette
         self.contours = []
         
-    def store_evolution_in(self,lst):
-        """Returns a callback function to store the evolution of the level sets in
-        the given list.
-        """
-        def _store(x):
-            lst.append(np.copy(x))
-        return _store
-    
     def getClusters(self,plot=False):
 
         from sklearn.cluster import DBSCAN
@@ -70,6 +62,7 @@ class SnakesFactory:
         #-----Pre-Processing----------------#
         rescale=int(self.geometry.npixx/self.rebin)
 
+        t0 = time.perf_counter()
         filtimage = median_filter(self.image_fr_zs, size=2)
         edges = self.ct.arrrebin(filtimage,self.rebin)
         edcopy = edges.copy()
@@ -105,10 +98,8 @@ class SnakesFactory:
         if len(X)==0:
             return superclusters
 
-        t0 = time.perf_counter()
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
-        #ddb = DDBSCAN(eps=5.8, epsransac = 20, min_samples = 70,n_jobs=-1).fit(X)
         ddb = DDBSCAN('modules_config/clustering.txt').fit(X)
         if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         t2 = time.perf_counter()
@@ -363,12 +354,16 @@ class SnakesProducer:
             
         # print "Get light profiles..."
         snfac.calcProfiles(snakes,plot=self.plotpy)
+        t2 = time.perf_counter()
+        if self.options.debug_mode: print(f"cluster shapes in {t2 - t1:0.4f} seconds")
 
         # run the cosmic killer: it makes sense only on superclusters
         if self.run_cosmic_killer:
             for ik,killerCand in enumerate(snakes):
                 targets = [snakes[it] for it in range(len(snakes)) if it!=ik]
                 self.cosmic_killer.matchClusters(killerCand,targets)
+            t3 = time.perf_counter()
+            if self.options.debug_mode: print(f"cosmic killer in {t3 - t2:0.4f} seconds")
 
         # snfac.calcProfiles(snakes) # this is for BTF
         
