@@ -10,6 +10,7 @@ DBSCAN: Density-Based Spatial Clustering of Applications with Noise
 # Modified by: Igor Pains <igor.pains@engenharia.ufjf.br>
 # License: BSD 3 clause
 
+from numba import jit
 import numpy as np
 from scipy import sparse
 
@@ -196,7 +197,6 @@ def ddbscan(X, eps=0.5, epsransac=1.0, min_samples=5, metric='minkowski', metric
     print("The ddbscaninner needed %d seconds." %(final-start))
     return np.where(core_samples)[0], labels
 
-
 class DDBSCAN(BaseEstimator, ClusterMixin):
     """Perform DBSCAN clustering from vector array or distance matrix.
 
@@ -339,8 +339,7 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
 
         """
         X = check_array(X, accept_sparse='csr')
-        clust = ddbscan(X, sample_weight=sample_weight,
-                       **self.get_params())
+        clust = ddbscan(X, sample_weight=sample_weight, **self.get_params())
         self.core_sample_indices_, self.labels_ = clust
         if len(self.core_sample_indices_):
             # fix for scipy sparse indexing issue

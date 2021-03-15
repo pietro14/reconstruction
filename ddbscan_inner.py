@@ -1,5 +1,6 @@
-
 from __future__ import division
+
+from numba import jit
 import numpy as np
 from sklearn.linear_model import RANSACRegressor
 from sklearn.metrics import mean_squared_error
@@ -40,12 +41,12 @@ def ransac_polyfit(x,y,order, t, n=0.8,k=10,f=0.9):
 # n - Random fraction of the data used to find the polyfit
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
-    
+
 def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
     #Definitions
     
     acc_th = 0.80     #Accuracy of the RANSAC to save one point of the cluster for the directional search
-    points_th = 20   #Minimum number of points to test the ransac
+    points_th = 80   #Minimum number of points to test the ransac
     t = 4  #The thickness of the track
     time_threshold = np.inf #Maximum ammount of time that the directional search is enabled for each cluster (marked as infinite to see the results)
     max_attempts = 4
@@ -91,16 +92,13 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                 ransac.fit(np.expand_dims(x, axis=1), y)
             accuracy = sum(ransac.inlier_mask_)/len(y)
             center_i = (np.average(np.unique(x)),np.average(np.unique(y)))
-            #print ("cluster with center = ",center_i)
-            #print("this clu data = ",data[labels==label_num])
-            mask_other_points = np.logical_and(labels!=label_num,labels!=-1)
-            #print("other clu data = ",data[mask_other_points])
 
             cludata   = np.unique(data[labels==label_num],axis=0)
-            # N.B. exclude only the noise, and not also cluster's own points because it could be that the first DBSCAN glued together many tracks in a region of overlap. Better to consider this as non-isolated
+
+            #mask_other_points = np.logical_and(labels!=label_num,labels!=-1)
             #otherdata = np.unique(data[mask_other_points],axis=0)
+            # N.B. exclude only the noise, and not also cluster's own points because it could be that the first DBSCAN glued together many tracks in a region of overlap. Better to consider this as non-isolated
             otherdata = np.unique(data[labels!=label_num],axis=0)
-            #print ("number of otherdata = ",len(otherdata))
 
             otherclosedata = []
             for point in otherdata:
@@ -109,13 +107,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                 if dist < eps_isol:
                     otherclosedata.append(point)
             otherclosedata = np.array(otherclosedata)
-            #otherclosedata = np.array(filter(lambda point: math.dist((point[0],point[1]),center_i)<100,otherdata))
-            #print ("otherclosedata = ",otherclosedata)
-            
-            #print("points clu = ",len(cludata))
-            #print("ISOL neighb clu = ",len(otherclosedata))
             isosum = float(len(otherclosedata))/float(len(cludata))
-            #print("cluster n. ",label_num," has isolation = ",isosum, "  and accuracy = ",accuracy)
             
             if accuracy > acc_th:
                 clu_stra.append(label_num)
@@ -141,8 +133,9 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
         vet_aux[:,2] = np.asarray(length)
         vet_aux[:,3] = np.asarray(iso)
         vet_aux = np.asarray(sorted(vet_aux,key=itemgetter(3),reverse=0))
-        if (sum(vet_aux[:,1]==1) > 1):
-            l1 = sum(vet_aux[:,1]==1)
+        # in case there is more than 1 cluster with 0 energy around, sort them by accuracy
+        if (sum(vet_aux[:,3]==0) > 1):
+            l1 = sum(vet_aux[:,3]==1)
             vet_aux[0:l1,:] = np.asarray(sorted(vet_aux[0:l1,:],key=itemgetter(1),reverse=1))
         for u in range(len(clu_stra)):
             lt = (labels==vet_aux[u][0])*is_core
@@ -241,7 +234,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                         if control == 1:
                             fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = t)
                         else:
-                            fit_model, fit_deri = ransac_polyfit(x,y,order=3, t = t)
+                            fit_model, fit_deri = ransac_polyfit(x,y,order=5, t = t)
                         pts1 = sum(labels==label_num)
                         #Stop criteria - time
                         t2 = time.time()
@@ -257,7 +250,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels):
                                 #print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
                                 break
                             else:
-                                fit_model, fit_deri = ransac_polyfit(x,y,order=3, t = t)
+                                fit_model, fit_deri = ransac_polyfit(x,y,order=5, t = t)
                                 control = 0
                                 if sum(fit_model == None) != 0:
                                     break
