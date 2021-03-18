@@ -21,7 +21,7 @@ from sklearn.neighbors import NearestNeighbors
 from cluster.ddbscan_inner import ddbscaninner
 import time
 
-def ddbscan(X, eps=0.5, min_samples=5, epsransac=1.0, dir_radius_search=25, dir_min_accuracy=0.8,dir_minsamples=20, time_threshold=np.inf, max_attempts=np.inf, dir_isolation=20, dir_thickness=4, metric='minkowski', metric_params=None,  algorithm='auto', leaf_size=30, p=2, sample_weight=None, n_jobs=None):
+def ddbscan(X, eps=0.5, min_samples=5, epsransac=1, dir_min_accuracy=0.8,dir_minsamples=20, time_threshold=np.inf, max_attempts=np.inf, dir_isolation=20, dir_thickness=4, metric='minkowski', metric_params=None,  algorithm='auto', leaf_size=30, p=2, sample_weight=None, n_jobs=None):
     """Perform DBSCAN clustering from vector array or distance matrix.
 
     Read more in the :ref:`User Guide <dbscan>`.
@@ -189,7 +189,7 @@ def ddbscan(X, eps=0.5, min_samples=5, epsransac=1.0, dir_radius_search=25, dir_
     # A list of all core samples found.
     core_samples = np.asarray(n_neighbors >= min_samples, dtype=np.uint8)
     start = time.time()
-    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels,  dir_radius_search, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, dir_isolation)
+    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, dir_isolation)
     final = time.time()
     print("The ddbscaninner needed %d seconds." %(final-start))
     return np.where(core_samples)[0], labels
@@ -309,7 +309,6 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
         params = eval(filePar.read())
         self.eps           = params['dbscan_eps']
         self.min_samples   = params['dbscan_minsamples']
-        self.epsransac     = params['dir_radius_search']
         self.dir_radius_search = params['dir_radius_search']
         self.dir_min_accuracy  = params['dir_min_accuracy']
         self.dir_minsamples    = params['dir_minsamples']
@@ -343,8 +342,7 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
 
         """
         X = check_array(X, accept_sparse='csr')
-        clust = ddbscan(X, eps=self.eps, min_samples=self.min_samples, epsransac=self.epsransac,
-                        dir_radius_search=self.dir_radius_search, dir_min_accuracy=self.dir_min_accuracy,
+        clust = ddbscan(X, eps=self.eps, min_samples=self.min_samples, epsransac=self.dir_radius_search, dir_min_accuracy=self.dir_min_accuracy,
                         dir_minsamples=self.dir_minsamples, time_threshold=self.time_threshold, max_attempts=self.max_attempts,
                         dir_isolation=self.dir_isolation, dir_thickness=self.dir_thickness, metric=self.metric, metric_params=self.metric_params,
                         algorithm=self.algorithm, leaf_size=self.leaf_size, p=self.p, sample_weight=sample_weight, n_jobs=self.n_jobs)

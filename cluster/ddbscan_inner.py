@@ -6,8 +6,34 @@ from sklearn.metrics import mean_squared_error
 from operator import itemgetter
 import time,math
 
+import warnings
+warnings.simplefilter('ignore', np.RankWarning)
+
+class PolynomialRegression(object):
+    def __init__(self, degree=3, coeffs=None):
+        self.degree = degree
+        self.coeffs = coeffs
+
+    def fit(self, X, y):
+        self.coeffs = np.polyfit(X.ravel(), y, self.degree)
+
+    def get_params(self, deep=False):
+        return {'coeffs': self.coeffs}
+
+    def set_params(self, coeffs=None, random_state=None):
+        self.coeffs = coeffs
+
+    def predict(self, X):
+        poly_eqn = np.poly1d(self.coeffs)
+        y_hat = poly_eqn(X.ravel())
+        return y_hat
+
+    def score(self, X, y):
+        return mean_squared_error(y, self.predict(X))
+
 def ransac_polyfit(x,y,order,t,n=0.8,k=10,f=0.9):
 
+    print("\t\t*** doing polyfit with order ",order)
     besterr = np.inf
     bestfit = np.array([None])
     bestfitderi = np.array([None])
@@ -30,7 +56,8 @@ def ransac_polyfit(x,y,order,t,n=0.8,k=10,f=0.9):
                 bestfit = bettermodel
                 besterr = thiserr
                 bestfitderi = np.array(polyderi)
-                     
+
+    print("\t\t=== polyfit DONE")                     
     return bestfit, bestfitderi
 
 #Parameters of the new ransac function:
@@ -41,7 +68,7 @@ def ransac_polyfit(x,y,order,t,n=0.8,k=10,f=0.9):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius_search, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, dir_isolation):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, dir_isolation):
     #Definitions
     
     #Beginning of the algorithm - DBSCAN check part
@@ -52,6 +79,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
     length = []
     iso = []
     
+    print("Start DBSCAN seeding...")
     #Loop 
     for i in range(labels.shape[0]):
         if labels[i] != -1 or not is_core[i]:
@@ -65,7 +93,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         v = neighb[i]
                         if labels[v] == -1:
                             stack.append(v)
-
             if len(stack) == 0:
                 break
             i = stack[len(stack)-1]
@@ -73,15 +100,16 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
 
 
         #Ransac part
+        print("test cluster n. ",i)
         if sum(labels==label_num) > dir_minsamples:
+            print("==> cluster ",i," has ",sum(labels==label_num)," samples")
             x = data[labels==label_num][:,0]
             y = data[labels==label_num][:,1]
-            if (np.median(np.abs(y - np.median(y))) == 0):
-                ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
-                ransac.fit(np.expand_dims(x, axis=1), y)
-            else:
-                ransac = RANSACRegressor(min_samples=0.8)
-                ransac.fit(np.expand_dims(x, axis=1), y)
+            ransac = RANSACRegressor(PolynomialRegression(degree=3),
+                                     residual_threshold=3 * np.std(y),
+                                     random_state=0)
+            ransac.fit(np.expand_dims(x, axis=1), y)
+            
             accuracy = sum(ransac.inlier_mask_)/len(y)
             center_i = (np.average(np.unique(x)),np.average(np.unique(y)))
 
@@ -100,7 +128,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                     otherclosedata.append(point)
             otherclosedata = np.array(otherclosedata)
             isosum = float(len(otherclosedata))/float(len(cludata))
-            
+
+            print ("==> and has acc = ",accuracy," and iso = ",isosum)
             if accuracy > dir_min_accuracy:
                 clu_stra.append(label_num)
                 acc.append(accuracy)
@@ -110,6 +139,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
     
     #End of DBSCAN loop - check if directional part is viable
     print("Clusters found in DBSCAN: %d" %(len(set(labels)) - (1 if -1 in labels else 0)))
+
     if len(clu_stra) == 0:
         #If no cluster has a good fit model, the output will be the same of the DBSCAN
         la_aux = np.copy(labels)
@@ -124,22 +154,22 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         vet_aux[:,1] = np.asarray(acc)
         vet_aux[:,2] = np.asarray(length)
         vet_aux[:,3] = np.asarray(iso)
-        vet_aux = np.asarray(sorted(vet_aux,key=itemgetter(3),reverse=0))
+        vet_aux = np.asarray(sorted(vet_aux,key=itemgetter(1),reverse=1))
         # in case there is more than 1 cluster with 0 energy around, sort them by accuracy
-        if (sum(vet_aux[:,3]==0) > 1):
-            l1 = sum(vet_aux[:,3]==1)
-            vet_aux[0:l1,:] = np.asarray(sorted(vet_aux[0:l1,:],key=itemgetter(1),reverse=1))
+        if (sum(vet_aux[:,1]==1) > 1):
+            l1 = sum(vet_aux[:,1]==1)
+            vet_aux[0:l1,:] = np.asarray(sorted(vet_aux[0:l1,:],key=itemgetter(2),reverse=1))
         for u in range(len(clu_stra)):
             lt = (labels==vet_aux[u][0])*is_core
             auxiliar_points.append(np.where(lt)[0][0])
-            #print("The point %d has been assigned as part of a good fit" %(np.where(lt)[0][0]))
+            print("The point %d has been assigned as part of a good fit" %(np.where(lt)[0][0]))
         
         #Now the clusterization will begin from zero with directionality enabled for the clusters that have a good fit model
         label_num = 0
         labels = np.full(data.shape[0], -1, dtype=np.intp)
         stack = []
         for i in auxiliar_points:
-            #print("Auxiliar point ",i)
+            print("Auxiliar point ",i)
             if labels[i] != -1 or not is_core[i]:
                 continue
             while True:
@@ -156,16 +186,17 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                     break
                 i = stack[len(stack)-1]
                 del(stack[len(stack)-1])
-            
+
+            print("An attempt cluster fround. Dir search now...")
             #Now that the provisional cluster has been found, directional search begins
             if sum(labels==label_num) > dir_minsamples:
-                
                 #Taking unique points to use on the ransac
                 clu_coordinates = [tuple(row) for row in data[labels==label_num]] 
                 uniques = np.unique(clu_coordinates,axis=0)
                 x = uniques[:,0]
                 y = uniques[:,1]
-                
+                center_i = (np.average(np.unique(x)),np.average(np.unique(y)))
+                print ("cluster with center ",center_i," has samples > dir_min: = ",sum(labels==label_num))
                 
                 #RANSAC fit
                 fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = dir_thickness)
@@ -175,6 +206,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                     control = 1
                     pts1 = 0
                     t1 = time.time()
+                    print ("***** attempt n ",counter)
                     while True:
 
                         #Filling stack list with possible new points to be added (start point)
@@ -184,7 +216,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         for j in moment_lab:
                             neig2 = neighborhoods2[j]
                             for k in neig2:
-                                if labels[k] != label_num:
+                                if labels[k] != label_num and labels[k]!=-1:
                                 #if (labels[k] != label_num) or 1:
                                     stack.append(k)
                         stack = np.unique(stack).tolist()
@@ -202,12 +234,12 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                             if i in inliers and (labels[i] != label_num):
                             #if i in inliers:
                                 labels[i] = label_num
-                                #if is_core[i]:
-                                neig2 = neighborhoods2[i]
-                                for i in range(neig2.shape[0]):
-                                    v = neig2[i]
-                                    if labels[v] != label_num:
-                                        stack.append(v)
+                                if is_core[i]:
+                                    neig2 = neighborhoods2[i]
+                                    for i in range(neig2.shape[0]):
+                                        v = neig2[i]
+                                        if labels[v] != label_num:
+                                            stack.append(v)
 
                             if len(stack) == 0:
                                 break
@@ -226,10 +258,11 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         if control == 1:
                             fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = dir_thickness)
                         else:
-                            fit_model, fit_deri = ransac_polyfit(x,y,order=5, t = dir_thickness)
+                            fit_model, fit_deri = ransac_polyfit(x,y,order=3, t = dir_thickness)
                         pts1 = sum(labels==label_num)
                         #Stop criteria - time
                         t2 = time.time()
+                        print ("INFO: fit time = ",t2-t1)
                         if (t2 - t1) > time_threshold:
                             break
                         #Stop criteria - max attempts of improvements
@@ -238,11 +271,12 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         #Stop criteria - When there is no more point to be added or if the fit is not good anymore
                         counter = counter + 1
                         if (pts1 == pts0) or (sum(fit_model == None) != 0):
+                            print ("last control = ",control)
                             if control == 0:
-                                #print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
+                                print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
                                 break
                             else:
-                                fit_model, fit_deri = ransac_polyfit(x,y,order=5, t = dir_thickness)
+                                fit_model, fit_deri = ransac_polyfit(x,y,order=3, t = dir_thickness)
                                 control = 0
                                 if sum(fit_model == None) != 0:
                                     break
@@ -254,9 +288,10 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             else:
                 labels[labels==label_num] = len(data)
             
+        print("NOW cluster the rest... i.e. ",sum(labels==-1)," points")
         #Now that the clusters with good fit models were found, the rest of the data will be clustered with the standard DBSCAN logic
         for i in range(labels.shape[0]):
-            if labels[i] != -1 or not is_core[i]:  
+            if labels[i] != -1 or not is_core[i]:
                 continue
             while True:
                 if labels[i] == -1:
@@ -274,6 +309,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 del(stack[len(stack)-1])
          
             #label_num += 1
+            print ("boh = ",sum(labels==label_num))
             if sum(labels==label_num) > 29:
                 label_num += 1
             else:
