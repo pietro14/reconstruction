@@ -21,7 +21,7 @@ from sklearn.neighbors import NearestNeighbors
 from cluster.ddbscan_inner import ddbscaninner
 import time
 
-def ddbscan(X, eps=0.5, min_samples=5, epsransac=1, dir_min_accuracy=0.8,dir_minsamples=20, time_threshold=np.inf, max_attempts=np.inf, dir_isolation=20, dir_thickness=4, metric='minkowski', metric_params=None,  algorithm='auto', leaf_size=30, p=2, sample_weight=None, n_jobs=None):
+def ddbscan(X, eps=0.5, min_samples=40, dir_radius=1, dir_min_accuracy=0.8, dir_minsamples=20, isolation_radius=100, time_threshold=np.inf, max_attempts=np.inf, dir_thickness=4, metric='minkowski', metric_params=None,  algorithm='auto', leaf_size=30, p=2, sample_weight=None, n_jobs=None):
     """Perform DBSCAN clustering from vector array or distance matrix.
 
     Read more in the :ref:`User Guide <dbscan>`.
@@ -144,7 +144,7 @@ def ddbscan(X, eps=0.5, min_samples=5, epsransac=1, dir_min_accuracy=0.8,dir_min
             X.setdiag(X.diagonal())  # XXX: modifies X's internals in-place
 
         X_mask = X.data <= eps
-        X_mask2 = X.data <= epsransac
+        X_mask2 = X.data <= dir_radius
         masked_indices = X.indices.astype(np.intp, copy=False)[X_mask]
         masked_indices2 = X.indices.astype(np.intp, copy=False)[X_mask2]
         masked_indptr = np.concatenate(([0], np.cumsum(X_mask)))
@@ -164,7 +164,7 @@ def ddbscan(X, eps=0.5, min_samples=5, epsransac=1, dir_min_accuracy=0.8,dir_min
         neighbors_model.fit(X)
         
         #For the ransac step
-        neighbors_model2 = NearestNeighbors(radius=epsransac, algorithm=algorithm,
+        neighbors_model2 = NearestNeighbors(radius=dir_radius, algorithm=algorithm,
                                            leaf_size=leaf_size,
                                            metric=metric,
                                            metric_params=metric_params, p=p,
@@ -173,7 +173,7 @@ def ddbscan(X, eps=0.5, min_samples=5, epsransac=1, dir_min_accuracy=0.8,dir_min
         # This has worst case O(n^2) memory complexity
         neighborhoods = neighbors_model.radius_neighbors(X, eps,
                                                          return_distance=False)
-        neighborhoods2 = neighbors_model.radius_neighbors(X, epsransac,
+        neighborhoods2 = neighbors_model.radius_neighbors(X, dir_radius,
                                                          return_distance=False)
 
     if sample_weight is None:
@@ -189,7 +189,7 @@ def ddbscan(X, eps=0.5, min_samples=5, epsransac=1, dir_min_accuracy=0.8,dir_min
     # A list of all core samples found.
     core_samples = np.asarray(n_neighbors >= min_samples, dtype=np.uint8)
     start = time.time()
-    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, dir_isolation)
+    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels, min_samples, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius)
     final = time.time()
     print("The ddbscaninner needed %d seconds." %(final-start))
     return np.where(core_samples)[0], labels
@@ -309,13 +309,13 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
         params = eval(filePar.read())
         self.eps           = params['dbscan_eps']
         self.min_samples   = params['dbscan_minsamples']
-        self.dir_radius_search = params['dir_radius_search']
+        self.dir_radius    = params['dir_radius']
         self.dir_min_accuracy  = params['dir_min_accuracy']
         self.dir_minsamples    = params['dir_minsamples']
         self.dir_thickness     = params['dir_thickness']
         self.time_threshold    = params['time_threshold']
         self.max_attempts      = params['max_attempts']
-        self.dir_isolation     = params['dir_isolation']
+        self.isolation_radius  = params['isolation_radius']
         self.metric        = params['metric']
         self.metric_params = params['metric_params']
         self.algorithm     = params['algorithm']
@@ -342,9 +342,9 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
 
         """
         X = check_array(X, accept_sparse='csr')
-        clust = ddbscan(X, eps=self.eps, min_samples=self.min_samples, epsransac=self.dir_radius_search, dir_min_accuracy=self.dir_min_accuracy,
-                        dir_minsamples=self.dir_minsamples, time_threshold=self.time_threshold, max_attempts=self.max_attempts,
-                        dir_isolation=self.dir_isolation, dir_thickness=self.dir_thickness, metric=self.metric, metric_params=self.metric_params,
+        clust = ddbscan(X, eps=self.eps, min_samples=self.min_samples, dir_radius=self.dir_radius, dir_min_accuracy=self.dir_min_accuracy,
+                        dir_minsamples=self.dir_minsamples, isolation_radius=self.isolation_radius, time_threshold=self.time_threshold, max_attempts=self.max_attempts,
+                        dir_thickness=self.dir_thickness, metric=self.metric, metric_params=self.metric_params,
                         algorithm=self.algorithm, leaf_size=self.leaf_size, p=self.p, sample_weight=sample_weight, n_jobs=self.n_jobs)
         self.core_sample_indices_, self.labels_ = clust
         if len(self.core_sample_indices_):

@@ -31,7 +31,7 @@ class PolynomialRegression(object):
     def score(self, X, y):
         return mean_squared_error(y, self.predict(X))
 
-def ransac_polyfit(x,y,order,t,n=0.8,k=10,f=0.9):
+def ransac_polyfit(x,y,order,t,n=0.8,k=100,f=0.9):
 
     print("\t\t*** doing polyfit with order ",order)
     besterr = np.inf
@@ -68,7 +68,7 @@ def ransac_polyfit(x,y,order,t,n=0.8,k=10,f=0.9):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, dir_isolation):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_samples, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius):
     #Definitions
     
     #Beginning of the algorithm - DBSCAN check part
@@ -77,7 +77,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_min_a
     clu_stra = []
     acc = []
     length = []
-    iso = []
+    clu_labels = []
     
     print("Start DBSCAN seeding...")
     #Loop 
@@ -111,30 +111,12 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_min_a
             ransac.fit(np.expand_dims(x, axis=1), y)
             
             accuracy = sum(ransac.inlier_mask_)/len(y)
-            center_i = (np.average(np.unique(x)),np.average(np.unique(y)))
 
-            cludata   = np.unique(data[labels==label_num],axis=0)
-
-            #mask_other_points = np.logical_and(labels!=label_num,labels!=-1)
-            #otherdata = np.unique(data[mask_other_points],axis=0)
-            # N.B. exclude only the noise, and not also cluster's own points because it could be that the first DBSCAN glued together many tracks in a region of overlap. Better to consider this as non-isolated
-            otherdata = np.unique(data[labels!=label_num],axis=0)
-
-            otherclosedata = []
-            for point in otherdata:
-                dist = math.dist((point[0],point[1]),center_i)
-                #print("point p = ",point," has dist wrt ",center_i," = ",dist)
-                if dist < dir_isolation:
-                    otherclosedata.append(point)
-            otherclosedata = np.array(otherclosedata)
-            isosum = float(len(otherclosedata))/float(len(cludata))
-
-            print ("==> and has acc = ",accuracy," and iso = ",isosum)
             if accuracy > dir_min_accuracy:
                 clu_stra.append(label_num)
                 acc.append(accuracy)
                 length.append(sum(labels==label_num))
-                iso.append(isosum)
+                clu_labels.append(label_num)
         label_num += 1
     
     #End of DBSCAN loop - check if directional part is viable
@@ -153,7 +135,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_min_a
         vet_aux[:,0] = np.asarray(clu_stra)
         vet_aux[:,1] = np.asarray(acc)
         vet_aux[:,2] = np.asarray(length)
-        vet_aux[:,3] = np.asarray(iso)
         vet_aux = np.asarray(sorted(vet_aux,key=itemgetter(1),reverse=1))
         # in case there is more than 1 cluster with 0 energy around, sort them by accuracy
         if (sum(vet_aux[:,1]==1) > 1):
@@ -187,7 +168,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_min_a
                 i = stack[len(stack)-1]
                 del(stack[len(stack)-1])
 
-            print("An attempt cluster fround. Dir search now...")
+            print("An attempt cluster fround with ",sum(labels==label_num)," requested ",dir_minsamples, " min samples.  Dir search now...")
             #Now that the provisional cluster has been found, directional search begins
             if sum(labels==label_num) > dir_minsamples:
                 #Taking unique points to use on the ransac
@@ -206,9 +187,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_min_a
                     control = 1
                     pts1 = 0
                     t1 = time.time()
-                    print ("***** attempt n ",counter)
                     while True:
-
+                        print ("***** attempt n ",counter)
                         #Filling stack list with possible new points to be added (start point)
                         pts0 = pts1
                         moment_lab = np.where(labels==label_num)[0]
@@ -283,34 +263,40 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_min_a
                 
                 
             #label_num += 1
-            if sum(labels==label_num) > 29:
+            if sum(labels==label_num) > min_samples:
                 label_num += 1
             else:
                 labels[labels==label_num] = len(data)
             
-        print("NOW cluster the rest... i.e. ",sum(labels==-1)," points")
-        #Now that the clusters with good fit models were found, the rest of the data will be clustered with the standard DBSCAN logic
+        # Now that the clusters with good fit models were found, the rest of the data will be clustered with the standard DBSCAN logic
+        clustered_data = np.unique(data[labels!=-1],axis=0)
         for i in range(labels.shape[0]):
             if labels[i] != -1 or not is_core[i]:
                 continue
             while True:
-                if labels[i] == -1:
+                if labels[i] == -1:                    
                     labels[i] = label_num
                     if is_core[i]:     #Only core points are expanded
                         neighb = neighborhoods[i]
                         for i in range(neighb.shape[0]):
                             v = neighb[i]
-                            if labels[v] == -1:
+                            isolated = True
+                            for cd in clustered_data:
+                                dist = math.dist((cd[0],cd[1]),(data[v][0],data[v][1]))
+                                if dist<isolation_radius:
+                                    #print ("excluding point ",data[v], "close to ",cd," with dist = ",dist)
+                                    isolated = False
+                                    break
+                            if labels[v] == -1 and isolated:
                                 stack.append(v)
 
                 if len(stack) == 0:
                     break
                 i = stack[len(stack)-1]
                 del(stack[len(stack)-1])
-         
+        
             #label_num += 1
-            print ("boh = ",sum(labels==label_num))
-            if sum(labels==label_num) > 29:
+            if sum(labels==label_num) > min_samples:
                 label_num += 1
             else:
                 labels[labels==label_num] = len(data)
