@@ -98,6 +98,28 @@ class SnakesFactory:
         if len(X)==0:
             return superclusters
 
+        if self.options.debug_mode:
+            if self.options.flag_dbscan_seeds:
+                clusters_seeds = DBSCAN(eps=5.5,min_samples=40).fit(X)
+                print('[Plotting 1st iteration]')
+     
+                import matplotlib.pyplot as plt            
+                clu = [X[clusters_seeds.labels_ == i] for i in range(len(set(clusters_seeds.labels_)) - (1 if -1 in clusters_seeds.labels_ else 0))]
+                fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin,vmax=vmax,origin='lower' )
+                plt.title("Clusters found DDBSCAN")             
+                for j in range(0,np.shape(clu)[0]):
+                    ybox = clu[j][:,0]
+                    xbox = clu[j][:,1]
+                    if (len(ybox) > 0) and (len(xbox) > 0):
+                        contours = tl.findedges(ybox,xbox,self.geometry.npixx,self.rebin)
+                        for n, contour in enumerate(contours):
+                            plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
+     
+     
+                for ext in ['png','pdf']:
+                    plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
         ddb = DDBSCAN('modules_config/clustering.txt').fit(X)
@@ -171,6 +193,7 @@ class SnakesFactory:
                 print('[Statistics]')
                 print("Polynomial clusters found: %d" % n_superclusters)
 
+
             if self.options.flag_polycluster == 1:
                 print('[Plotting 0th iteration]')
                 u,indices = np.unique(ddb.labels_,return_index = True)
@@ -187,7 +210,7 @@ class SnakesFactory:
                 plt.imshow(colorpix,cmap='gray',origin='lower' )
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
-                with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='1st',ext=ext,tip=self.options.tip), "wb") as fp:
+                with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='0th',ext=ext,tip=self.options.tip), "wb") as fp:
                     pickle.dump(fig, fp, protocol=4)
                 plt.gcf().clear()
                 plt.close('all')
