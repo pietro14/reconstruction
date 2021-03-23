@@ -289,6 +289,7 @@ if __name__ == '__main__':
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
+    parser.add_option(      '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     
     (options, args) = parser.parse_args()
     
@@ -324,12 +325,15 @@ if __name__ == '__main__':
 
     USER = os.environ['USER']
     tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    # override the default, if given by option
+    if options.tmpdir:
+        tmpdir = options.tmpdir
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-    if sw.checkfiletmp(int(options.run)):
+    if sw.checkfiletmp(int(options.run),tmpdir):
         options.tmpname = "%s/%s/histograms_Run%05d.root" % (tmpdir,USER,int(options.run))
     else:
         print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run))
+        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),tmpdir)
     
     if options.justPedestal:
         ana = analysis(options)
