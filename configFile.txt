@@ -3,9 +3,9 @@
 'geometry'  : 'lime',
 
 # DEBUG plots
-'debug_mode'            : 1,
+'debug_mode'            : 0,
 
-'ev'                    : 50,
+'ev'                    : 52,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -14,6 +14,7 @@
 'flag_rebin_image'      : 1,
 'flag_edges_image'      : 1,
 'flag_polycluster'      : 1,
+'flag_dbscan_seeds'     : 0,
 'flag_stats'            : 1,
 
 'camera_mode'            : 1,
