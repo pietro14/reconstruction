@@ -20,12 +20,12 @@ def reporthook(blocknum, blocksize, totalsize):
     else: # total size is unknown
         sys.stderr.write("read %d\n" % (readsofar,))
 
-def swift_download_root_file(url,run):
+def swift_download_root_file(url,run,tmp=None):
     import ROOT
     import os
     from urllib.request import urlretrieve
     USER = os.environ['USER']
-    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    tmpdir = tmp if tmp else ('/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/')
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     tmpname = ("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
     urlretrieve(url, tmpname, reporthook)
@@ -61,10 +61,10 @@ def swift_rm_root_file(tmpname):
     os.remove(tmpname)
     print("tmp file removed")
 
-def checkfiletmp(run):
+def checkfiletmp(run,tmp=None):
     import os.path
     USER = os.environ['USER']
-    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    tmpdir = tmp if tmp else ('/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/')
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
 
