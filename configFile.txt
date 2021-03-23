@@ -3,9 +3,9 @@
 'geometry'  : 'lime',
 
 # DEBUG plots
-'debug_mode'            : 1,
+'debug_mode'            : 0,
 
-'ev'                    : 53,
+'ev'                    : 52,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
