@@ -68,6 +68,9 @@ if __name__ == "__main__":
         nThreads = min(8,nThreads)
     RAM = nThreads*1000
     ssdcache_opt = 'nodes=1:disk10,' if options.queue=='cygno-custom' else ''
+    # cygno-custom mounts /mnt/ssdcache, not the other queues. It seems that sometimes testing its presence works, sometimes not,
+    # so when not in cygno-custom, force the usage to /tmp
+    tmpdir_opt = '' if  options.queue=='cygno-custom' else ' --tmp /tmp/'
     commands = []
     for run in runs:
         job_file_name = jobdir+'/job_run{r}.sh'.format(r=run)
@@ -75,7 +78,7 @@ if __name__ == "__main__":
         tmp_file = open(job_file_name, 'w')
 
         tmp_filecont = jobstring
-        cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -j {nt} '.format(r=run,nt=nThreads)
+        cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -j {nt} {tmpopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt)
         tmp_filecont = tmp_filecont.replace('RECOSTRING',cmd)
         tmp_filecont = tmp_filecont.replace('CYGNOBASE',abswpath+'/')
         tmp_file.write(tmp_filecont)
