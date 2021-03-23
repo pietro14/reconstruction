@@ -33,7 +33,7 @@ class PolynomialRegression(object):
 
 def ransac_polyfit(x,y,order,t,n=0.8,k=100,f=0.9):
 
-    print("\t\t*** doing polyfit with order ",order)
+    #print("\t\t*** doing polyfit with order ",order)
     besterr = np.inf
     bestfit = np.array([None])
     bestfitderi = np.array([None])
@@ -57,7 +57,7 @@ def ransac_polyfit(x,y,order,t,n=0.8,k=100,f=0.9):
                 besterr = thiserr
                 bestfitderi = np.array(polyderi)
 
-    print("\t\t=== polyfit DONE")                     
+    #print("\t\t=== polyfit DONE")                     
     return bestfit, bestfitderi
 
 #Parameters of the new ransac function:
@@ -68,7 +68,7 @@ def ransac_polyfit(x,y,order,t,n=0.8,k=100,f=0.9):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_samples, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_samples, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, debug=False):
     #Definitions
     
     #Beginning of the algorithm - DBSCAN check part
@@ -79,7 +79,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
     length = []
     clu_labels = []
     
-    print("Start DBSCAN seeding...")
+    if debug:
+        print("Start DBSCAN seeding...")
     #Loop 
     for i in range(labels.shape[0]):
         if labels[i] != -1 or not is_core[i]:
@@ -100,9 +101,12 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
 
 
         #Ransac part
-        print("test cluster n. ",i)
-        if sum(labels==label_num) > dir_minsamples:
-            print("==> cluster ",i," has ",sum(labels==label_num)," samples")
+        if debug:
+            print("test cluster n. ",i)
+        un = np.unique(data[labels==label_num],axis=0)
+        if len(un) > dir_minsamples:
+            if debug:
+                print("==> cluster ",i," has ",sum(labels==label_num)," samples and ",len(un)," unique samples")
             x = data[labels==label_num][:,0]
             y = data[labels==label_num][:,1]
             ransac = RANSACRegressor(PolynomialRegression(degree=3),
@@ -120,7 +124,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
         label_num += 1
     
     #End of DBSCAN loop - check if directional part is viable
-    print("Clusters found in DBSCAN: %d" %(len(set(labels)) - (1 if -1 in labels else 0)))
+    if debug:
+        print("Clusters found in DBSCAN: %d" %(len(set(labels)) - (1 if -1 in labels else 0)))
 
     if len(clu_stra) == 0:
         #If no cluster has a good fit model, the output will be the same of the DBSCAN
@@ -143,14 +148,16 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
         for u in range(len(clu_stra)):
             lt = (labels==vet_aux[u][0])*is_core
             auxiliar_points.append(np.where(lt)[0][0])
-            print("The point %d has been assigned as part of a good fit" %(np.where(lt)[0][0]))
+            if debug:
+                print("The point %d has been assigned as part of a good fit" %(np.where(lt)[0][0]))
         
         #Now the clusterization will begin from zero with directionality enabled for the clusters that have a good fit model
         label_num = 0
         labels = np.full(data.shape[0], -1, dtype=np.intp)
         stack = []
         for i in auxiliar_points:
-            print("Auxiliar point ",i)
+            if debug:
+                print("Auxiliar point ",i)
             if labels[i] != -1 or not is_core[i]:
                 continue
             while True:
@@ -168,16 +175,19 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
                 i = stack[len(stack)-1]
                 del(stack[len(stack)-1])
 
-            print("An attempt cluster fround with ",sum(labels==label_num)," requested ",dir_minsamples, " min samples.  Dir search now...")
+            un = np.unique(data[labels==label_num],axis=0)
+            if debug:
+                print("An attempt cluster fround with ",sum(labels==label_num)," 3D pix and ",len(un)," 2D pix, while requested ",dir_minsamples, " min samples.  Dir search now...")
             #Now that the provisional cluster has been found, directional search begins
-            if sum(labels==label_num) > dir_minsamples:
+            if len(un) > dir_minsamples:
                 #Taking unique points to use on the ransac
                 clu_coordinates = [tuple(row) for row in data[labels==label_num]] 
                 uniques = np.unique(clu_coordinates,axis=0)
                 x = uniques[:,0]
                 y = uniques[:,1]
                 center_i = (np.average(np.unique(x)),np.average(np.unique(y)))
-                print ("cluster with center ",center_i," has samples > dir_min: = ",sum(labels==label_num))
+                if debug:
+                    print ("cluster with center ",center_i," has samples > dir_min: = ",sum(labels==label_num))
                 
                 #RANSAC fit
                 fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = dir_thickness)
@@ -186,9 +196,9 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
                 if sum(fit_model == None) == 0:
                     control = 1
                     pts1 = 0
-                    t1 = time.time()
                     while True:
-                        print ("***** attempt n ",counter)
+                        if debug:
+                            print ("***** attempt n ",counter)
                         #Filling stack list with possible new points to be added (start point)
                         pts0 = pts1
                         moment_lab = np.where(labels==label_num)[0]
@@ -235,6 +245,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
 
 
                         #Updating the ransac model
+                        t1 = time.time()
                         if control == 1:
                             fit_model, fit_deri = ransac_polyfit(x,y,order=1, t = dir_thickness)
                         else:
@@ -242,7 +253,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
                         pts1 = sum(labels==label_num)
                         #Stop criteria - time
                         t2 = time.time()
-                        print ("INFO: fit time = ",t2-t1)
+                        if debug:
+                            print ("INFO: fit time = ",t2-t1)
                         if (t2 - t1) > time_threshold:
                             break
                         #Stop criteria - max attempts of improvements
@@ -251,9 +263,11 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
                         #Stop criteria - When there is no more point to be added or if the fit is not good anymore
                         counter = counter + 1
                         if (pts1 == pts0) or (sum(fit_model == None) != 0):
-                            print ("last control = ",control)
+                            if debug:
+                                print ("last control = ",control)
                             if control == 0:
-                                print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
+                                if debug:
+                                    print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
                                 break
                             else:
                                 fit_model, fit_deri = ransac_polyfit(x,y,order=3, t = dir_thickness)
