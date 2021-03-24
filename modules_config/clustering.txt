@@ -3,7 +3,7 @@
 ## DBSCAN seeding
 'dim'                : '3D',
 'dbscan_eps'         : 5.5,
-'dbscan_minsamples'  : 20, # this is for 2D
+'dbscan_minsamples'  : 17, # this is for 2D
 
 ## directional clustering
 'dir_radius'         : 30,
