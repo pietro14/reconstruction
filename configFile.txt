@@ -5,7 +5,7 @@
 # DEBUG plots
 'debug_mode'            : 0,
 
-'ev'                    : 52,
+'ev'                    : 40,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -42,7 +42,7 @@
 'donotremove'           : True,                    # Remove or not the file from the tmp folder
 
 
-'tip'                   : '3D',
+'tip'                   : '2D',
 'saturation_corr'       : False,
 
 # Superclusters parameters are hardcoded

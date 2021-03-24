@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # typically for LIME images (~4MP) MEM = 600MB. 1GB for safety
     if options.queue!='cygno-custom':
         nThreads = min(8,nThreads)
-    RAM = nThreads*1000
+    RAM = nThreads*2000
     ssdcache_opt = 'nodes=1:disk10,' if options.queue=='cygno-custom' else ''
     # cygno-custom mounts /mnt/ssdcache, not the other queues. It seems that sometimes testing its presence works, sometimes not,
     # so when not in cygno-custom, force the usage to /tmp
