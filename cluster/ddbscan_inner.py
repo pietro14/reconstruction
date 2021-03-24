@@ -295,7 +295,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
         if debug:
             print("Now clustering the rest...")
 
-        print ("calc neighbors...")
         nt1 = time.time()
         # first compute distances to make isolation on each pixel of the unclustered data wrt the clustered pixels
         clustered_data = np.unique(data[labels!=-1],axis=0)
