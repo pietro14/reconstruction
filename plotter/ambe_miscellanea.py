@@ -205,7 +205,7 @@ def makeEff(f1,histo1,f2,histo2,f3=None,histo3=None,plotdir="./",xmax=31):
     
     ## add legend
     histos = [teffi,teffi2]
-    labels = ['#varepsilon_{B}^{total}=4%','#varepsilon_{B}^{total}=1%']
+    labels = ['#varepsilon_{B}^{total}=1%','#varepsilon_{B}^{total}=0.1%']
     styles = ['F','F']
     legend = doLegend(histos,labels,styles,corner='BR')
     #legend.Draw('same')
@@ -389,9 +389,14 @@ if __name__ == "__main__":
         #         'plots/ambe/clusters_3sourcesNloCalNeutrons_2020_05_05/'+var+'.root',           prefix+var,
         #         options.outdir)
         ## PAPER binning
-        makeEff('plots/ambe/clusters_3sources_WP50Paper_2020_05_29/'+var+'.root',prefix+var,
-                'plots/ambe/clusters_3sources_FullSelPaper_2020_05_29/'+var+'.root',prefix+var,
-                'plots/ambe/clusters_3sources_WP40Paper_2020_05_29/'+var+'.root',prefix+var,
+        # makeEff('plots/ambe/clusters_3sources_WP50Paper_2020_05_29/'+var+'.root',prefix+var,
+        #         'plots/ambe/clusters_3sources_FullSelPaper_2020_05_29/'+var+'.root',prefix+var,
+        #         'plots/ambe/clusters_3sources_WP40Paper_2020_05_29/'+var+'.root',prefix+var,
+        #         options.outdir)
+        ## LIME
+        makeEff('ambeplots/2021-03-29-ambeV6_cosmveto_WPbkg10em2/'+var+'.root',prefix+var,
+                'ambeplots/2021-03-29-ambeV6_cosmveto/'+var+'.root',prefix+var,
+                'ambeplots/2021-03-29-ambeV6_cosmveto_WPbkg10em3/'+var+'.root',prefix+var,
                 options.outdir)
                 
     elif options.make == 'tworocs':

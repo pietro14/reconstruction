@@ -373,6 +373,7 @@ def fillSpectra():
     ret[('ambe','gslimnessnorm')] = ROOT.TH1F("gslimnessnorm",'',25,0,2)
     ret[('ambe','gtallness')] = ROOT.TH1F("gtallness",'',25,0,2)
     ret[('ambe','density')]  = ROOT.TH1F("density",'',50,0,50)
+    ret[('ambe','density_fine')]  = ROOT.TH1F("density_fine",'',500,0,50)
     ret[('ambe','caldensity')]  = ROOT.TH1F("caldensity",'',50,20,120)
     ret[('ambe','denseness')]  = ROOT.TH1F("denseness",'',50,0,15)
     ret[('ambe','caldenseness')]  = ROOT.TH1F("caldenseness",'',50,0,50)
@@ -409,7 +410,7 @@ def fillSpectra():
     titles = {'integral': 'I_{SC} (photons)', 'integralExt': 'I_{SC} (photons)', 'calintegral': 'E (keV)', 'calintegralExt': 'E (keV)', 'dedx': 'dE/d#it{l}_{p} (keV/cm)',
               'energy': 'E (keV)', 'energyExt': 'E (keV)', 'energyFull': 'E (keV)', # these are like calintegral, but estimated in the reconstruction step
               'length':'#it{l}_{p} (mm)', 'width':'#it{w} (mm)', 'nhits': 'n_{p}', 'slimness': '#xi', 'gslimness': '#xi_{Gauss}', 'gslimnessnorm': '#xi_{Gauss}^{Norm}', 'gtallness': '#tau_{Gauss}', 'curliness': '#zeta',
-              'density': '#delta (photons/pixel)', 'denseness': '#Delta (photons/pixel)', 'caldensity': 'density (eV/pixel)', 'caldenseness': '#Delta (eV/pixel)', 
+              'density': '#delta (photons/pixel)', 'density_fine': '#delta (photons/pixel)', 'denseness': '#Delta (photons/pixel)', 'caldensity': 'density (eV/pixel)', 'caldenseness': '#Delta (eV/pixel)', 
               'isolation': 'isolation',
               'cmos_integral': 'CMOS integral (photons)', 'cmos_mean': 'CMOS mean (photons)', 'cmos_rms': 'CMOS RMS (photons)',
               'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
@@ -593,7 +594,15 @@ def fillSpectra():
                         #     continue
                         ##########################
      
-     
+                        ## LIME
+                        # 10^-3 bkg efficiency
+                        # if density<21.3:
+                        #     continue
+                        # 10^-2 bkg efficiency 
+                        # if density<17.4:
+                        #    continue
+                        
+                        ## LEMON
                         # ## cut with 50% sig eff and 1% bkg eff
                         # if density<10:
                         #     continue
@@ -627,6 +636,7 @@ def fillSpectra():
                 ret[(runtype,'gslimnessnorm')].Fill(lgsigma/tgsigma/length*width if tgsigma*length!=0 else -1)
                 ret[(runtype,'gtallness')].Fill(lgamp/tgamp)
                 ret[(runtype,'density')].Fill(density)
+                ret[(runtype,'density_fine')].Fill(density)
                 ret[(runtype,'caldensity')].Fill(calibDensity)
                 ret[(runtype,'denseness')].Fill(denseness)
                 ret[(runtype,'caldenseness')].Fill(calibDenseness)
@@ -1683,7 +1693,7 @@ if __name__ == "__main__":
         os.system('mkdir -p {od}'.format(od=odir))
         drawSpectra(histograms,odir,entries,normEntries=True)
         os.system('cp ../index.php {od}'.format(od=odir))
-        drawROC('density',odir)
+        drawROC('density_fine',odir)
         
     if options.make in ['all','evsdist']:
         plotEnergyVsDistance(options.outdir)
