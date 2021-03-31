@@ -30,7 +30,9 @@ class TFTool:
             inp.append(var(ev,isc))
         inp = np.asarray(inp)
         inp = np.array([ tuple(inp) ])
-        res = self.model.predict(inp)[0]
+        # https://www.tensorflow.org/api_docs/python/tf/keras/Model#predict
+        #res = self.model.predict(inp)[0] # this would be faster when passing an array of arrays (e.g. for all the events together)
+        res = self.model(inp)[0] # this is faster than predict(inp) in our case hwre we pass just 1 array of variables per event
         for i,cla in enumerate(self.classes):
             if self.debug: print (cla, res[i])
             ret['%s_%s'%(self.name,cla)] = res[i]
