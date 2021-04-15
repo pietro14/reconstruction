@@ -79,17 +79,12 @@ class SnakesFactory:
         image_fr_zs_vignetted = self.ct.vignette_corr(self.image_fr_zs,self.vignette)
                 
         if tip=='3D':
-            Xl = [(ix,iy) for ix,iy in points]          # Aux variable to simulate the Z-dimension
-            X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
-            for ix,iy in points:                        # Looping over the non-empty coordinates
-                nreplicas = int(self.image[ix,iy])-1
-                for count in range(nreplicas):                      # Looping over the number of 'photons' in that coordinate
-                    Xl.append((ix,iy))                              # add a coordinate repeatedly 
-            X = np.array(Xl)                                        # Convert the list to an array
+            sample_weight = np.array([round(edges[ix,iy]) for ix,iy in points],dtype=np.int)
+            sample_weight[sample_weight==0] = 1
+            X = points.copy()
         else:
             X = points.copy()
-            X1 = X
-        
+            sample_weight = np.full(X.shape[0], 1, dtype=np.int)
 
         # returned collections
         superclusters = []
@@ -100,7 +95,7 @@ class SnakesFactory:
 
         if self.options.debug_mode:
             if self.options.flag_dbscan_seeds:
-                clusters_seeds = DBSCAN(eps=5.5,min_samples=40).fit(X)
+                clusters_seeds = DBSCAN(eps=5.5,min_samples=40).fit(X, sample_weight = sample_weight)
                 print('[Plotting 1st iteration]')
      
                 import matplotlib.pyplot as plt            
@@ -122,7 +117,7 @@ class SnakesFactory:
 
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
-        ddb = DDBSCAN('modules_config/clustering.txt').fit(X)
+        ddb = DDBSCAN('modules_config/clustering.txt').fit(X, sample_weight = sample_weight)
         if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
