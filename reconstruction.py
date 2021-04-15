@@ -1,5 +1,7 @@
 #!/usr/bin/env python3.8
-from multiprocessing import Pool,set_start_method
+from multiprocessing import Pool,set_start_method,TimeoutError
+from subprocess import Popen, PIPE
+import signal
 
 import os,math,sys,random
 import numpy as np
@@ -14,6 +16,22 @@ from snakes import SnakesProducer
 from output import OutputTree
 from treeVars import AutoFillTreeProducer
 import swiftlib as sw
+
+# this kills also the still running subprocesses.
+# use with a safe MAX TIMEOUT duration, since it will kill everything
+def terminate_pool_2(pool):
+    print ("Some subprocess timed out. Killing it brutally.")
+    os.system('killall -9 python3.8')
+
+# this still stucks
+def terminate_pool(pool):
+    print ("Some subprocess timed out. Killing it brutally.")
+    for p in pool._pool:
+        print ("KILLING PID ",p.pid)
+        os.kill(p.pid, 9)
+    pool.close()
+    pool.terminate()
+    pool.join()
 
 import utilities
 utilities = utilities.utils()
@@ -290,6 +308,7 @@ if __name__ == '__main__':
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
     parser.add_option(      '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
+    parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     
     (options, args) = parser.parse_args()
     
@@ -361,12 +380,23 @@ if __name__ == '__main__':
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(0,nev,nj))]
         print(chunks)
         pool = Pool(nThreads)
-        ret = pool.map(ana, chunks)
-        pool.close()
-        pool.join()
+        ret = list(pool.apply_async(ana,args=(c, )) for c in chunks)
+        try:
+            if options.maxHours>0:
+                maxTime = options.maxHours * 3600
+            else:
+                # 64-bit integer, converted from nanoseconds to seconds, and subtracting 0.1 just to be in bounds.
+                maxTime = 2 ** 63 / 1e9 - 0.1
+            print([r.get(timeout=maxTime) for r in ret])
+            pool.close()
+            pool.terminate()
+            pool.join()
+        except TimeoutError:
+            print("except")
+            terminate_pool_2(pool)
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
-        os.system('{rootsys}/bin/hadd -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
+        os.system('{rootsys}/bin/hadd -k -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
         os.system('rm {base}_chunk*.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)

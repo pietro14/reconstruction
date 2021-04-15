@@ -3,6 +3,8 @@ from array import array
 from root_numpy import hist2array
 import numpy as np
 
+from tools.finalDNN import finalDNN
+
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
 
@@ -382,6 +384,13 @@ def fillSpectra():
     ret[('ambe','curliness')]  = ROOT.TH1F("curliness",'',100,-0.5,1)
     ret[('ambe','isolation')]  = ROOT.TH1F("isolation",'',10,0,10)
     ret[('ambe','asymmetry')]  = ROOT.TH1F("asymmetry",'',5,0,1.)
+
+    ret[('ambe','dnn_nr')] = ROOT.TH1F("dnn_nr",'',100,0,1.)
+    ret[('ambe','dnn_er')] = ROOT.TH1F("dnn_er",'',100,0,1.)
+    ret[('ambe','dnn_other')] = ROOT.TH1F("dnn_other",'',100,0,1.)
+    ret[('ambe','dnn_max')] = ROOT.TH1F("dnn_max",'',100,0,1.)
+    ret[('ambe','dnn_class')] = ROOT.TH1F("dnn_class",'',3,0,3.)
+
     ret[('ambe','lengthvsdistance_prof')]   = ROOT.TProfile("lengthvsdistance_prof",'',8,0,NX[GEOMETRY]/math.sqrt(2)*pixw*0.1)
     ret[('ambe','multiplicityvsdistance_prof')]   = ROOT.TProfile("multiplicityvsdistance_prof",'',12,0,NX[GEOMETRY]/math.sqrt(2)*pixw*0.1)
 
@@ -416,7 +425,8 @@ def fillSpectra():
               'pmt_integral': 'PMT integral (mV)', 'pmt_tot': 'PMT T.O.T. (ns)', 'pmt_density': 'PMT density (mV/ns)',
               'tgausssigma': '#sigma^{T}_{Gauss} (mm)', 'lgausssigma': '#sigma^{L}_{Gauss} (mm)', 'tchi2': '#chi2^{T}_{Gauss}', 'lchi2': '#chi2^{L}_{Gauss}', 
               'inclination': '#theta (wrt vertical) (deg)', 'asymmetry': 'asymmetry: (A-B)/(A+B)',
-              'lengthvsdistance_prof': 'lenghthvsdistance', 'multiplicityvsdistance_prof': 'multiplicityvsdistance'}
+              'lengthvsdistance_prof': 'lenghthvsdistance', 'multiplicityvsdistance_prof': 'multiplicityvsdistance',
+              'dnn_nr': 'DNN score (NR node)', 'dnn_er': 'DNN score (ER node)', 'dnn_other': 'DNN score (other node)', 'dnn_max': 'maximum DNN score', 'dnn_class': 'DNN class'}
 
     titles2d = {'integralvslength': ['l_{p} (mm)','photons'], 'densityvslength' : ['l_{p} (mm)','#delta (photons/pix)'],
                 'densityvslength_zoom' : ['l_{p} (mm)','#delta (photons/pix)'], 'calenergyvslength_zoom' : ['l_{p} (mm)','E (keV)']}
@@ -444,6 +454,9 @@ def fillSpectra():
 
     ret.update(ret2)
 
+    ## DNN setup
+    finalDNN3class = finalDNN()
+    
     ## now fill the histograms 
     selected = 0
     for runtype in ['fe','ambe','cosm']:
@@ -606,6 +619,7 @@ def fillSpectra():
                         # ## cut with 50% sig eff and 1% bkg eff
                         # if density<10:
                         #     continue
+                                                
                 else:
                     pass
 
@@ -650,6 +664,20 @@ def fillSpectra():
                 ret[(runtype,'densityvslength')]     .Fill(pixw*length,density)
                 ret[(runtype,'densityvslength_zoom')].Fill(pixw*length,density)
                 ret[(runtype,'calenergyvslength_zoom')].Fill(pixw*length,calibEnergy)
+
+                # compute the final DNN after the full selection
+                dnn_output = finalDNN3class.analyze(event,isc)
+                maxdnn = -1
+                dnnclass = -1
+                nodes = ['nr','er','other']
+                for n,node in enumerate(nodes):
+                    dnn = dnn_output['DNN_pred_{node}'.format(node=node)]
+                    ret[(runtype,'dnn_{node}'.format(node=node))].Fill(dnn)
+                    if dnn>maxdnn:
+                        maxdnn = dnn
+                        dnnclass = n
+                ret[(runtype,'dnn_max')].Fill(maxdnn)
+                ret[(runtype,'dnn_class')].Fill(dnnclass)
 
 
                 if length>110 and slimness<0.7:

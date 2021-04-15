@@ -21,6 +21,7 @@ if __name__ == "__main__":
     parser.add_option(        '--outdir',   dest='outdir',   type="string", default=None, help='outdirectory');
     parser.add_option(        '--nthreads', dest='nthreads', type="string", default=24, help='number of threads / job');
     parser.add_option('-q',   '--queue',    dest='queue',    type="string", default='cygno-custom', help='queue to be used for the jobs');
+    parser.add_option(        '--max-hours',dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     (options, args) = parser.parse_args()
 
     if len(args)<2:
@@ -71,6 +72,7 @@ if __name__ == "__main__":
     # cygno-custom mounts /mnt/ssdcache, not the other queues. It seems that sometimes testing its presence works, sometimes not,
     # so when not in cygno-custom, force the usage to /tmp
     tmpdir_opt = '' if  options.queue=='cygno-custom' else ' --tmp /tmp/'
+    maxtime_opt = '' if options.maxHours < 0 else '--max-hours {hr}'.format(hr=options.maxHours)
     commands = []
     for run in runs:
         job_file_name = jobdir+'/job_run{r}.sh'.format(r=run)
@@ -78,7 +80,7 @@ if __name__ == "__main__":
         tmp_file = open(job_file_name, 'w')
 
         tmp_filecont = jobstring
-        cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -j {nt} {tmpopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt)
+        cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt)
         tmp_filecont = tmp_filecont.replace('RECOSTRING',cmd)
         tmp_filecont = tmp_filecont.replace('CYGNOBASE',abswpath+'/')
         tmp_file.write(tmp_filecont)
