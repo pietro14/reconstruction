@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # cygno-custom mounts /mnt/ssdcache, not the other queues. It seems that sometimes testing its presence works, sometimes not,
     # so when not in cygno-custom, force the usage to /tmp
     tmpdir_opt = '' if  options.queue=='cygno-custom' else ' --tmp /tmp/'
-    maxtime_opt = '' if options.maxHours < 0 else: '--max-hours {hr}'.format(hr=options.maxHours)
+    maxtime_opt = '' if options.maxHours < 0 else '--max-hours {hr}'.format(hr=options.maxHours)
     commands = []
     for run in runs:
         job_file_name = jobdir+'/job_run{r}.sh'.format(r=run)

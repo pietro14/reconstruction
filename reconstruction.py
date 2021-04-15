@@ -18,9 +18,11 @@ import swiftlib as sw
 def terminate_pool(pool):
     print ("Some subprocess timed out. Killing it brutally.")
     for p in pool._pool:
+        print ("KILLING PID ",p.pid)
         os.kill(p.pid, 9)
-    pool.close()  # ok, doesn't hang
-    #pool.join()  # not ok, hangs forever
+    pool.close()
+    pool.terminate()
+    pool.join()
 
 import utilities
 utilities = utilities.utils()
@@ -381,7 +383,8 @@ if __name__ == '__main__':
             print("except")
             terminate_pool(pool)
         pool.close()
-        #pool.join()
+        pool.terminate()
+        pool.join()
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         os.system('{rootsys}/bin/hadd -k -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
