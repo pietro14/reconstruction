@@ -393,7 +393,13 @@ if __name__ == '__main__':
             pool.join()
         except TimeoutError:
             print("except")
+            ## add the chunks before terminating the job if timeout is reached
+            print("Now hadding the chunks...")
+            base = options.outFile.split('.')[0]
+            os.system('{rootsys}/bin/hadd -k -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
+            os.system('rm {base}_chunk*.root'.format(base=base))
             terminate_pool_2(pool)
+        
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         os.system('{rootsys}/bin/hadd -k -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
