@@ -79,9 +79,10 @@ class SnakesFactory:
         image_fr_zs_vignetted = self.ct.vignette_corr(self.image_fr_zs,self.vignette)
                 
         if tip=='3D':
-            sample_weight = np.array([round(edges[ix,iy]) for ix,iy in points],dtype=np.int)
+            sample_weight = np.take(self.image, self.image.shape[0]*points[:,0]+points[:,1]).astype(int)
             sample_weight[sample_weight==0] = 1
             X = points.copy()
+            
         else:
             X = points.copy()
             sample_weight = np.full(X.shape[0], 1, dtype=np.int)
@@ -114,6 +115,7 @@ class SnakesFactory:
      
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                    
 
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
@@ -152,8 +154,8 @@ class SnakesFactory:
             print('[DEBUG-MODE ON]')
             print('[%s Method]' % (self.options.tip))
 
-            if self.options.flag_full_image or self.options.flag_rebin_image or self.options.flag_edges_image or self.options.flag_first_it or self.options.flag_second_it or self.options.flag_third_it or self.options.flag_all_it or self.options.flag_supercluster :
-                import matplotlib.pyplot as plt
+            #if self.options.flag_full_image or self.options.flag_rebin_image or self.options.flag_edges_image or self.options.flag_first_it or self.options.flag_second_it or self.options.flag_third_it or self.options.flag_all_it or self.options.flag_supercluster :
+            import matplotlib.pyplot as plt
 
             if self.options.flag_full_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))

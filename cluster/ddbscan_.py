@@ -189,7 +189,7 @@ def ddbscan(X, eps=0.5, min_samples=40, dir_radius=1, dir_min_accuracy=0.8, dir_
     # A list of all core samples found.
     core_samples = np.asarray(n_neighbors >= min_samples, dtype=np.uint8)
     start = time.time()
-    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels, min_samples, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius)
+    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius)
     final = time.time()
     #print("The ddbscaninner needed %d seconds." %(final-start))
     return np.where(core_samples)[0], labels
