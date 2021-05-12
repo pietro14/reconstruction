@@ -69,7 +69,7 @@ def ransac_polyfit(x,y,order,t,n=0.8,k=100,f=0.9):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, debug=True):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=True):
     #Definitions
     
     #Beginning of the algorithm - DBSCAN check part
@@ -104,10 +104,10 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
 
 
         #Ransac part
+        moment_length = sum(labels==label_num)
         if debug:
             print("test cluster n. ",i)
         
-        moment_length = sum(labels==label_num)
         if moment_length < min_samples:
             min_samples = moment_length
         if moment_length > dir_minsamples:
@@ -119,6 +119,12 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                                      residual_threshold=3 * np.std(y),
                                      random_state=0)
             ransac.fit(np.expand_dims(x, axis=1), y)
+            #if (np.median(np.abs(y - np.median(y))) == 0):
+            #    ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
+            #    ransac.fit(np.expand_dims(x, axis=1), y)
+            #else:
+            #    ransac = RANSACRegressor(min_samples=0.8)
+            #    ransac.fit(np.expand_dims(x, axis=1), y)
             
             accuracy = sum(ransac.inlier_mask_)/len(y)
 
@@ -230,14 +236,18 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         i = stack[len(stack)-1]
                         #Adding the inliers points from stack list and filling stack with more possible points
                         while True:
-                            #if i in inliers and (labels[i] != label_num) and is_core[i]:
+                            if expand_noncore:
+                                core_flag = 1
+                            else:
+                                core_flag = is_core[i]
                             if i in inliers and (labels[i] != label_num):
                                 labels[i] = label_num
-                                neig2 = neighborhoods2[i]
-                                for i in range(neig2.shape[0]):
-                                    v = neig2[i]
-                                    if labels[v] != label_num:
-                                        stack.append(v)
+                                if core_flag:
+                                    neig2 = neighborhoods2[i]
+                                    for i in range(neig2.shape[0]):
+                                        v = neig2[i]
+                                        if labels[v] != label_num:
+                                            stack.append(v)
                             if len(stack) == 0:
                                 break
                             i = stack[len(stack)-1]
@@ -249,6 +259,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         #Checking current cluster for possible fit model update
                         x = data[labels==label_num][:,0]
                         y = data[labels==label_num][:,1]
+
 
                         #Updating the ransac model
                         t1 = time.time()
@@ -278,7 +289,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                                 if sum(fit_model == None) != 0:
                                     break
                 
-            
+
             if sum(labels==label_num) > min_samples:
                 label_num += 1
             else:
@@ -322,7 +333,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                     break
                 i = stack[len(stack)-1]
                 del(stack[len(stack)-1])
-        
+
             if sum(labels==label_num) > min_samples:
                 label_num += 1
             else:
@@ -333,6 +344,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         
         #False clusters remotion
         labels[labels==len(data)] = -1
+        
 
         if debug:
             print ("Clustering done")
@@ -341,7 +353,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         labels = np.zeros([la_aux.shape[0],2], dtype=np.intp)
         labels[:,0] = la_aux
         labels[auxiliar_points,1] = 1
-
+        
+        
         if debug:
             print ("Return labels")
 
