@@ -212,12 +212,18 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         pts0 = pts1
                         moment_lab = np.where(labels==label_num)[0]
                         stack = []
+                        #If expand_noncore is not available, then only core_points will have its neighborhoods expanded
                         for j in moment_lab:
-                            neig2 = neighborhoods2[j]
-                            for k in neig2:
-                                #if labels[k] != label_num and labels[k]!=-1:
-                                if labels[k] != label_num:
-                                    stack.append(k)
+                            if expand_noncore:
+                                core_flag = 1
+                            else:
+                                core_flag = is_core[j]
+                            if core_flag:
+                                neig2 = neighborhoods2[j]
+                                for j in range(neig2.shape[0]):
+                                    v = neig2[j]
+                                    if labels[v] != label_num:
+                                        stack.append(v)
                         stack = np.unique(stack).tolist()
                         if len(stack) == 0:
                             break
