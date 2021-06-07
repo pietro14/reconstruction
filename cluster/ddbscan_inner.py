@@ -296,10 +296,11 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                                     break
                 
 
-            if sum(labels==label_num) > min_samples:
-                label_num += 1
-            else:
-                labels[labels==label_num] = len(data)
+            label_num += 1
+
+        for i in range(label_num):
+            if sum(labels==i) < min_samples:
+                labels[labels==i] = len(data)
 
         ddbsc_t2=time.time()
         if debug:
@@ -368,7 +369,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         
             
             
-        
         
         
         

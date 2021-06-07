@@ -76,12 +76,13 @@ class SnakesFactory:
         ## apply vignetting (if not applied, vignette map is all ones)
         ## this is done only for energy calculation, not for clustering (would make it crazy)
         image_fr_vignetted = self.ct.vignette_corr(self.image_fr,self.vignette)
-        image_fr_zs_vignetted = self.ct.vignette_corr(self.image_fr_zs,self.vignette)
-                
+        image_fr_zs_vignetted = self.ct.vignette_corr(self.image_fr_zs,self.vignette)    
         if tip=='3D':
             sample_weight = np.take(self.image, self.image.shape[0]*points[:,0]+points[:,1]).astype(int)
             sample_weight[sample_weight==0] = 1
             X = points.copy()
+            np.save('data24', X)
+            np.save('sample24', sample_weight)
             
         else:
             X = points.copy()
@@ -123,13 +124,12 @@ class SnakesFactory:
         if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
-        
         # Black removed and is used for noise instead.
         unique_labels = set(ddb.labels_[:,0])
 
         # Number of polynomial clusters in labels, ignoring noise if present.
         n_superclusters = len(unique_labels) - (1 if -1 in ddb.labels_[:,0] else 0)
-
+        
         for k in unique_labels:
             if k == -1:
                 break # noise: the unclustered
@@ -189,12 +189,13 @@ class SnakesFactory:
             if self.options.flag_stats == 1:
                 print('[Statistics]')
                 print("Polynomial clusters found: %d" % n_superclusters)
+                
 
 
             if self.options.flag_polycluster == 1:
                 print('[Plotting 0th iteration]')
                 u,indices = np.unique(ddb.labels_,return_index = True)
-                clu = [X[ddb.labels_[:,0] == i] for i in range(len(set(ddb.labels_[:,0])) - (1 if -1 in ddb.labels_[:,0] else 0))]
+                clu = [X[ddb.labels_[:,0] == i] for i in np.unique(ddb.labels_[:,0]) if i != -1]
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Polynomial clusters found in iteration 0")
