@@ -341,7 +341,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 i = stack[len(stack)-1]
                 del(stack[len(stack)-1])
 
-            if sum(labels==label_num) > min_samples:
+            if sum(labels==label_num) >= min_samples:
                 label_num += 1
             else:
                 labels[labels==label_num] = len(data)

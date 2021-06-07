@@ -81,8 +81,7 @@ class SnakesFactory:
             sample_weight = np.take(self.image, self.image.shape[0]*points[:,0]+points[:,1]).astype(int)
             sample_weight[sample_weight==0] = 1
             X = points.copy()
-            np.save('data24', X)
-            np.save('sample24', sample_weight)
+
             
         else:
             X = points.copy()
