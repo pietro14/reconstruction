@@ -36,7 +36,7 @@ def rootlocation(tag,run):
     if tag == 'Data':
         if (run>=936) and (run<=1601):
             sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<=4000):
+        elif (run>=1632) and (run<10000):
             sel = 'Data/LAB'
         elif tag == 'DataMango':
             sel= 'Data/MAN'
