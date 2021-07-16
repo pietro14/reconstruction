@@ -79,6 +79,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
     acc = []
     length = []
     clu_labels = []
+    isolations = []
     
     ddbsc_t1=time.time()
     if debug:
@@ -124,6 +125,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
                 length.append(sum(labels==label_num))
                 clu_labels.append(label_num)
         label_num += 1
+        
     
     #End of DBSCAN loop - check if directional part is viable
     if debug:
@@ -226,7 +228,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
                         i = stack[len(stack)-1]
                         #Adding the inliers points from stack list and filling stack with more possible points
                         while True:
-                            if i in inliers and (labels[i] != label_num) and is_core[i]:
+                            if i in inliers and (labels[i] != label_num): # and is_core[i]:
                                 labels[i] = label_num
                                 neig2 = neighborhoods2[i]
                                 for ine in range(neig2.shape[0]):
@@ -284,6 +286,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
             #label_num += 1
             if sum(labels==label_num) > min_samples:
                 label_num += 1
+                isolations.append(9999) # ransac clusters are not isolated by definition
             else:
                 labels[labels==label_num] = len(data)
 
@@ -310,16 +313,26 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
         for i in range(labels.shape[0]):
             if labels[i] != -1 or not is_core[i]:
                 continue
+            isosum = 0
             while True:
                 if labels[i] == -1:     
                     labels[i] = label_num
                     if is_core[i]:     #Only core points are expanded
                         neighb = neighborhoods[i]
-                        for i in range(neighb.shape[0]):
-                            v = neighb[i]
-                            dist_closest_clustered = distances[i][0]
+                        for j in range(neighb.shape[0]):
+                            v = neighb[j]
+                            dist_closest_clustered = distances[j][0]
                             if labels[v] == -1 and dist_closest_clustered > isolation_radius:
                                 stack.append(v)
+                            # use the already clustered hits (but not it's own hits), to compute the isolation
+                            if labels[v] != -1 and labels[v] != label_num:
+                                #print ("clustered point ",data[j])
+                                #print ("core point ",data[i])
+                                dist_core = np.linalg.norm(data[i]-data[j])
+                                #print ("distance from core = ",dist_core)
+                                if dist_core < isolation_radius:
+                                    isosum += 1
+                                    
 
                 if len(stack) == 0:
                     break
@@ -329,6 +342,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
             #label_num += 1
             if sum(labels==label_num) > min_samples:
                 label_num += 1
+                isolations.append(isosum)
             else:
                 labels[labels==label_num] = len(data)
         dbt2 = time.time()
@@ -349,7 +363,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
         if debug:
             print ("Return labels")
 
-        return labels
+        return labels,isolations
         
             
             

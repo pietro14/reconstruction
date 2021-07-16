@@ -21,7 +21,7 @@ from sklearn.neighbors import NearestNeighbors
 from cluster.ddbscan_inner import ddbscaninner
 import time
 
-def ddbscan(X, eps=0.5, min_samples=40, dir_radius=1, dir_min_accuracy=0.8, dir_minsamples=20, isolation_radius=100, time_threshold=np.inf, max_attempts=np.inf, dir_thickness=4, metric='minkowski', metric_params=None,  algorithm='auto', leaf_size=30, p=2, sample_weight=None, n_jobs=None):
+def ddbscan(X, eps=0.5, min_samples=40, dir_radius=1, dir_min_accuracy=0.8, dir_minsamples=20, isolation_radius=200, time_threshold=np.inf, max_attempts=np.inf, dir_thickness=5.5, metric='minkowski', metric_params=None,  algorithm='auto', leaf_size=30, p=2, sample_weight=None, n_jobs=None):
     """Perform DBSCAN clustering from vector array or distance matrix.
 
     Read more in the :ref:`User Guide <dbscan>`.
@@ -189,10 +189,10 @@ def ddbscan(X, eps=0.5, min_samples=40, dir_radius=1, dir_min_accuracy=0.8, dir_
     # A list of all core samples found.
     core_samples = np.asarray(n_neighbors >= min_samples, dtype=np.uint8)
     start = time.time()
-    labels = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels, min_samples, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius)
+    labels,isolations = ddbscaninner(X, core_samples, neighborhoods, neighborhoods2, labels, min_samples, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius)
     final = time.time()
     #print("The ddbscaninner needed %d seconds." %(final-start))
-    return np.where(core_samples)[0], labels
+    return np.where(core_samples)[0], labels, isolations
 
 class DDBSCAN(BaseEstimator, ClusterMixin):
     """Perform DBSCAN clustering from vector array or distance matrix.
@@ -346,7 +346,7 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
                         dir_minsamples=self.dir_minsamples, isolation_radius=self.isolation_radius, time_threshold=self.time_threshold, max_attempts=self.max_attempts,
                         dir_thickness=self.dir_thickness, metric=self.metric, metric_params=self.metric_params,
                         algorithm=self.algorithm, leaf_size=self.leaf_size, p=self.p, sample_weight=sample_weight, n_jobs=self.n_jobs)
-        self.core_sample_indices_, self.labels_ = clust
+        self.core_sample_indices_, self.labels_, self.isolations_ = clust
         if len(self.core_sample_indices_):
             # fix for scipy sparse indexing issue
             self.components_ = X[self.core_sample_indices_].copy()
@@ -378,4 +378,4 @@ class DDBSCAN(BaseEstimator, ClusterMixin):
             cluster labels
         """
         self.fit(X, sample_weight=sample_weight)
-        return self.labels_
+        return self.labels_, self.isolations_
