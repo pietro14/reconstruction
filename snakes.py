@@ -67,7 +67,7 @@ class SnakesFactory:
         edges = self.ct.arrrebin(filtimage,self.rebin)
         edcopy = edges.copy()
         edcopyTight = tl.noisereductor(edcopy,rescale,self.options.min_neighbors_average)
-
+        
         # make the clustering with DBSCAN algo
         # this kills all macrobins with N photons < 1
         points = np.array(np.nonzero(np.round(edcopyTight))).astype(int).T
@@ -140,6 +140,8 @@ class SnakesFactory:
             class_member_mask = (ddb.labels_[:,0] == k)
             xy = np.unique(X[class_member_mask],axis=0)
             x = xy[:, 0]; y = xy[:, 1]
+            isosum = ddb.isolations_[k]
+            
             
             # both core and neighbor samples are saved in the cluster in the event
             if k>-1 and len(x)>1:
@@ -147,6 +149,7 @@ class SnakesFactory:
                 cl.iteration = 0
                 cl.nclu = k
                 cl.pearson = 999#p_value
+                cl.isolation = isosum
                 superclusters.append(cl)
                 
         t2 = time.perf_counter()
