@@ -195,11 +195,24 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 #Taking unique points to use on the ransac
                 x = data[labels==label_num][:,0]
                 y = data[labels==label_num][:,1]
+                
+                x_data = data[:,0]
+                y_data = data[:,1]
+
+                if np.std(y) > np.std(x):
+                    x = data[labels==label_num][:,1]
+                    y = data[labels==label_num][:,0]
+
+                    x_data = data[:,1]
+                    y_data = data[:,0]
 
                 #RANSAC fit
                 order = 1
                 fit_model, fit_deri = ransac_polyfit(x, y, order = order, t = dir_thickness)
                 counter = 1
+                if sum(fit_model == None) != 0:
+                    order = 3
+                    fit_model, fit_deri = ransac_polyfit(x, y, order = order, t = dir_thickness)
                 #Adding new points to the cluster (If the fit_model output is None, then no model was found)
                 if sum(fit_model == None) == 0:
                     #control = 1
@@ -231,8 +244,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         if debug:
                             print ("start point stack built in ",dbt2-dbt1," secs")
                         
-                        res_th = dir_thickness / np.cos(np.arctan(np.polyval(fit_deri,data[:,0])))
-                        inliers_bool = np.abs(np.polyval(fit_model, data[:,0])-data[:,1]) < res_th
+                        res_th = dir_thickness * ((1 + np.polyval(fit_deri,x_data)**2)**0.5)
+                        inliers_bool = np.abs(np.polyval(fit_model, x_data)-y_data) < res_th
                         inliers = np.where(inliers_bool)[0]
                         dbt3 = time.time()
                         if debug:
@@ -265,7 +278,16 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         #Checking current cluster for possible fit model update
                         x = data[labels==label_num][:,0]
                         y = data[labels==label_num][:,1]
+                        
+                        x_data = data[:,0]
+                        y_data = data[:,1]
 
+                        if np.std(y) > np.std(x):
+                            x = data[labels==label_num][:,1]
+                            y = data[labels==label_num][:,0]
+
+                            x_data = data[:,1]
+                            y_data = data[:,0]
 
                         #Updating the ransac model
                         t1 = time.time()
@@ -295,12 +317,18 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                                 if sum(fit_model == None) != 0:
                                     break
                 
+                else:
+                    labels[labels==label_num] = -1
+                    label_num -= 1
 
             label_num += 1
 
+        poly_clusters = []
         for i in range(label_num):
-            if sum(labels==i) < min_samples:
-                labels[labels==i] = len(data)
+            if sum(labels==i) < dir_minsamples:
+                labels[labels==i] = -1
+            else:
+                poly_clusters.append(i)
 
         ddbsc_t2=time.time()
         if debug:
@@ -312,10 +340,15 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
 
         nt1 = time.time()
         # first compute distances to make isolation on each pixel of the unclustered data wrt the clustered pixels
-        clustered_data = np.unique(data[labels!=-1],axis=0)
+        poly_indexes = np.where(labels!=-1)[0]
+        noise_indexes = np.where(labels==-1)[0]
+        clustered_data = data[poly_indexes]
         neigh = NearestNeighbors(n_neighbors=1, radius=isolation_radius)
-        neigh.fit(clustered_data)
-        distances, isol_neigh_indices = neigh.kneighbors(data[labels==-1], 1, return_distance=True)
+        if len(clustered_data > 0):
+            neigh.fit(clustered_data)
+            distances, isol_neigh_indices = neigh.kneighbors(data[noise_indexes], 1, return_distance=True)
+        else:
+            distances = np.full(len(noise_indexes),isolation_radius+1)
         nt2 = time.time()
         if debug:
             print ("neighbs done in ",nt2-nt1," secs")
@@ -332,9 +365,11 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         neighb = neighborhoods[i]
                         for i in range(neighb.shape[0]):
                             v = neighb[i]
-                            dist_closest_clustered = distances[i][0]
-                            if labels[v] == -1 and dist_closest_clustered > isolation_radius:
-                                stack.append(v)
+                            if labels[v] == -1:
+                                index = np.where(noise_indexes==v)[0][0]
+                                dist_closest_clustered = distances[index]
+                                if dist_closest_clustered > isolation_radius:
+                                    stack.append(v)
 
                 if len(stack) == 0:
                     break
@@ -359,7 +394,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         la_aux = np.copy(labels)
         labels = np.zeros([la_aux.shape[0],2], dtype=np.intp)
         labels[:,0] = la_aux
-        labels[auxiliar_points,1] = 1
+        labels[poly_clusters,1] = 1
         
         
         if debug:

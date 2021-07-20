@@ -11,8 +11,8 @@
 'dir_minsamples'     : 50, ## N.B. this is always 2D, and it may differ from dbscan_minsamples (that can be Npix * intensity for 3D)
 'dir_thickness'      : 5.5,
 'time_threshold'     : 300, # seconds
-'max_attempts'       : 8,
-'isolation_radius'   : 50,
+'max_attempts'       : 13,
+'isolation_radius'   : 5,
 'metric'             : 'euclidean',
 'metric_params'      : None,
 'algorithm'          : 'auto',
