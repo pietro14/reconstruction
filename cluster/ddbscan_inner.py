@@ -71,7 +71,6 @@ def ransac_polyfit(x,y,order,t,n=0.8,k=100,f=0.9):
 
 def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_samples, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, debug=False):
     #Definitions
-    
     #Beginning of the algorithm - DBSCAN check part
     label_num = 0
     stack = []
@@ -319,17 +318,19 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, min_sampl
                     labels[i] = label_num
                     if is_core[i]:     #Only core points are expanded
                         neighb = neighborhoods[i]
+                        #print("Evaluating pixel ",data[i], " with label = ",labels[i])
                         for j in range(neighb.shape[0]):
                             v = neighb[j]
                             dist_closest_clustered = distances[j][0]
-                            if labels[v] == -1 and dist_closest_clustered > isolation_radius:
+                            #print ("\tDistance closest clustered = ",dist_closest_clustered)
+                            if labels[j] == -1 and dist_closest_clustered > isolation_radius:
                                 stack.append(v)
-                            # use the already clustered hits (but not it's own hits), to compute the isolation
-                            if labels[v] != -1 and labels[v] != label_num:
-                                #print ("clustered point ",data[j])
-                                #print ("core point ",data[i])
+                                #print ("\t pixel taken on label ",label_num)
+                            if labels[j] != label_num:
+                                #print ("\tclustered point ",data[j]," with label = ",labels[j])
+                                #print ("\tcore point ",data[i])
                                 dist_core = np.linalg.norm(data[i]-data[j])
-                                #print ("distance from core = ",dist_core)
+                                #print ("\tdistance from core = ",dist_core, " (iso radius = ",isolation_radius,")")
                                 if dist_core < isolation_radius:
                                     isosum += 1
                                     
