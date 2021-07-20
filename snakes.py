@@ -81,7 +81,13 @@ class SnakesFactory:
             sample_weight = np.take(self.image, self.image.shape[0]*points[:,0]+points[:,1]).astype(int)
             sample_weight[sample_weight==0] = 1
             X = points.copy()
-
+            save_arr = False
+            if save_arr:
+                import re
+                items = re.split('_+', self.name)
+                ev_number = re.sub('ev', '', items[2])
+                np.save('../Cython-test/Events/' + items[1] + '/data' + ev_number, X)
+                np.save('../Cython-test/Events/' + items[1] + '/sample' + ev_number, sample_weight)
             
         else:
             X = points.copy()
@@ -96,11 +102,31 @@ class SnakesFactory:
 
         if self.options.debug_mode:
             if self.options.flag_dbscan_seeds:
-                clusters_seeds = DBSCAN(eps=5.5,min_samples=40).fit(X, sample_weight = sample_weight)
+                time0 = time.perf_counter()
+                clusters_seeds = DBSCAN(eps=5.8,min_samples=30).fit(X, sample_weight = sample_weight)
+                time1 = time.perf_counter()
                 print('[Plotting 1st iteration]')
      
                 import matplotlib.pyplot as plt            
                 clu = [X[clusters_seeds.labels_ == i] for i in range(len(set(clusters_seeds.labels_)) - (1 if -1 in clusters_seeds.labels_ else 0))]
+                if True:
+                    fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
+                    plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                    plt.title("Clusters found in the DBSCAN seeding")
+                    colorpix = np.zeros([rescale,rescale,3])
+                    for j in range(0,np.shape(clu)[0]):
+
+                        a = np.random.rand(3)
+                        colorpix[clu[j][:,0],clu[j][:,1]] = a
+
+                    plt.imshow(colorpix,cmap='gray',origin='lower' )
+                    for ext in ['pdf']:
+                        plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='seeding', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+
+
+                    plt.gcf().clear()
+                    plt.close('all')
+                
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin,vmax=vmax,origin='lower' )
                 plt.title("Clusters found DDBSCAN")             
@@ -119,21 +145,24 @@ class SnakesFactory:
 
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
-        ddb = DDBSCAN('modules_config/clustering.txt').fit(X, sample_weight = sample_weight)
-        if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
+        #ddb = DDBSCAN('modules_config/clustering.txt').fit(X, sample_weight = sample_weight)
+        ddb = DBSCAN(eps=5.8,min_samples=30).fit(X, sample_weight = sample_weight)
         t2 = time.perf_counter()
+        if self.options.debug_mode: print(f"pre-processing + dbscan in {t1 - t0:0.4f} seconds")
+        if self.options.debug_mode: print(f"dbscan in {time1 - time0:0.4f} seconds")
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
         # Black removed and is used for noise instead.
         unique_labels = set(ddb.labels_[:,0])
-
+        #unique_labels = set(ddb.labels_)
         # Number of polynomial clusters in labels, ignoring noise if present.
         n_superclusters = len(unique_labels) - (1 if -1 in ddb.labels_[:,0] else 0)
-        
+        #n_superclusters = len(unique_labels) - (1 if -1 in ddb.labels_ else 0)
         for k in unique_labels:
             if k == -1:
                 break # noise: the unclustered
 
             class_member_mask = (ddb.labels_[:,0] == k)
+            #class_member_mask = (ddb.labels_ == k)
             xy = np.unique(X[class_member_mask],axis=0)
             x = xy[:, 0]; y = xy[:, 1]
             
@@ -195,6 +224,7 @@ class SnakesFactory:
                 print('[Plotting 0th iteration]')
                 u,indices = np.unique(ddb.labels_,return_index = True)
                 clu = [X[ddb.labels_[:,0] == i] for i in np.unique(ddb.labels_[:,0]) if i != -1]
+                #clu = [X[ddb.labels_ == i] for i in np.unique(ddb.labels_) if i != -1]
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Polynomial clusters found in iteration 0")
@@ -205,12 +235,13 @@ class SnakesFactory:
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
                     
                 plt.imshow(colorpix,cmap='gray',origin='lower' )
-                for ext in ['png','pdf']:
+                #for ext in ['png','pdf']:
+                for ext in ['pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
-                with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='0th',ext=ext,tip=self.options.tip), "wb") as fp:
-                    pickle.dump(fig, fp, protocol=4)
-                plt.gcf().clear()
-                plt.close('all')
+                #with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='0th',ext=ext,tip=self.options.tip), "wb") as fp:
+                    #pickle.dump(fig, fp, protocol=4)
+                #plt.gcf().clear()
+                #plt.close('all')
                 
 
                 plt.gcf().clear()
