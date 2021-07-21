@@ -361,6 +361,34 @@ def fitFeVsPosition(filename,outfile):
     tf_out.Close()
     tf_in.Close()
             
+def fitIntegral(rfile,xmin,xmax,outfilename,hname='integral_diff'):
+    tf = ROOT.TFile.Open(rfile)
+    histo_sig = tf.Get(hname)
+    histo_sig.SetMarkerColor(ROOT.kBlack)
+    histo_sig.SetLineColor(ROOT.kBlack)
+    histo_sig.GetXaxis().SetTitle('cluster photons')
+    histo_sig.GetXaxis().SetTitleSize(0.05)
+    histo_sig.GetYaxis().SetTitle('superclusters (bkg subtracted)')
+    
+    c = getCanvas()
+    histo_sig.Draw("pe 1")
+
+    par = array( 'd', 3*[0.] )
+
+    g1 = ROOT.TF1("g1","gaus",xmin,xmax);
+    g1.SetLineColor(ROOT.kBlue+1)
+    histo_sig.Fit('g1','RS')
+    mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
+    sigma = g1.GetParameter(2); sErr = g1.GetParError(2)
+    lat = ROOT.TLatex()
+    unit = 'counts'
+    ndigits = 0
+    lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.03)
+    lat.DrawLatex(0.55, 0.70, "m_{{1}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
+    lat.DrawLatex(0.55, 0.65, "#sigma_{{1}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=sErr,unit=unit,nd=ndigits))
+
+    c.SaveAs(outfilename)
+    return [mean,mErr,sigma,sErr]
     
 ### this is meant to be run on top of ROOT files produced by simple_plots, not on the trees
 if __name__ == "__main__":
@@ -396,7 +424,7 @@ if __name__ == "__main__":
         ## LIME
         makeEff('ambeplots/2021-03-29-ambeV6_cosmveto_WPbkg10em2/'+var+'.root',prefix+var,
                 'ambeplots/2021-03-29-ambeV6_cosmveto/'+var+'.root',prefix+var,
-                'ambeplots/2021-03-29-ambeV6_cosmveto_WPbkg10em3/'+var+'.root',prefix+var,
+                'ambeplots/2021-03-31-ambeV6_cosmveto_WPDNNbkg10em2/'+var+'.root',prefix+var,
                 options.outdir)
                 
     elif options.make == 'tworocs':
@@ -407,6 +435,60 @@ if __name__ == "__main__":
         fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v2/fe_lime.root','fe_novign.root')
         fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v4/fe55_runs3686to3691_v4.root','fe_v4.root')
         fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v4/fe55_runs3686to3691_v4_OptVignetting.root','fe_v4_OptVignetting.root')
+
+    elif options.make == 'linearity':
+        filepatt = 'ambeplots/2021-07-21-xrays-%s/integral.root'
+        sources = ['Cu','Rb','Mo','Ag','Ba']
+        energies = [8,15,18,23.5,34.4]
+        files =  [filepatt%s for s in sources]
+        ranges = [(5e3,1e4),(1e4,1.5e4),(1.3e4,2e4),(1.5e4,3e4),(2.5e4,4e4)]
+        pars = []
+        for i,f in enumerate(files):
+            pars.append(fitIntegral(f,ranges[i][0],ranges[i][1],sources[i]+'.pdf'))
+
+        resp = ROOT.TGraphErrors(len(sources))
+        reso = ROOT.TGraphErrors(len(sources))
+        for i in range(len(sources)):
+            resp.SetPoint(i,energies[i],pars[i][0])
+            resp.SetPointError(i,0,pars[i][1])
+            reso.SetPoint(i,energies[i],100*pars[i][2]/pars[i][0])
+            reso.SetPointError(i,0,100*pars[i][3]/pars[i][0])
+
+
+
+
+        ## response linearity
+        c = getCanvas()
+        resp.SetTitle('')
+        resp.Draw("AP")
+        resp.SetMarkerStyle(ROOT.kFullCircle)
+        resp.SetMarkerSize(2)
+        resp.GetXaxis().SetLimits(0,40)
+        resp.GetXaxis().SetTitle("Energy (keV)")
+        resp.GetYaxis().SetLimits(0,4e4)
+        resp.GetYaxis().SetRangeUser(0,4e4)
+        resp.GetYaxis().SetTitle("Cluster integral (photons)")
+
+        line = ROOT.TLine(0,0,40,3.5e4)
+        line.SetLineColor(ROOT.kBlue)
+        line.SetLineStyle(ROOT.kDashed)
+        line.Draw()
+        
+        c.SaveAs("linearity.pdf")
+
+        # energy resolution
+        c = getCanvas()
+        reso.SetTitle('')
+        reso.Draw("AP")
+        reso.SetMarkerStyle(ROOT.kFullCircle)
+        reso.SetMarkerSize(2)
+        reso.GetXaxis().SetLimits(0,40)
+        reso.GetXaxis().SetTitle("Energy (keV)")
+        reso.GetYaxis().SetLimits(0,30)
+        reso.GetYaxis().SetRangeUser(0,30)
+        reso.GetYaxis().SetTitle("#delta E/E (%)")        
+        c.SaveAs("resolution.pdf")
+
         
     else:
         print ("make ",options.make," not implemented.")
