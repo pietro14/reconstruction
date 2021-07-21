@@ -145,8 +145,8 @@ class SnakesFactory:
 
         # - - - - - - - - - - - - - -
         t1 = time.perf_counter()
-        #ddb = DDBSCAN('modules_config/clustering.txt').fit(X, sample_weight = sample_weight)
-        ddb = DBSCAN(eps=5.8,min_samples=30).fit(X, sample_weight = sample_weight)
+        ddb = DDBSCAN('modules_config/clustering.txt').fit(X, sample_weight = sample_weight)
+        #ddb = DBSCAN(eps=5.8,min_samples=30).fit(X, sample_weight = sample_weight)
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"pre-processing + dbscan in {t1 - t0:0.4f} seconds")
         if self.options.debug_mode: print(f"dbscan in {time1 - time0:0.4f} seconds")
