@@ -105,7 +105,6 @@ class SnakesFactory:
             if self.options.flag_dbscan_seeds:
                 time0 = time.perf_counter()
                 clusters_seeds = DBSCAN(eps=5.8,min_samples=30).fit(X, sample_weight = sample_weight)
-                time1 = time.perf_counter()
                 print('[Plotting 1st iteration]')
      
                 import matplotlib.pyplot as plt            
@@ -148,17 +147,17 @@ class SnakesFactory:
         if self.options.debug_mode: print ("starting DBscan")
         t1 = time.perf_counter()
         ddb = DDBSCAN('modules_config/clustering.txt').fit(X, sample_weight = sample_weight)
-        #ddb = DBSCAN(eps=5.8,min_samples=30).fit(X, sample_weight = sample_weight)
+
+        if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         t2 = time.perf_counter()
-        if self.options.debug_mode: print(f"pre-processing + dbscan in {t1 - t0:0.4f} seconds")
-        if self.options.debug_mode: print(f"dbscan in {time1 - time0:0.4f} seconds")
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
+
         # Black removed and is used for noise instead.
         unique_labels = set(ddb.labels_[:,0])
-        #unique_labels = set(ddb.labels_)
+
         # Number of polynomial clusters in labels, ignoring noise if present.
         n_superclusters = len(unique_labels) - (1 if -1 in ddb.labels_[:,0] else 0)
-        #n_superclusters = len(unique_labels) - (1 if -1 in ddb.labels_ else 0)
+
         for k in unique_labels:
             if k == -1:
                 break # noise: the unclustered
@@ -167,7 +166,6 @@ class SnakesFactory:
             #class_member_mask = (ddb.labels_ == k)
             xy = np.unique(X[class_member_mask],axis=0)
             x = xy[:, 0]; y = xy[:, 1]
-            isosum = ddb.isolations_[k]
             
             
             # both core and neighbor samples are saved in the cluster in the event
@@ -176,7 +174,6 @@ class SnakesFactory:
                 cl.iteration = 0
                 cl.nclu = k
                 cl.pearson = 999#p_value
-                cl.isolation = isosum
                 superclusters.append(cl)
                 
         t2 = time.perf_counter()

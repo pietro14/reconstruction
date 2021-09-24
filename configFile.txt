@@ -1,6 +1,6 @@
 {
 # DETECTOR
-'geometry'  : 'lemon',
+'geometry'  : 'lime',
 
 # DEBUG plots
 'debug_mode'            : 1,
@@ -9,11 +9,11 @@
 
 # Plots that will be made if debug_mode = 1
 
-'flag_full_image'       : 0,
-'flag_rebin_image'      : 0,
-'flag_edges_image'      : 0,
+'flag_full_image'       : 1,
+'flag_rebin_image'      : 1,
+'flag_edges_image'      : 1,
 'flag_polycluster'      : 1,
-'flag_dbscan_seeds'     : 1,
+'flag_dbscan_seeds'     : 0,
 'flag_stats'            : 1,
 
 'camera_mode'            : 1,

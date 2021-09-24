@@ -78,7 +78,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
     acc = []
     length = []
     clu_labels = []
-    isolations = []
     min_samples = np.inf
     
     ddbsc_t1=time.time()
@@ -323,9 +322,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                     label_num -= 1
 
             label_num += 1
-            if sum(labels==label_num) > min_samples:
-                label_num += 1
-                isolations.append(9999) # ransac clusters are not isolated by definition
 
         poly_clusters = []
         for i in range(label_num):
@@ -362,7 +358,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         for i in range(labels.shape[0]):
             if labels[i] != -1 or not is_core[i]:
                 continue
-            isosum = 0
             while True:
                 if labels[i] == -1:     
                     labels[i] = label_num
@@ -383,7 +378,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
 
             if sum(labels==label_num) >= min_samples:
                 label_num += 1
-                isolations.append(isosum)
             else:
                 labels[labels==label_num] = len(data)
         dbt2 = time.time()
@@ -406,7 +400,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         if debug:
             print ("Return labels")
 
-        return labels,isolations
+        return labels
         
             
             

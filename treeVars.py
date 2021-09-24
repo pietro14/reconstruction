@@ -81,7 +81,6 @@ class AutoFillTreeProducer:
         self.outTree.branch('{name}_lgausssigma'.format(name=name),  'F', lenVar=sizeStr)
         self.outTree.branch('{name}_lchi2'.format(name=name),        'F', lenVar=sizeStr)
         self.outTree.branch('{name}_lstatus'.format(name=name),      'F', lenVar=sizeStr)
-        self.outTree.branch('{name}_isol'.format(name=name),         'F', lenVar=sizeStr)
 
     def fillCameraVariables(self,pic):
         self.outTree.fillBranch('cmos_integral',np.sum(pic))
@@ -138,4 +137,3 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('{name}_lgausssigma'.format(name=name), [cl.shapes['lgausssigma'] for cl in clusters])
         self.outTree.fillBranch('{name}_lchi2'.format(name=name),       [cl.shapes['lchi2'] for cl in clusters]) 
         self.outTree.fillBranch('{name}_lstatus'.format(name=name),     [cl.shapes['lstatus'] for cl in clusters])
-        self.outTree.fillBranch('{name}_isol'.format(name=name),        [cl.isolation for cl in clusters])
