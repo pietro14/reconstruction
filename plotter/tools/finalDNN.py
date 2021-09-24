@@ -6,7 +6,7 @@ class finalDNN:
         
         varorder = ["density","length","slimness","lgsigma","tgsigma","latrms","longrms","size","nhits"]
         cats = ['pred_nr','pred_er','pred_other']
-        self._MVA = TFTool('DNN','data/mvas/trained_model_A_9vars_31-03-2021.h5',
+        self._MVA = TFTool('DNN','data/mvas/trained_model_A_9vars_DATA_31-03-2021.h5',
                            self.getVars(), cats, varorder)
         self.outVars.extend( ['DNN%s_' % x for x in cats])
 

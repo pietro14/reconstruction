@@ -16,7 +16,8 @@ if __name__ == "__main__":
     # plt.hist(data['train_x'])
     # fig.savefig('hist.png')
 
-    model = load_model('trained_model_A.h5')
+    #model = load_model('trained_model_A.h5')
+    model = load_model('trained_model_A_BEST_DATA_31-03-2021.h5')
 
     prediction = model.predict(data['test_x'])
     x = data['test_x']

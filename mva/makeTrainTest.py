@@ -54,8 +54,8 @@ def preselection(ev,isc):
     
 classes = {
     ## NR add a preselection to cut all the very low energy stuff that I don't understand. The rest looks like data
-    'nr'      : { 'cut': lambda ev,isc: preselection(ev,isc) and ev.sc_integral[isc]/ev.sc_nhits[isc]>10, 'lst_train' : [], 'lst_test' : [] , 'lst_y_train' : [], 'lst_y_test' : [] },
-    'er'      : { 'cut': lambda ev,isc: preselection(ev,isc), 'lst_train' : [], 'lst_test' : [] , 'lst_y_train' : [], 'lst_y_test' : [] },
+    'nr'      : { 'cut': lambda ev,isc: preselection(ev,isc) and ev.sc_integral[isc]/ev.sc_nhits[isc]>14, 'lst_train' : [], 'lst_test' : [] , 'lst_y_train' : [], 'lst_y_test' : [] },
+    'er'      : { 'cut': lambda ev,isc: preselection(ev,isc) and ev.sc_integral[isc]/ev.sc_nhits[isc]>12, 'lst_train' : [], 'lst_test' : [] , 'lst_y_train' : [], 'lst_y_test' : [] },
     'other'   : { 'cut': lambda ev,isc: preselection(ev,isc), 'lst_train' : [], 'lst_test' : [] , 'lst_y_train' : [], 'lst_y_test' : [] },
 }
 
@@ -66,11 +66,12 @@ erStuff = []
 othStuff = []
 
 # this is data, but it contains in both cases other bkg
-#nrStuff.extend( ['ambe_lime_v6_runs3737_3791.root'] )
-#erStuff.extend( ['fe_lime_v6_runs3686_3691.root'] )
+nrStuff.extend( ['ambe_lime_v6_runs3737_3791.root'] )
+erStuff.extend( ['fe_lime_v6_runs3686_3691.root'] )
 
-nrStuff.extend( ['CYGNO_60_40_He_NR_10_keV_30cm_SRIM_IDAO_lime2021.root'] )
-erStuff.extend( ['CYGNO_60_40_ER_6_keV_30cm_IDAO_lime2021.root'] )
+# this is simulation with pure signal
+#nrStuff.extend( ['CYGNO_60_40_He_NR_10_keV_30cm_SRIM_IDAO_lime2021.root'] )
+#erStuff.extend( ['CYGNO_60_40_ER_6_keV_30cm_IDAO_lime2021.root'] )
 othStuff.extend( ['cosmics_afterambe_lime_v6_runs3792_3794.root'] )
 
 def toNumpy(maxEntries,task):
