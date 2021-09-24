@@ -3,7 +3,7 @@ from multiprocessing import Pool,set_start_method,TimeoutError
 from subprocess import Popen, PIPE
 import signal
 
-import os,math,sys,random
+import os,math,sys,random,re
 import numpy as np
 
 import ROOT
@@ -126,13 +126,16 @@ class analysis:
         # first calculate the mean 
         numev = 0
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/2 # when PMT is present
-            if iev in self.options.excImages: continue
-            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
-            
             name=e.GetName()
             obj=e.ReadObj()
-
+            if 'pic' in name:
+                patt = re.compile('\S+run(\d+)_ev(\d+)')
+                m = patt.match(name)
+                run = int(m.group(1))
+                event = int(m.group(2))
+            if event in self.options.excImages: continue
+            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+                
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pedestal mean with event: ",name)
             if rebin>1:
@@ -147,12 +150,16 @@ class analysis:
         numev=0
         pedsqdiff = np.zeros((nx,ny))
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/2 # when PMT is present
-            if iev in self.options.excImages: continue
-            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
-            
             name=e.GetName()
             obj=e.ReadObj()
+            if 'pic' in name:
+                patt = re.compile('\S+run(\d+)_ev(\d+)')
+                m = patt.match(name)
+                run = int(m.group(1))
+                event = int(m.group(2))
+            if event in self.options.excImages: continue
+            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pedestal rms with event: ",name)
             if rebin>1:
@@ -200,27 +207,28 @@ class analysis:
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            iev = int(iobj/2) if self.options.daq == 'midas' and self.options.pmt_mode else iobj
-            #print("max entries = ",self.options.maxEntries)
-            if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
-            if sum(evrange[1:])>-2:
-                if iev<evrange[1] or iev>evrange[2]: continue
 
             name=key.GetName()
             obj=key.ReadObj()
 
-            # Routine to skip some images if needed
-            if iev in self.options.excImages: continue
+            if 'pic' in name:
+                patt = re.compile('\S+run(\d+)_ev(\d+)')
+                m = patt.match(name)
+                run = int(m.group(1))
+                event = int(m.group(2))
 
-            if self.options.debug_mode == 1 and iev != self.options.ev: continue
+            #print("max entries = ",self.options.maxEntries)
+            if self.options.maxEntries>0 and event==max(evrange[0],0)+self.options.maxEntries: break
+            if sum(evrange[1:])>-2:
+                if event<evrange[1] or event>evrange[2]: continue
+
+
+            # Routine to skip some images if needed
+            if event in self.options.excImages: continue
+
+            if self.options.debug_mode == 1 and event != self.options.ev: continue
 
             if obj.InheritsFrom('TH2'):
-                if self.options.daq == 'btf':
-                    run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
-                elif self.options.daq == 'h5':
-                    run,event=(int(name.split('_')[0].split('run')[-1]),int(name.split('_')[-1]))
-                else:
-                    run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
                 print("Processing Run: ",run,"- Event ",event,"...")
                 
                 testspark=100*self.cg.npixx*self.cg.npixx+9000000
@@ -256,7 +264,7 @@ class analysis:
                         img_fr_satcor = img_fr_sub  
                         img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
                         img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
-                    
+                        print ("ZS done. Now clustering...")
                     
                     # Cluster reconstruction on 2D picture
                     algo = 'DBSCAN'

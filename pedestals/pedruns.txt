@@ -9,6 +9,8 @@
 (3933,3938) :   3938, # ORCA flash pedestals 
 (3939,3944) :   3941, # ORCA fusion pedestals 
 (3930,3932) :   2311, # white pictures for vignetting (old camera)
+(4151,4158) :   4151, # 13.04.21 LIME Test Fe VGem1 scan pos 26cm
 (4374,4383) :   4374, # X rays variable energy (200 ms)
 (4384,4391) :   4384, # X rays variable energy (50 ms)
+(4432,4469) :   4432, # Fe Vg1, Z scans, 30/07/2021
 }

@@ -3,7 +3,7 @@
 def swift_root_file(tag, run):
     sel = rootlocation(tag,run)    
     
-    BASE_URL  = "https://swift.cloud.infn.it:8080/v1/AUTH_1e60fe39fba04701aa5ffc0b97871ed8/Cygnus/"
+    BASE_URL = "https://s3.cloud.infn.it/v1/AUTH_2ebf769785574195bde2ff418deac08a/cygnus/"
     file_root = (sel+'/histograms_Run%05d.root' % run)
     return BASE_URL+file_root
 
@@ -83,7 +83,7 @@ def root_TH2_name(root_file):
 def swift_pedestal_file(run):
     pedrun = selectPedestal(run)    
     
-    BASE_URL  = "https://swift.cloud.infn.it:8080/v1/AUTH_1e60fe39fba04701aa5ffc0b97871ed8/Cygnus/Pedestals/"
+    BASE_URL = "https://s3.cloud.infn.it/v1/AUTH_2ebf769785574195bde2ff418deac08a/cygnus/Pedestals/"
     file_root = ('pedmap_run%05d_rebin1.root' % pedrun)
     return BASE_URL+file_root
 

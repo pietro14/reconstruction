@@ -47,6 +47,7 @@ class SnakesFactory:
         from scipy.stats import pearsonr
         from random import random
 
+        
         outname = self.options.plotDir
         if outname and not os.path.exists(outname):
             os.system("mkdir -p "+outname)
@@ -121,8 +122,10 @@ class SnakesFactory:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
 
         # - - - - - - - - - - - - - -
+        if self.options.debug_mode: print ("starting DBscan")
         t1 = time.perf_counter()
         ddb = DDBSCAN('modules_config/clustering.txt').fit(X)
+        
         if self.options.debug_mode: print(f"basic clustering in {t1 - t0:0.4f} seconds")
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
