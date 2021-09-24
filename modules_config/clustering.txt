@@ -13,7 +13,7 @@
 'time_threshold'     : 300, # seconds
 'max_attempts'       : 13,
 'isolation_radius'   : 5,
-'metric'             : 'euclidean',
+'metric'             : 'cityblock', # this is fundamental not to be "euclidean", in order not to merge close and long tracks
 'metric_params'      : None,
 'algorithm'          : 'auto',
 'leaf_size'          : 30,
