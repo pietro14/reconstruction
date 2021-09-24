@@ -251,11 +251,12 @@ class analysis:
                     
                     # zs on full image + saturation correction on full image
                     if self.options.saturation_corr:
-                    	#print("you are in saturation correction mode")
-                    	img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                    	img_fr_satcor = ctools.satur_corr(img_fr_sub) 
-                    	img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                    	img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                        #print("you are in saturation correction mode")
+                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                        img_fr_satcor = ctools.satur_corr(img_fr_sub) 
+                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                        img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
+                        img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
                         
                     # skip saturation and set satcor =img_fr_sub 
                     else:
@@ -263,7 +264,8 @@ class analysis:
                         img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
                         img_fr_satcor = img_fr_sub  
                         img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                        img_rb_zs  = ctools.arrrebin(img_fr_zs,self.rebin)
+                        img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
+                        img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
                         print ("ZS done. Now clustering...")
                     
                     # Cluster reconstruction on 2D picture

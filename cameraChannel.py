@@ -12,6 +12,11 @@ class cameraGeometry:
         self.npixx = params['npixx']
         self.name = params['name']
         self.vignette = params['vignette']
+        self.xmin = params['xmin'] if 'xmin' in params else 0
+        self.xmax = params['xmax'] if 'xmax' in params else self.npixx
+        self.ymin = params['ymin'] if 'ymin' in params else 0
+        self.ymax = params['ymax'] if 'ymax' in params else self.npixx
+        
         
 class cameraTools:
     def __init__(self,geometry):
@@ -46,6 +51,13 @@ class cameraTools:
         newshape = int(self.geometry.npixx/rebin)
         img_rebin = tl.rebin(img,(newshape,newshape))
         return img_rebin
+
+    def acceptance(self,img,xmin,xmax,ymin,ymax):
+        img[:xmin,:]=0
+        img[xmax:,:]=0
+        img[:,:ymin]=0
+        img[:,ymax:]=0
+        return img
         
     # this returns x,y,z before the zero suppression
     def getImage(self,th2):
