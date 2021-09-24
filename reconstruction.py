@@ -332,7 +332,7 @@ if __name__ == '__main__':
     
     if options.debug_mode == 1:
         setattr(options,'outFile','reco_run%d_%s_debug.root' % (run, options.tip))
-        if options.ev: options.maxEntries = options.ev + 1
+        #if options.ev: options.maxEntries = options.ev + 1
         #if options.daq == 'midas': options.ev +=0.5 
     else:
         setattr(options,'outFile','reco_run%05d_%s.root' % (run, options.tip))
@@ -357,9 +357,11 @@ if __name__ == '__main__':
     # override the default, if given by option
     if options.tmpdir:
         tmpdir = options.tmpdir
-    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+
+    #os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     if sw.checkfiletmp(int(options.run),tmpdir):
-        options.tmpname = "%s/%s/histograms_Run%05d.root" % (tmpdir,USER,int(options.run))
+        options.tmpname = "%s/histograms_Run%05d.root" % (tmpdir,int(options.run))
+        print(options.tmpname)
     else:
         print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
         options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),tmpdir)

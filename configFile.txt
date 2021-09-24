@@ -1,20 +1,19 @@
 {
 # DETECTOR
-'geometry'  : 'lime',
+'geometry'  : 'lemon',
 
 # DEBUG plots
 'debug_mode'            : 1,
-
 'ev'                    : 10,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
 
-'flag_full_image'       : 1,
-'flag_rebin_image'      : 1,
-'flag_edges_image'      : 1,
+'flag_full_image'       : 0,
+'flag_rebin_image'      : 0,
+'flag_edges_image'      : 0,
 'flag_polycluster'      : 1,
-'flag_dbscan_seeds'     : 0,
+'flag_dbscan_seeds'     : 1,
 'flag_stats'            : 1,
 
 'camera_mode'            : 1,
@@ -35,14 +34,15 @@
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
 'tag'                   : 'Data',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
-'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
+'vignetteCorr'          : False,                    # apply vignetting correction (correction maps in data/ according to the geometry)
+
 
 'excImages'             : [], #list(range(5))+[],             # To exlude some images of the analysis. Always exclude the first 5 which are messy
 'min_neighbors_average' : 0.55,                     # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : True,                    # Remove or not the file from the tmp folder
 
 
-'tip'                   : '2D',
+'tip'                   : '3D',
 'saturation_corr'       : False,
 
 # Superclusters parameters are hardcoded
