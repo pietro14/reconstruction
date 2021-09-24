@@ -334,7 +334,6 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             else:
                 poly_clusters.append(i)
 
-
         ddbsc_t2=time.time()
         if debug:
             print ("Polynomial clustering took ",ddbsc_t2-ddbsc_t1," secs.")
