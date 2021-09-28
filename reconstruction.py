@@ -93,6 +93,8 @@ class analysis:
             self.autotree.createCameraVariables()
             self.autotree.createClusterVariables('cl')
             self.autotree.createClusterVariables('sc')
+            if self.options.cosmic_killer:
+                self.autotree.addCosmicKillerVariables('sc')
         if self.options.pmt_mode:
             self.autotree.createPMTVariables()
 
@@ -101,17 +103,16 @@ class analysis:
         self.outputFile.Close()
         
     def getNEvents(self):
-        tf = sw.swift_read_root_file(self.tmpname) #tf = ROOT.TFile.Open(self.rfile)
-        ret = int(len(tf.GetListOfKeys())/2) if (self.options.daq=='midas' and self.options.pmt_mode) else len(tf.GetListOfKeys())
+        tf = sw.swift_read_root_file(self.tmpname)
+        pics = [k.GetName() for k in tf.GetListOfKeys() if 'pic' in k.GetName()]
         tf.Close()
-        return ret
+        return len(pics)
 
     def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
         nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
-        #pedfilename = 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure,rebin)
         pedfilename = 'pedestals/pedmap_run%s_rebin%d.root' % (options.run,rebin)
         
         pedfile = ROOT.TFile.Open(pedfilename,'recreate')
@@ -201,8 +202,6 @@ class analysis:
         savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
         tf = sw.swift_read_root_file(self.tmpname)
-        #tf = ROOT.TFile.Open(self.rfile)
-        #c1 = ROOT.TCanvas('c1','',600,600)
         ctools = cameraTools(self.cg)
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
@@ -266,7 +265,6 @@ class analysis:
                         img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
                         img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
                         img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
-                        print ("ZS done. Now clustering...")
                     
                     # Cluster reconstruction on 2D picture
                     algo = 'DBSCAN'
@@ -315,7 +313,8 @@ if __name__ == '__main__':
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
-    parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
+    parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='int', help='Process only the first n entries')
+    parser.add_option(      '--first-event', dest='firstEvent', default=-1, type='int', help='Skip all the events before this one')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
     parser.add_option(      '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
@@ -386,10 +385,11 @@ if __name__ == '__main__':
     else:
         nThreads = options.jobs
 
+    firstEvent = 0 if options.firstEvent<0 else options.firstEvent
     if nThreads>1:
         print ("RUNNING USING ",nThreads," THREADS.")
         nj = int(nev/nThreads)
-        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(0,nev,nj))]
+        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(firstEvent,nev,nj))]
         print(chunks)
         pool = Pool(nThreads)
         ret = list(pool.apply_async(ana,args=(c, )) for c in chunks)
@@ -418,7 +418,13 @@ if __name__ == '__main__':
         os.system('rm {base}_chunk*.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
-        ana.reconstruct()
+        print ("nev = ",nev)
+        print ("firstEvent=",firstEvent)
+        print ("maxEntries = ",options.maxEntries)
+        print ("lastEvent = ",min(nev,firstEvent+options.maxEntries-1))
+        lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries-1)
+        evrange=(-1,firstEvent,lastEvent)
+        ana.reconstruct(evrange)
         ana.endJob()
 
     #### FOR SOME REASON THIS DOESN'T WORK IN BATCH.

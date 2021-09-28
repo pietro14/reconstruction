@@ -159,7 +159,7 @@ class EnergyCalibrator:
     
         cluster_matrix = self.getClusterMatrix(hits) # this has x,y,z
         cluster_img = cluster_matrix != 0 # this is the binary version to run the skeletonization
-        
+
         skeleton = thin(cluster_img) # this is the 1-pixel wide skeleton of the cluster
         pruned =  self.pruning(skeleton,10) # remove little branches
         
@@ -189,10 +189,7 @@ class EnergyCalibrator:
         #print ("slices ",slices)
         #print ("Found ",len(slices)," slices")
         # this is a better estimate of the length of a curved cluster (in pixels)
-        #self.length = len(skeleton) # this would be correct if there are no points ZS along the path. If there are many, then it's an underestimate
-        # approximate locally with the radius of the slice. It's ok for small enough slice radius
-        # N.B. use radius, not diameter, since the center is the first available point along the skeleton
-        self.length = len(slices)*self.sliceRadius
+        self.length = np.count_nonzero(pruned.astype(np.uint8))
         return slices,slice_centers
 
     def clusterLength(self):

@@ -32,7 +32,7 @@ class PolynomialRegression(object):
     def score(self, X, y):
         return mean_squared_error(y, self.predict(X))
 
-def ransac_polyfit(x,y,order,t,n=0.8,k=100,f=0.9):
+def ransac_polyfit(x,y,order,t,n=0.7,k=100,f=0.8):
 
     #print("\t\t*** doing polyfit with order ",order)
     besterr = np.inf
@@ -69,7 +69,7 @@ def ransac_polyfit(x,y,order,t,n=0.8,k=100,f=0.9):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=True):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=False):
     #Definitions
     #Beginning of the algorithm - DBSCAN check part
     label_num = 0
@@ -106,9 +106,13 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         moment_length = sum(labels==label_num)
         if debug:
             print("test cluster n. ",i)
-        
+            print("** clu has ",moment_length)
+            print("** min samples now ",min_samples)
+            
         if moment_length < min_samples:
             min_samples = moment_length
+            if debug:
+                print("** min samples dopo ",min_samples)
         if moment_length > dir_minsamples:
             if debug:
                 print("==> cluster ",i," has ",sum(labels==label_num)," samples")
@@ -126,6 +130,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             #    ransac.fit(np.expand_dims(x, axis=1), y)
             
             accuracy = sum(ransac.inlier_mask_)/len(y)
+            if debug:
+                print("-----> accuracy = ",accuracy)
 
             if accuracy > dir_min_accuracy:
                 clu_stra.append(label_num)
@@ -153,7 +159,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         vet_aux[:,1] = np.asarray(acc)
         vet_aux[:,2] = np.asarray(length)
         vet_aux = np.asarray(sorted(vet_aux,key=itemgetter(1),reverse=1))
-        # in case there is more than 1 cluster with 0 energy around, sort them by accuracy
+        # in case there is more than 1 cluster with 0 energy around, sort them by length
         if (sum(vet_aux[:,1]==1) > 1):
             l1 = sum(vet_aux[:,1]==1)
             vet_aux[0:l1,:] = np.asarray(sorted(vet_aux[0:l1,:],key=itemgetter(2),reverse=1))
@@ -175,7 +181,11 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             while True:
                 if labels[i] == -1:
                     labels[i] = label_num
-                    if is_core[i]:
+                    if expand_noncore:
+                        core_flag = 1
+                    else:
+                        core_flag = is_core[j]
+                    if core_flag:
                         neighb = neighborhoods[i]
                         for i in range(neighb.shape[0]):
                             v = neighb[i]
@@ -352,8 +362,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         nt2 = time.time()
         if debug:
             print ("neighbs done in ",nt2-nt1," secs")
-        
-        
+
         dbt1 = time.time()
         for i in range(labels.shape[0]):
             if labels[i] != -1 or not is_core[i]:
@@ -363,12 +372,16 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                     labels[i] = label_num
                     if is_core[i]:     #Only core points are expanded
                         neighb = neighborhoods[i]
-                        for i in range(neighb.shape[0]):
-                            v = neighb[i]
-                            if labels[v] == -1:
+                        for j in range(neighb.shape[0]-1,-1,-1):
+                            v = neighb[j]
+                            if labels[v] != -1:
+                                del v
+                            else:
                                 index = np.where(noise_indexes==v)[0][0]
                                 dist_closest_clustered = distances[index]
-                                if dist_closest_clustered > isolation_radius:
+                                if dist_closest_clustered < isolation_radius:
+                                    del v
+                                else:
                                     stack.append(v)
 
                 if len(stack) == 0:
