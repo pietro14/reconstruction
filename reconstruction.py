@@ -216,11 +216,7 @@ class analysis:
                 run = int(m.group(1))
                 event = int(m.group(2))
 
-            #print("max entries = ",self.options.maxEntries)
-            if self.options.maxEntries>0 and event==max(evrange[0],0)+self.options.maxEntries: break
-            if sum(evrange[1:])>-2:
-                if event<evrange[1] or event>evrange[2]: continue
-
+            if event<evrange[1] or event>evrange[2]: continue
 
             # Routine to skip some images if needed
             if event in self.options.excImages: continue
@@ -373,7 +369,7 @@ if __name__ == '__main__':
         sys.exit(0)     
     
     ana = analysis(options)
-    nev = ana.getNEvents() if options.maxEntries == -1 else int(options.maxEntries)
+    nev = ana.getNEvents()
     print("This run has ",nev," events.")
     print("Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
@@ -386,10 +382,12 @@ if __name__ == '__main__':
         nThreads = options.jobs
 
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
+    lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
+    print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
     if nThreads>1:
         print ("RUNNING USING ",nThreads," THREADS.")
-        nj = int(nev/nThreads)
-        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(firstEvent,nev,nj))]
+        nj = int(nev/nThreads) if options.maxEntries==-1 else max(int((lastEvent-firstEvent)/nThreads),1)
+        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(firstEvent,lastEvent,nj))]
         print(chunks)
         pool = Pool(nThreads)
         ret = list(pool.apply_async(ana,args=(c, )) for c in chunks)
@@ -418,11 +416,6 @@ if __name__ == '__main__':
         os.system('rm {base}_chunk*.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
-        print ("nev = ",nev)
-        print ("firstEvent=",firstEvent)
-        print ("maxEntries = ",options.maxEntries)
-        print ("lastEvent = ",min(nev,firstEvent+options.maxEntries-1))
-        lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries-1)
         evrange=(-1,firstEvent,lastEvent)
         ana.reconstruct(evrange)
         ana.endJob()
