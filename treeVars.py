@@ -3,7 +3,8 @@ import numpy as np
 class AutoFillTreeProducer:
     def __init__(self,tree):
         self.outTree = tree
-
+        self.saveKillerVars = False
+        
     def createPMTVariables(self):
         self.outTree.branch('pmt_integral', 'F')
         self.outTree.branch('pmt_tot', 'F')
@@ -47,9 +48,6 @@ class AutoFillTreeProducer:
             self.outTree.branch('{name}_energyprof'.format(name=name),    'F', lenVar=sizeStr+'*nSlices')
             self.outTree.branch('{name}_xprof'.format(name=name),    'F', lenVar=sizeStr+'*nSlices')
             self.outTree.branch('{name}_yprof'.format(name=name),    'F', lenVar=sizeStr+'*nSlices')
-            self.outTree.branch('{name}_mindist'.format(name=name),  'F', lenVar=sizeStr)
-            self.outTree.branch('{name}_nmatchweak'.format(name=name),  'F', lenVar=sizeStr)
-            self.outTree.branch('{name}_nmatchrobust'.format(name=name),  'F', lenVar=sizeStr)
         self.outTree.branch('{name}_theta'.format(name=name),        'F', lenVar=sizeStr)
         self.outTree.branch('{name}_length'.format(name=name),       'F', lenVar=sizeStr)
         self.outTree.branch('{name}_width'.format(name=name),        'F', lenVar=sizeStr)
@@ -82,6 +80,14 @@ class AutoFillTreeProducer:
         self.outTree.branch('{name}_lchi2'.format(name=name),        'F', lenVar=sizeStr)
         self.outTree.branch('{name}_lstatus'.format(name=name),      'F', lenVar=sizeStr)
 
+    def addCosmicKillerVariables(self,name='track'):
+        self.saveKillerVars = True
+        if name=='sc':
+            self.outTree.branch('{name}_mindist'.format(name=name),  'F', lenVar=sizeStr)
+            self.outTree.branch('{name}_nmatchweak'.format(name=name),  'F', lenVar=sizeStr)
+            self.outTree.branch('{name}_nmatchrobust'.format(name=name),  'F', lenVar=sizeStr)
+
+
     def fillCameraVariables(self,pic):
         self.outTree.fillBranch('cmos_integral',np.sum(pic))
         self.outTree.fillBranch('cmos_mean',np.mean(pic))
@@ -103,9 +109,10 @@ class AutoFillTreeProducer:
             self.outTree.fillBranch('{name}_energyprof'.format(name=name),    [cl.energyprofile[i] for cl in clusters for i in range(cl.nslices)])
             self.outTree.fillBranch('{name}_xprof'.format(name=name),         [cl.centers[i][0] for cl in clusters for i in range(cl.nslices)])
             self.outTree.fillBranch('{name}_yprof'.format(name=name),         [cl.centers[i][1] for cl in clusters for i in range(cl.nslices)])
-            self.outTree.fillBranch('{name}_mindist'.format(name=name), [cl.minDistKiller for cl in clusters])
-            self.outTree.fillBranch('{name}_nmatchweak'.format(name=name), [cl.nMatchKillerWeak for cl in clusters])
-            self.outTree.fillBranch('{name}_nmatchrobust'.format(name=name), [cl.nMatchKiller for cl in clusters])
+            if self.saveKillerVars == True:
+                self.outTree.fillBranch('{name}_mindist'.format(name=name), [cl.minDistKiller for cl in clusters])
+                self.outTree.fillBranch('{name}_nmatchweak'.format(name=name), [cl.nMatchKillerWeak for cl in clusters])
+                self.outTree.fillBranch('{name}_nmatchrobust'.format(name=name), [cl.nMatchKiller for cl in clusters])
         self.outTree.fillBranch('{name}_theta'.format(name=name),    [cl.shapes['theta'] for cl in clusters])
         self.outTree.fillBranch('{name}_length'.format(name=name),   [cl.shapes['long_width'] for cl in clusters])
         self.outTree.fillBranch('{name}_width'.format(name=name),    [cl.shapes['lat_width'] for cl in clusters])
