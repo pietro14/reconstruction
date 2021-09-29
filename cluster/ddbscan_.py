@@ -15,7 +15,7 @@ from scipy import sparse
 
 from sklearn.base import BaseEstimator, ClusterMixin
 from sklearn.utils import check_array, check_consistent_length
-from sklearn.utils.testing import ignore_warnings
+#from sklearn.utils.testing import ignore_warnings
 from sklearn.neighbors import NearestNeighbors
 
 from cluster.ddbscan_inner import ddbscaninner
@@ -140,8 +140,8 @@ def ddbscan(X, eps=0.5, min_samples=40, dir_radius=1, dir_min_accuracy=0.8, dir_
         X.sum_duplicates()  # XXX: modifies X's internals in-place
 
         # set the diagonal to explicit values, as a point is its own neighbor
-        with ignore_warnings():
-            X.setdiag(X.diagonal())  # XXX: modifies X's internals in-place
+        #with ignore_warnings():
+        X.setdiag(X.diagonal())  # XXX: modifies X's internals in-place
 
         X_mask = X.data <= eps
         X_mask2 = X.data <= dir_radius
