@@ -38,7 +38,7 @@
 
 'excImages'             : list(range(5))+[],       # To exlude some images of the analysis. Always exclude the first 5 which are messy
 'min_neighbors_average' : 0.55,                    # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
-'donotremove'           : True,                    # Remove or not the file from the tmp folder
+'donotremove'           : False,                   # Remove or not the file from the tmp folder
 
 
 'tip'                   : '3D',
