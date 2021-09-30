@@ -3,7 +3,13 @@
 def swift_root_file(tag, run):
     sel = rootlocation(tag,run)    
     
-    BASE_URL  = "https://swift.cloud.infn.it:8080/v1/AUTH_1e60fe39fba04701aa5ffc0b97871ed8/Cygnus/"
+    BASE_URL = "https://s3.cloud.infn.it/v1/AUTH_2ebf769785574195bde2ff418deac08a/"
+    if 'MC' in tag:
+        bucket = 'cygnus' if tag=='MC-old' else 'cygno-sim'
+    else:
+        bucket = 'cygnus' if run<4470 else 'cygno-data'
+    BASE_URL = BASE_URL + bucket + '/'
+
     file_root = (sel+'/histograms_Run%05d.root' % run)
     return BASE_URL+file_root
 
@@ -36,10 +42,12 @@ def rootlocation(tag,run):
     if tag == 'Data':
         if (run>=936) and (run<=1601):
             sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<=4000):
+        elif (run>=1632) and (run<4470):
             sel = 'Data/LAB'
+        elif (run>=4469) and (run<10000):
+            sel = 'LAB'
         elif tag == 'DataMango':
-            sel= 'Data/MAN'
+            sel= 'Data/MAN' if run<10000 else 'MAN' ### exact run number switch to new bucket for MANGO to be implemented
         else:
             print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
             exit()
@@ -48,7 +56,7 @@ def rootlocation(tag,run):
         sel = 'Simulation'
         print("WARNING: automatic download for Simulated data not implemented yet")
         exit()
- 
+        
     return sel
 
 def swift_read_root_file(tmpname):
