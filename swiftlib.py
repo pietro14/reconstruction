@@ -7,7 +7,7 @@ def swift_root_file(tag, run):
     if 'MC' in tag:
         bucket = 'cygnus' if tag=='MC-old' else 'cygno-sim'
     elif tag=='Data':
-        bucket = 'cygnus' if run<4470 else 'cygno-data'
+        bucket = 'cygnus' if run<4505 else 'cygno-data'
     elif tag=='DataMango':
         bucket = 'cygnus' if run<3242 else 'cygno-data'
 
@@ -44,7 +44,7 @@ def rootlocation(tag,run):
     if tag == 'Data':
         if (run>=936) and (run<=1601):
             sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<4470):
+        elif (run>=1632) and (run<4505):
             sel = 'Data/LAB'
         elif (run>=4470) and (run<10000):
             sel = 'LAB'
