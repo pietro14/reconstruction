@@ -95,7 +95,7 @@ if __name__ == "__main__":
             print ("Preparing jobs for run {r}. The task subdivides a total of {nT} events in chunks of {nJ} events per job.".format(r=run,nT=totEv,nJ=evPerJob))
             for ij,firstEvent in enumerate(range(0,totEv,evPerJob)):
                 
-                print ("Will submit job #{ij}, processing event range: [{fev}-{lev}]".format(ij=ij,fev=firstEvent,lev=firstEvent+evPerJob))
+                print ("Will submit job #{ij}, processing event range: [{fev}-{lev}]".format(ij=ij,fev=firstEvent,lev=min(firstEvent+evPerJob,totEv)))
                 cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -o reco_job{ijob} --first-event {fev} --max-entries {me} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt,fev=firstEvent,me=evPerJob,ijob=ij)
                 sub_cmd = prepare_jobpack(jobdir,logdir,abswpath,cmd,ij)
                 commands.append(sub_cmd)
