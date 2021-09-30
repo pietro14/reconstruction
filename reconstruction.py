@@ -402,7 +402,7 @@ if __name__ == '__main__':
             pool.terminate()
             pool.join()
         except TimeoutError:
-            print("except")
+            print("Maximum time of {ns} seconds reached. Terminating processes brutally!".format(ns=maxTime))
             ## add the chunks before terminating the job if timeout is reached
             print("Now hadding the chunks...")
             base = options.outFile.split('.')[0]

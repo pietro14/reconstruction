@@ -4,7 +4,7 @@
 
 # DEBUG plots
 'debug_mode'            : 0,
-'ev'                    : 1,
+'ev'                    : 10,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -34,9 +34,9 @@
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
 'tag'                   : 'Data',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
-'vignetteCorr'          : False,                   # apply vignetting correction (correction maps in data/ according to the geometry)
+'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
 
-'excImages'             : [0], #list(range(5))+[], # To exlude some images of the analysis. Always exclude the first 5 which are messy
+'excImages'             : list(range(5))+[],       # To exlude some images of the analysis. Always exclude the first 5 which are messy
 'min_neighbors_average' : 0.55,                    # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : True,                    # Remove or not the file from the tmp folder
 
