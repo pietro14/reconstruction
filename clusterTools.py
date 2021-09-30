@@ -202,22 +202,21 @@ class Cluster:
         xedg = [(x-int(rxmin)) for x in xedg]
         yedg = [(y-int(rymin)) for y in yedg]
 
-        pixw = self.cg.pixelwidth
         length=(rxmax-rxmin); width=(rymax-rymin)
         if len(xedg)>1:
-            longprof = ROOT.TH1F(name+'_long','longitudinal profile',len(xedg)-1,array('f',[pixw * x for x in xedg]))
+            longprof = ROOT.TH1F(name+'_long','longitudinal profile',len(xedg)-1,array('f',[x for x in xedg]))
             longprof.SetDirectory(0)
         else: longprof = 0
         if len(yedg)>1:
-            latprof = ROOT.TH1F(name+'_lat','lateral profile',len(yedg)-1,array('f',[pixw * y for y in yedg]))
+            latprof = ROOT.TH1F(name+'_lat','lateral profile',len(yedg)-1,array('f',[y for y in yedg]))
             latprof.SetDirectory(0)
         else: latprof = 0
         
         cluth2d = ROOT.TH2D('cluth2d','',int(length)+2,0,int(length)+2, int(width)+2,0,int(width)+2)
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
-            if longprof: longprof.Fill(pixw*(x-rxmin),z)
-            if latprof: latprof.Fill(pixw*(y-rymin),z)
+            if longprof: longprof.Fill(x-rxmin,z)
+            if latprof: latprof.Fill(y-rymin,z)
             # if a neighbor (rounded) has 0 or little, do not kill a good illuminated pixel for that, at a cost of a little shape bias
             cluth2d.SetBinContent(int(np.round(x-rxmin))+1,int(np.round(y-rymin))+1,z)
 

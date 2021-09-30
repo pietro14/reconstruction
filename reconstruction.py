@@ -314,6 +314,7 @@ if __name__ == '__main__':
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
     parser.add_option(      '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
+    parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
     
     (options, args) = parser.parse_args()
     
@@ -326,11 +327,11 @@ if __name__ == '__main__':
     run = int(options.run)
     
     if options.debug_mode == 1:
-        setattr(options,'outFile','reco_run%d_%s_debug.root' % (run, options.tip))
+        setattr(options,'outFile','%s_run%d_%s_debug.root' % (options.outname, run, options.tip))
         #if options.ev: options.maxEntries = options.ev + 1
         #if options.daq == 'midas': options.ev +=0.5 
     else:
-        setattr(options,'outFile','reco_run%05d_%s.root' % (run, options.tip))
+        setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
         
     if not hasattr(options,"pedrun"):
         pf = open("pedestals/pedruns.txt","r")
@@ -402,7 +403,7 @@ if __name__ == '__main__':
             pool.terminate()
             pool.join()
         except TimeoutError:
-            print("except")
+            print("Maximum time of {ns} seconds reached. Terminating processes brutally!".format(ns=maxTime))
             ## add the chunks before terminating the job if timeout is reached
             print("Now hadding the chunks...")
             base = options.outFile.split('.')[0]
