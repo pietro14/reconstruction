@@ -1,5 +1,6 @@
 #!/bin/env python
 # USAGE: python3.8 scripts/submit_batch.py $PWD "[3792-3796]" --outdir cosmics_1stset_261120 --dry-run
+# USAGE 2.0: python3.8 scripts/submit_batch.py $PWD "[4455-4456]" --outdir test_batch --mh 8 --nev 200 24 --dry-run
 # remove --dry-run to submit for real (otherwise only the scripts are created and commands are printed)
 
 jobstring  = '''#!/bin/bash
@@ -13,6 +14,19 @@ RECOSTRING
 
 import os, sys, re
 
+def prepare_jobpack(jobdir,logdir,workdir,cmd,ijob=0):
+    job_file_name = jobdir+'/job{ij}_run{r}.sh'.format(ij=ijob,r=run)
+    log_file_name = logdir+'/job{ij}_run{r}.log'.format(ij=ijob,r=run)
+    tmp_file = open(job_file_name, 'w')
+    tmp_filecont = jobstring
+
+    tmp_filecont = tmp_filecont.replace('RECOSTRING',cmd)
+    tmp_filecont = tmp_filecont.replace('CYGNOBASE',workdir+'/')
+    tmp_file.write(tmp_filecont)
+    tmp_file.close()
+    sub_cmd = 'qsub -q {queue} -l {ssd}ncpus={nt},mem={ram}mb -d {dpath} -e localhost:{logf} -o localhost:{logf} {jobf}'.format(dpath=workdir,logf=log_file_name,jobf=job_file_name,nt=nThreads,ram=RAM,ssd=ssdcache_opt,queue=options.queue)
+    return sub_cmd
+
 if __name__ == "__main__":
     
     from optparse import OptionParser
@@ -21,7 +35,8 @@ if __name__ == "__main__":
     parser.add_option(        '--outdir',   dest='outdir',   type="string", default=None, help='outdirectory');
     parser.add_option(        '--nthreads', dest='nthreads', type="string", default=24, help='number of threads / job');
     parser.add_option('-q',   '--queue',    dest='queue',    type="string", default='cygno-custom', help='queue to be used for the jobs');
-    parser.add_option(        '--max-hours',dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
+    parser.add_option('--mh'  '--max-hours',dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
+    parser.add_option('--nev' '--event-chunks',dest='eventChunks', default=[], nargs=2,  type='int', help='T C: Total number of events to process and events per job')
     (options, args) = parser.parse_args()
 
     if len(args)<2:
@@ -75,19 +90,20 @@ if __name__ == "__main__":
     maxtime_opt = '' if options.maxHours < 0 else '--max-hours {hr}'.format(hr=options.maxHours)
     commands = []
     for run in runs:
-        job_file_name = jobdir+'/job_run{r}.sh'.format(r=run)
-        log_file_name = logdir+'/job_run{r}.log'.format(r=run)
-        tmp_file = open(job_file_name, 'w')
-
-        tmp_filecont = jobstring
-        cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt)
-        tmp_filecont = tmp_filecont.replace('RECOSTRING',cmd)
-        tmp_filecont = tmp_filecont.replace('CYGNOBASE',abswpath+'/')
-        tmp_file.write(tmp_filecont)
-        tmp_file.close()
-        
-        sub_cmd = 'qsub -q {queue} -l {ssd}ncpus={nt},mem={ram}mb -d {dpath} -e localhost:{logf} -o localhost:{logf} {jobf}'.format(dpath=abswpath,logf=log_file_name,jobf=job_file_name,nt=nThreads,ram=RAM,ssd=ssdcache_opt,queue=options.queue)
-        commands.append(sub_cmd)
+        if len(options.eventChunks)>0:
+            (totEv,evPerJob) = options.eventChunks
+            print ("Preparing jobs for run {r}. The task subdivides a total of {nT} events in chunks of {nJ} events per job.".format(r=run,nT=totEv,nJ=evPerJob))
+            for ij,firstEvent in enumerate(range(0,totEv,evPerJob)):
+                
+                print ("Will submit job #{ij}, processing event range: [{fev}-{lev}]".format(ij=ij,fev=firstEvent,lev=firstEvent+evPerJob))
+                cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -o reco_job{ijob} --first-event {fev} --max-entries {me} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt,fev=firstEvent,me=evPerJob,ijob=ij)
+                sub_cmd = prepare_jobpack(jobdir,logdir,abswpath,cmd,ij)
+                commands.append(sub_cmd)
+        else:
+            cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt)
+            prepare_jobpack(jobdir,logdir,abswpath,cmd)
+            sub_cmd = prepare_jobpack(jobdir,logdir,abswpath,cmd)
+            commands.append(sub_cmd)
 
     if options.dryRun:
         for c in commands:
