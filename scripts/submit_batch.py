@@ -80,13 +80,15 @@ if __name__ == "__main__":
         os.system('mkdir {od}'.format(od=logdir))
 
     # typically for LIME images (~4MP) MEM = 600MB. 1GB for safety
-    if options.queue!='cygno-custom':
+    if 'custom' not in options.queue:
         nThreads = min(8,nThreads)
-    RAM = nThreads*2000 if options.queue=='cygno-custom' else nThreads*1000
+    RAM = nThreads*2000 if 'custom' in options.queue else nThreads*1000
     ssdcache_opt = 'nodes=1:disk10,' if options.queue=='cygno-custom' else ''
     # cygno-custom mounts /mnt/ssdcache, not the other queues. It seems that sometimes testing its presence works, sometimes not,
     # so when not in cygno-custom, force the usage to /tmp
-    tmpdir_opt = '' if  options.queue=='cygno-custom' else ' --tmp /tmp/'
+    #tmpdir_opt = '' if  options.queue=='cygno-custom' else ' --tmp /tmp/'
+    # IT SEEMS THAT /mnt/ssdcache is not mounted even in cygno-custom
+    tmpdir_opt = ' --tmp /tmp/'
     maxtime_opt = '' if options.maxHours < 0 else '--max-hours {hr}'.format(hr=options.maxHours)
     commands = []
     for run in runs:

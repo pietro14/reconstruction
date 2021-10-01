@@ -349,7 +349,9 @@ if __name__ == '__main__':
     #inputf = inputFile(options.run, options.dir, options.daq)
 
     USER = os.environ['USER']
-    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
+    tmpdir = '/tmp/'
     # override the default, if given by option
     if options.tmpdir:
         tmpdir = options.tmpdir
