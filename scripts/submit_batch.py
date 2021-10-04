@@ -9,6 +9,7 @@ ulimit -c 0 -H
 set -e
 cd CYGNOBASE
 source scripts/activate_cygno_lngs.sh
+python3.8 scripts/monitor_and_kill.py &
 RECOSTRING
 '''
 
