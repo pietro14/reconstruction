@@ -292,13 +292,10 @@ class analysis:
                     
                     peaksfinder = pkprod.run()
                     self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
-                    
-            # fill reco tree (just once/event, and the TGraph is analyses as last)
-            if (self.options.daq == 'midas' and self.options.pmt_mode):
-                if obj.InheritsFrom('TGraph'):
+
+            if self.options.camera_mode:
+                if obj.InheritsFrom('TH2'):
                     self.outTree.fill()
-            else:
-                self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
