@@ -292,13 +292,10 @@ class analysis:
                     
                     peaksfinder = pkprod.run()
                     self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
-                    
-            # fill reco tree (just once/event, and the TGraph is analyses as last)
-            if (self.options.daq == 'midas' and self.options.pmt_mode):
-                if obj.InheritsFrom('TGraph'):
+
+            if self.options.camera_mode:
+                if obj.InheritsFrom('TH2'):
                     self.outTree.fill()
-            else:
-                self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
@@ -349,7 +346,9 @@ if __name__ == '__main__':
     #inputf = inputFile(options.run, options.dir, options.daq)
 
     USER = os.environ['USER']
-    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
+    tmpdir = '/tmp/'
     # override the default, if given by option
     if options.tmpdir:
         tmpdir = options.tmpdir
