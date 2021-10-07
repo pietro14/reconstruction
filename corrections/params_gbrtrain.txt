@@ -1,0 +1,10 @@
+{
+'target'            : "sc_integral/9000.",
+'inputs'            : "sc_integral/sc_nhits:sc_length:sc_width:sc_longrms:sc_latrms:sc_lfullrms:sc_tfullrms:sc_xmean:sc_ymean:sc_xmax:sc_xmin:sc_ymax:sc_ymin:sc_tgaussmean:sc_tgausssigma:sc_lgaussmean:sc_lgausssigma",
+'selection'         : "(sc_length<100 && sc_width/sc_length>0.5 && sc_integral > 4e3 && sc_integral < 14e3)",
+'tree_name'         : "Events",
+'n_estimators'      : 2000,
+'max_depth'         : 4,
+'min_samples_split' : 5,
+'learning_rate'     : 0.01
+}
