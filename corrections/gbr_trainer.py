@@ -20,6 +20,7 @@ def getCanvas(name='c'):
     ROOT.gStyle.SetPalette(ROOT.kRainBow)
     ROOT.gStyle.SetNumberContours(51)
     ROOT.gErrorIgnoreLevel = 100
+    ROOT.gStyle.SetOptStat(0)
 
     c = ROOT.TCanvas(name,'',1200,1200)
     lMargin = 0.14
@@ -34,6 +35,39 @@ def getCanvas(name='c'):
     c.SetBorderMode(0);
     c.SetBorderSize(0);
     return c
+
+def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
+    nentries = len(histos)
+    (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
+    if corner == "TR":
+        (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
+    elif corner == "TC":
+        (x1,y1,x2,y2) = (.5, .7 - textSize*max(nentries-3,0), .5+legWidth, .89)
+    elif corner == "TL":
+        (x1,y1,x2,y2) = (.2, .7 - textSize*max(nentries-3,0), .2+legWidth, .89)
+    elif corner == "BR":
+        (x1,y1,x2,y2) = (.85-legWidth, .15 + textSize*max(nentries-3,0), .90, .25)
+    elif corner == "BC":
+        (x1,y1,x2,y2) = (.5, .15 + textSize*max(nentries-3,0), .5+legWidth, .25)
+    elif corner == "BL":
+        (x1,y1,x2,y2) = (.2, .23 + textSize*max(nentries-3,0), .33+legWidth, .35)
+    leg = ROOT.TLegend(x1,y1,x2,y2)
+    leg.SetNColumns(nColumns)
+    leg.SetFillColor(0)
+    leg.SetFillColorAlpha(0,0.6)  # should make the legend semitransparent (second number is 0 for fully transparent, 1 for full opaque)
+    #leg.SetFillStyle(0) # transparent legend, so it will not cover plots (markers of legend entries will cover it unless one changes the histogram FillStyle, but this has other effects on color, so better not touching the FillStyle)
+    leg.SetShadowColor(0)
+    if not legBorder:
+        leg.SetLineColor(0)
+        leg.SetBorderSize(0)  # remove border  (otherwise it is drawn with a white line, visible if it overlaps with plots
+    leg.SetTextFont(42)
+    leg.SetTextSize(textSize)
+    for (plot,label,style) in zip(histos,labels,styles): leg.AddEntry(plot,label,style)
+    leg.Draw()
+    ## assign it to a global variable so it's not deleted
+    global legend_
+    legend_ = leg
+    return leg
 
 
 class GBRLikelihoodTrainer:
@@ -156,12 +190,14 @@ class GBRLikelihoodTrainer:
             X,y = self.get_dataset(recofile)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=13)
 
-        hist = ROOT.TH1F('hist','',30,0.1,1.5)
-            
+        hist = ROOT.TH1F('hist','',50,0.,2.0)
+        hist.GetXaxis().SetTitle('E/E^{peak}_{raw}')
+        hist.GetYaxis().SetTitle('Events')
+        
         c = getCanvas('c')
         hists = {}
         maxy=-1
-        for k in ['mse','q0.05','q0.50','q0.95']:
+        for k in ['mse','q0.50']: #['mse','q0.05','q0.50','q0.95']:
             filename = "{prefix}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),k=k)
             print("Sanity check of the saved GBR model in the output file ",filename)
             model = joblib.load(filename)
@@ -175,17 +211,27 @@ class GBRLikelihoodTrainer:
             
         hists["uncorr"] = hist.Clone('hist_uncorr')
         fill_hist(hists["uncorr"],y_test)
+        labels = {'uncorr': "raw ({rms:1.2f}%)".format(rms=hists['uncorr'].GetRMS()),
+                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS()),
+                  'q0.50': 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS())
+                  }
+
         colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan, 'q0.50': ROOT.kBlack}
         styles = {'uncorr': 3005, 'mse': 3004, 'q0.50': 0}
+        arr_hists = []; arr_styles = []; arr_labels = []
         for i,k in enumerate(colors):
             drawopt = '' if i==0 else 'same'
-            print ("Filling hist ",k," with color ",colors[k])
             hists[k].SetLineColor(colors[k])
             hists[k].SetFillColor(colors[k])
-            hists[k].SetFillStyles(styles[k])
+            hists[k].SetFillStyle(styles[k])
             hists[k].SetLineWidth(2)
-            hists[k].SetMaximum(1.2 * maxy)
+            hists[k].SetMaximum(1.5 * maxy)
             hists[k].Draw("hist {opt}".format(opt=drawopt))
+            # for the legend
+            arr_hists.append(hists[k])
+            arr_labels.append(labels[k])
+            arr_styles.append('l')
+        legend = doLegend(arr_hists,arr_labels,arr_styles,corner="TL")
         c.SaveAs("energy.png")
         
         
