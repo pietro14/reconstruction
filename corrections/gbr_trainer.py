@@ -123,7 +123,7 @@ class GBRLikelihoodTrainer:
 
         # QUANTILE REGRESSION
         print("===> Now training quantiles regression...")
-        for alpha in [0.5]: #[0.05, 0.5, 0.95]:
+        for alpha in [0.05, 0.5, 0.95]:
             print("\t### Quantile = ",alpha)
             reg = ensemble.GradientBoostingRegressor(loss='quantile', alpha=alpha,
                                                      **self.training_params)
