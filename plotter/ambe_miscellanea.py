@@ -437,14 +437,18 @@ if __name__ == "__main__":
         fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v4/fe55_runs3686to3691_v4_OptVignetting.root','fe_v4_OptVignetting.root')
 
     elif options.make == 'linearity':
-        filepatt = 'ambeplots/2021-07-21-xrays-%s/integral.root'
-        sources = ['Cu','Rb','Mo','Ag','Ba']
-        energies = [8,15,18,23.5,34.4]
+        #filepatt = 'ambeplots/2021-07-21-xrays-%s/integral.root'
+        filepatt = 'ambeplots/2021-10-12-xrays-%s/integral.root'
+        sources = ['Fe','Cu','Rb','Mo','Ag','Ba']
+        energies = [5.9,8,15,18,23.5,34.4]
         files =  [filepatt%s for s in sources]
-        ranges = [(5e3,1e4),(1e4,1.5e4),(1.3e4,2e4),(1.5e4,3e4),(2.5e4,4e4)]
+        # old data
+        # ranges = [(5e3,1e4),(1e4,1.5e4),(1.3e4,2e4),(1.5e4,3e4),(2.5e4,4e4)]
+        # July 2021 data
+        ranges = [(8e3,1.2e4),(5e3,1.5e4),(1.2e4,2.4e4),(1.5e4,3.2e4),(2.2e4,3.8e4),(3.6e4,5e4)]
         pars = []
         for i,f in enumerate(files):
-            pars.append(fitIntegral(f,ranges[i][0],ranges[i][1],sources[i]+'.pdf'))
+            pars.append(fitIntegral(f,ranges[i][0],ranges[i][1],sources[i]+'.pdf',hname='integral_diff'))
 
         resp = ROOT.TGraphErrors(len(sources))
         reso = ROOT.TGraphErrors(len(sources))
@@ -455,8 +459,6 @@ if __name__ == "__main__":
             reso.SetPointError(i,0,100*pars[i][3]/pars[i][0])
 
 
-
-
         ## response linearity
         c = getCanvas()
         resp.SetTitle('')
@@ -465,11 +467,13 @@ if __name__ == "__main__":
         resp.SetMarkerSize(2)
         resp.GetXaxis().SetLimits(0,40)
         resp.GetXaxis().SetTitle("Energy (keV)")
-        resp.GetYaxis().SetLimits(0,4e4)
-        resp.GetYaxis().SetRangeUser(0,4e4)
+        resp.GetYaxis().SetLimits(0,5e4)
+        resp.GetYaxis().SetRangeUser(0,5e4)
         resp.GetYaxis().SetTitle("Cluster integral (photons)")
 
-        line = ROOT.TLine(0,0,40,3.5e4)
+        resp.Fit("pol1")
+        
+        line = ROOT.TLine(0,0,40,5e4) # 1250 counts / keV from Cu
         line.SetLineColor(ROOT.kBlue)
         line.SetLineStyle(ROOT.kDashed)
         line.Draw()
