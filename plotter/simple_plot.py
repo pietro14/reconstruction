@@ -345,17 +345,18 @@ def varChoice(var):
 def fillSpectra():
 
     ret = {}
-    data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/xrays/v1'
-    tf_ambe  = ROOT.TFile('{d}/reco_run04391_2D.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/reco_run04385_2D.root'.format(d=data_dir))
-    tf_fe55 = ROOT.TFile('{d}/reco_run04389_2D.root'.format(d=data_dir))
+    data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/v2/xrays'
+    tf_ambe  = ROOT.TFile('{d}/reco_runBa_3D.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/reco_run04471_3D.root'.format(d=data_dir))
+    tf_fe55 = ROOT.TFile('{d}/reco_run04471_3D.root'.format(d=data_dir)) # not used
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
 
     entries = {'fe': tf_fe55.Events.GetEntries(), 'ambe': tf_ambe.Events.GetEntries(), 'cosm': tf_cosmics.Events.GetEntries()}
     
     ## Fe55 region histograms
-    ret[('ambe','integral')] = ROOT.TH1F("integral",'',21,0,4.5e4)
+    ret[('ambe','integral')] = ROOT.TH1F("integral",'',17,0,9e4)
+    #ret[('ambe','integral')] = ROOT.TH1F("integral",'',31,0,1e5)
     ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',50,0,25e4)
     ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',50,0,30)
     ret[('ambe','energy')] = ROOT.TH1F("energy",'',50,0,60)
@@ -525,17 +526,17 @@ def fillSpectra():
                 lstatus =  event.sc_lstatus[isc]
                 gstatus = [tstatus,lstatus]
                 latrms = event.sc_latrms[isc]
-                mindist = event.sc_mindist[isc] if runtype!='fe' else 2000 ## because I haven't rerun FE with V3
+                mindist = 2000 #event.sc_mindist[isc] if runtype!='fe' else 2000 ## because I haven't rerun FE with V3
 
                 distFromCenter = math.hypot((xmean-NX[GEOMETRY]/2),(ymean-NX[GEOMETRY]/2))*pixw
 
                 ##########################
                 ## PRESELECTION (NOISE)
                 ##########################
-                if not limeQuietRegion(xmean,ymean):
+                # if not limeQuietRegion(xmean,ymean):
+                #     continue
+                if not LimeEfficientRegion(xmean,ymean):
                     continue
-                #if not LimeEfficientRegion(xmean,ymean):
-                #    continue
                 #if not noiseSuppression(nhits,size,latrms,mindist):
                 #    continue
 
@@ -597,7 +598,8 @@ def fillSpectra():
                         ## the AmBe selection
                         ##########################
                         # remove long/slim cosmics
-                        if length*pixw > 25. or slimness<0.4: # or width*pixw>6.54 or pixw*tgsigma>0.3:
+                        #if integral<1e3 or length > 1000. or width/length<0.5:
+                        if integral<1e3 or length > 200.: # up to Ba (Ba<200 and Tb<300)
                             continue
                         # remove the bad cluster shapes cosmics
                         #if not clusterShapeQuality(gamp,gsigma,gchi2,gstatus):
@@ -908,7 +910,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     histo_bkg_errs.Scale(cosm_rate_calib[0])
     
     histos = [histo_sig,histo_bkg] + ([histo_sig2] if histo_sig2 else [])
-    labels = ['Tb (47.4 keV)','%.2f #times no source' % cosm_rate_calib[0]] + ([ '%.2f #times ^{55}Fe' % fe_integral_rescale] if histo_sig2 else [])
+    labels = ['Ba (35 keV)','%.2f #times no source' % cosm_rate_calib[0]] + ([ '%.2f #times ^{55}Fe' % fe_integral_rescale] if histo_sig2 else [])
     styles = ['pe','f'] + (['f'] if histo_sig2 else [])
     
     legend = doLegend(histos,labels,styles,corner="TR")
@@ -944,7 +946,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         padBottom.SetLogy(1)
 
     ratios.append(ratio)
-    labelsR.append('Tb (47.4 keV) - no source')
+    labelsR.append('Ba (35 keV) - no source')
     stylesR.append('pe')
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure

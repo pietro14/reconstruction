@@ -89,14 +89,14 @@ class GBRLikelihoodTrainer:
         return "{args.base_name}_{args.vars_name}_{args.cuts_name}_vgem{args.vgem1}V_ntrees{args.ntrees}".format(args=self)
 
     def variables(self):
-        return self.var.split(":")
+        return self.var.split("|")
     
     def get_dataset(self,rfile):
         tfile = ROOT.TFile.Open(rfile)
         tree = tfile.Get(self.tree_name)
 
         # so target is always the first variable
-        variables = [self.target] + self.var.split(":")
+        variables = [self.target] + self.var.split("|")
         print("List of variables = ",variables)
         dataset = tree2array(tree,variables,object_selection={self.cuts_base : variables})
         tfile.Close()
@@ -109,7 +109,7 @@ class GBRLikelihoodTrainer:
         return X,y
 
     def train_model(self,X,y):
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=13)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=13)
 
         self.models_ = {}
 
@@ -188,7 +188,7 @@ class GBRLikelihoodTrainer:
             y_test = self.y_test
         else:
             X,y = self.get_dataset(recofile)
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=13)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.95, random_state=13)
 
         hist = ROOT.TH1F('hist','',50,0.,2.0)
         hist.GetXaxis().SetTitle('E/E^{peak}_{raw}')
