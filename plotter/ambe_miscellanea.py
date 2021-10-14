@@ -439,13 +439,13 @@ if __name__ == "__main__":
     elif options.make == 'linearity':
         #filepatt = 'ambeplots/2021-07-21-xrays-%s/integral.root'
         filepatt = 'ambeplots/2021-10-12-xrays-%s/integral.root'
-        sources = ['Fe','Cu','Rb','Mo','Ag','Ba']
-        energies = [5.9,8,15,18,23.5,34.4]
+        sources = ['Fe','Cu','Rb','Mo','Ag','Ba','Tb']
+        energies = [5.9,8,15,18,23.5,34.4,47]
         files =  [filepatt%s for s in sources]
         # old data
         # ranges = [(5e3,1e4),(1e4,1.5e4),(1.3e4,2e4),(1.5e4,3e4),(2.5e4,4e4)]
         # July 2021 data
-        ranges = [(8e3,1.2e4),(5e3,1.5e4),(1.2e4,2.4e4),(1.5e4,3.2e4),(2.2e4,3.8e4),(3.6e4,5e4)]
+        ranges = [(8e3,1.2e4),(1e4,1.4e4),(1.7e4,2.5e4),(1.8e4,2.9e4),(2.2e4,3.8e4),(4e4,6.2e4),(5.2e4,8.0e4)]
         pars = []
         for i,f in enumerate(files):
             pars.append(fitIntegral(f,ranges[i][0],ranges[i][1],sources[i]+'.pdf',hname='integral_diff'))
@@ -465,15 +465,15 @@ if __name__ == "__main__":
         resp.Draw("AP")
         resp.SetMarkerStyle(ROOT.kFullCircle)
         resp.SetMarkerSize(2)
-        resp.GetXaxis().SetLimits(0,40)
+        resp.GetXaxis().SetLimits(0,50)
         resp.GetXaxis().SetTitle("Energy (keV)")
-        resp.GetYaxis().SetLimits(0,5e4)
-        resp.GetYaxis().SetRangeUser(0,5e4)
-        resp.GetYaxis().SetTitle("Cluster integral (photons)")
+        resp.GetYaxis().SetLimits(0,8e4)
+        resp.GetYaxis().SetRangeUser(0,8e4)
+        resp.GetYaxis().SetTitle("Cluster integral (counts)")
 
         resp.Fit("pol1")
         
-        line = ROOT.TLine(0,0,40,5e4) # 1250 counts / keV from Cu
+        line = ROOT.TLine(0,0,50,50*30105/23.5) # Calibration from Ag
         line.SetLineColor(ROOT.kBlue)
         line.SetLineStyle(ROOT.kDashed)
         line.Draw()
@@ -486,7 +486,7 @@ if __name__ == "__main__":
         reso.Draw("AP")
         reso.SetMarkerStyle(ROOT.kFullCircle)
         reso.SetMarkerSize(2)
-        reso.GetXaxis().SetLimits(0,40)
+        reso.GetXaxis().SetLimits(0,50)
         reso.GetXaxis().SetTitle("Energy (keV)")
         reso.GetYaxis().SetLimits(0,30)
         reso.GetYaxis().SetRangeUser(0,30)
