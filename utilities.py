@@ -90,7 +90,7 @@ class utils:
 
         N = cg.npixx
         nx=int(N/rebin); ny=int(N/rebin);
-        normmap = ROOT.TH2D('normmap','normmap',nx,0,N,nx,0,N)
+        normmap = ROOT.TH2D('normmap_{det}'.format(det=det),'normmap',nx,0,N,nx,0,N)
         
         mapsum = np.zeros((nx,nx))
 
@@ -105,9 +105,10 @@ class utils:
 
         framesize = 216 if det=='lime' else 0
 
+        #this was a special case with 3 pictures with different orientations
         #files = ["~/Work/data/cygnus/run03930.root","~/Work/data/cygnus/run03931.root","~/Work/data/cygnus/run03932.root"]
         #for f in files:
-        tf_in = ROOT.TFile(f)
+        tf_in = ROOT.TFile(infile)
         
         # first calculate the mean 
         for i,e in enumerate(tf_in.GetListOfKeys()):
@@ -162,10 +163,10 @@ class utils:
         tf_out.Close()
         print("Written the mean map with rebinning {rb}x{rb} into file {outf}.".format(rb=rebin,outf=outfile))
 
-    def getVignette1D(self,filevignette):
+    def getVignette1D(self,filevignette,det='lime'):
 
         tf_in = ROOT.TFile.Open(filevignette)
-        vignettemap = tf_in.Get('normmap')
+        vignettemap = tf_in.Get('normmap_{det}'.format(det=det))
         xmax = vignettemap.GetXaxis().GetBinLowEdge(vignettemap.GetNbinsX()+1)
         rmax = xmax/math.sqrt(2)
         if int(xmax)==2048:
@@ -252,11 +253,11 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     if options.make == 'calcVignette':
-        run = 3930
-        pedfile = '../../analysis/pedestals/pedmap_run2109_rebin1.root'
+        run = 4117
+        pedfile = 'pedestals/pedmap_run4118_rebin1.root'
         ut = utils()
-        ut.calcVignettingMap(run,pedfile,"vignette_run%05d.root" % run,det='lemon',rebin=8,maxImages=1000)
+        ut.calcVignettingMap(run,pedfile,"vignette_run%05d.root" % run,det='lime',rebin=8,maxImages=1000)
 
     if options.make == 'vignette1d':
         ut = utils()
-        ut.getVignette1D('vignette_run03930.root')
+        ut.getVignette1D('vignette_run04117.root')
