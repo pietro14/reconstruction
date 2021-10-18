@@ -15,6 +15,8 @@
 (4151,4158) :   4151, # 13.04.21 LIME Test Fe VGem1 scan pos 26cm
 (4374,4383) :   4374, # X rays variable energy (200 ms)
 (4384,4391) :   4384, # X rays variable energy (50 ms)
+(4117,4118) :   4418, # 13/04 Lime RING FC test
+(4119,4190) :   4119, # 13/04 Lime Z-scan
 (4432,4469) :   4432, # Fe Vg1, Z scans, 30/07/2021
 (4470,4504) :   4470, # variable X-rays source
 }
