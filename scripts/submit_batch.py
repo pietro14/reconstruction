@@ -1,6 +1,7 @@
 #!/bin/env python
 # USAGE: python3.8 scripts/submit_batch.py $PWD "[3792-3796]" --outdir cosmics_1stset_261120 --dry-run
 # USAGE 2.0: python3.8 scripts/submit_batch.py $PWD "[4455-4456]" --outdir test_batch --mh 8 --nev 200 24 --dry-run
+# reading run list from a filem: python3.8 scripts/submit_batch.py $PWD datasets/lime_April2021.txt --outdir test_batch --mh 8 --nev 200 24 --dry-run
 # remove --dry-run to submit for real (otherwise only the scripts are created and commands are printed)
 
 jobstring  = '''#!/bin/bash
@@ -50,20 +51,27 @@ if __name__ == "__main__":
 
     nThreads = int(options.nthreads)
     runr = args[1]
-    p = re.compile('\[(\d+)-(\d+)\]')
-    m = p.match(runr)
     runs = []
-    if m:
-        minr=m.group(1); maxr=m.group(2)
-        if not str.isdigit(minr) or not str.isdigit(maxr):
-            raise RuntimeError ("not a good formatted run range: {rr}. Aborting.".format(rr=runr))
-        minr=int(minr); maxr=int(maxr)
-        if minr>maxr:
-            raise RuntimeError ("Warning: first run > end run: {rr}. Aborting.".format(rr=runr))
-        runs = list(range(minr,maxr+1))
-        print("Will run reconstruction on run range ",runs)
+    if os.path.exists(runr):
+        print("Opening the text file %s with run ranges to process "%runr)
+        f = open(runr, "r")
+        runs.append(exec(f.read()))
+    # if a simple run range with the format [minr-maxr] is given
     else:
-        raise RuntimeError ("not a good formatted run range string: {rr}. Aborting.".format(rr=runr))
+        p = re.compile('\[(\d+)-(\d+)\]')
+        m = p.match(runr)
+        if m:
+            minr=m.group(1); maxr=m.group(2)
+            if not str.isdigit(minr) or not str.isdigit(maxr):
+                raise RuntimeError ("not a good formatted run range: {rr}. Aborting.".format(rr=runr))
+            minr=int(minr); maxr=int(maxr)
+            if minr>maxr:
+                raise RuntimeError ("Warning: first run > end run: {rr}. Aborting.".format(rr=runr))
+            runs = list(range(minr,maxr+1))
+            print("Will run reconstruction on run range ",runs)
+        else:
+            raise RuntimeError ("not a good formatted run range string: {rr}. Aborting.".format(rr=runr))
+    print ("SUBMITTING JOBS ON RUN RANGE = ",runs)
 
     if not options.outdir:
         raise RuntimeError('ERROR: give at least an output directory. This is where the jobs configs and logs are stored')
