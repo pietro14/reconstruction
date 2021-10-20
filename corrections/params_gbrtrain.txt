@@ -1,11 +1,10 @@
 {
-'target'            : "sc_integral/9000.",
-'inputs'            : "sc_width/sc_length|sc_longrms|sc_latrms|sc_lfullrms|sc_tfullrms|sc_xmean|sc_ymean|sc_tgausssigma|sc_lgausssigma|TMath::Hypot(sc_xmean-1152,sc_ymean-1152)",
+'target'            : "sc_integral/3800.",
+'inputs'            : "sc_width/sc_length|sc_longrms|sc_latrms|sc_lfullrms|sc_tfullrms|sc_xmean|sc_ymean|sc_tgausssigma|sc_lgausssigma|TMath::Hypot(sc_xmean-1152,sc_ymean-1152)|sc_width|sc_length|sc_tgaussmean|sc_lgaussmean|sc_tgaussamp/sc_integral|sc_lgaussamp/sc_integral",
 
-'selection'         : 'run!=4433 && run!=4463 && sc_length<100 && sc_width/sc_length>0.6 && sc_integral/9000>0.3 && sc_integral/9000<1.5 && TMath::Hypot(sc_xmean-2304/2,sc_ymean-2304/2)<900'
-#'selection'         : 'sc_length<100 && sc_width/sc_length>0.6 && sc_integral/9000>0.3 && sc_integral/9000<1.7',
+'selection'         : '(run-4120)%8==0 && sc_length<100 && sc_width/sc_length>0.5 && sc_integral/3800>0.3 && sc_integral/3800<1.6 && TMath::Hypot(sc_xmean-2304/2,sc_ymean-2304/2)<1100 && sc_xmean>400',
 'tree_name'         : "Events",
-'n_estimators'      : 1500,
+'n_estimators'      : 1000,
 'max_depth'         : 6,
 'min_samples_split' : 4,
 'min_samples_leaf'  : 4,
