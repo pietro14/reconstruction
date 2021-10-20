@@ -103,9 +103,24 @@ class SnakesFactory:
 
         if self.options.debug_mode:
             if self.options.flag_dbscan_seeds:
+                #reading params of dbscan seeding
+                filePar = open('modules_config/clustering.txt','r')
+                params = eval(filePar.read())
+                seed_eps = params['dbscan_eps']
+                seed_mpts = params['dbscan_minsamples']
+                seed_metric = params['metric']
+                seed_mp = params['metric_params']
+                seed_algo = params['algorithm']
+                seed_ls = params['leaf_size']
+                seed_p = params['p']
+                seed_njobs = params['n_jobs']
+                
+                #starting the seed clustering for plot
                 time0 = time.perf_counter()
-                clusters_seeds = DBSCAN(eps=5.8,min_samples=30).fit(X, sample_weight = sample_weight)
-                print('[Plotting 1st iteration]')
+                clusters_seeds = DBSCAN(eps=seed_eps,min_samples=seed_mpts, metric=seed_metric, metric_params=seed_mp, algorithm=seed_algo, leaf_size=seed_ls, p=seed_p, n_jobs=seed_njobs).fit(X, sample_weight = sample_weight)
+                time_seeds = time.perf_counter()
+                print('DBSCAN time = ' + str(time_seeds - time0))
+                print('[Plotting dbscan seeding]')
      
                 import matplotlib.pyplot as plt            
                 clu = [X[clusters_seeds.labels_ == i] for i in range(len(set(clusters_seeds.labels_)) - (1 if -1 in clusters_seeds.labels_ else 0))]
@@ -120,7 +135,7 @@ class SnakesFactory:
                         colorpix[clu[j][:,0],clu[j][:,1]] = a
 
                     plt.imshow(colorpix,cmap='gray',origin='lower' )
-                    for ext in ['pdf']:
+                    for ext in ['png']:
                         plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='seeding', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
 
 
@@ -238,7 +253,7 @@ class SnakesFactory:
                     
                 plt.imshow(colorpix,cmap='gray',origin='lower' )
                 #for ext in ['png','pdf']:
-                for ext in ['pdf']:
+                for ext in ['png']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 #with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='0th',ext=ext,tip=self.options.tip), "wb") as fp:
                     #pickle.dump(fig, fp, protocol=4)
