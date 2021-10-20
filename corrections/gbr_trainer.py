@@ -115,7 +115,7 @@ class GBRLikelihoodTrainer:
 
         # MEAN SQUARE ERRORS REGRESSION
         print("===> Training mean square errors regression...")
-        reg_ls = ensemble.GradientBoostingRegressor(loss='ls',
+        reg_ls = ensemble.GradientBoostingRegressor(loss='squared_error',
                                                     **self.training_params)
         self.models_["mse"] = reg_ls.fit(X_train, y_train)
         mse = mean_squared_error(y_test, reg_ls.predict(X_test))
@@ -197,7 +197,7 @@ class GBRLikelihoodTrainer:
         c = getCanvas('c')
         hists = {}
         maxy=-1
-        for k in ['mse','q0.50']: #['mse','q0.05','q0.50','q0.95']:
+        for k in ['mse','q0.50']:
             filename = "{prefix}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),k=k)
             print("Sanity check of the saved GBR model in the output file ",filename)
             model = joblib.load(filename)
