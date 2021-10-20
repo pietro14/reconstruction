@@ -69,7 +69,7 @@ def ransac_polyfit(x,y,order,t,n=0.7,k=100,f=0.8):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=False):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=True):
     #Definitions
     #Beginning of the algorithm - DBSCAN check part
     label_num = 0
@@ -118,21 +118,38 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 print("==> cluster ",i," has ",sum(labels==label_num)," samples")
             x = data[labels==label_num][:,0]
             y = data[labels==label_num][:,1]
-            ransac = RANSACRegressor(PolynomialRegression(degree=3),
-                                     residual_threshold=3 * np.std(y),
-                                     random_state=0)
-            ransac.fit(np.expand_dims(x, axis=1), y)
-            #if (np.median(np.abs(y - np.median(y))) == 0):
-            #    ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
-            #    ransac.fit(np.expand_dims(x, axis=1), y)
-            #else:
-            #    ransac = RANSACRegressor(min_samples=0.8)
-            #    ransac.fit(np.expand_dims(x, axis=1), y)
+            #ransac = RANSACRegressor(PolynomialRegression(degree=3),
+            #                         residual_threshold=3 * np.std(y),
+            #                         random_state=0)
+            #ransac.fit(np.expand_dims(x, axis=1), y)
+            if (np.median(np.abs(y - np.median(y))) == 0):
+                ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
+                ransac.fit(np.expand_dims(x, axis=1), y)
+            else:
+                ransac = RANSACRegressor(min_samples=0.8)
+                ransac.fit(np.expand_dims(x, axis=1), y)
             
             accuracy = sum(ransac.inlier_mask_)/len(y)
             if debug:
                 print("-----> accuracy = ",accuracy)
+            
+            #rotation incremented
+            if accuracy < dir_min_accuracy:
+                x_rot = x * np.cos(np.pi/4) - (y * np.sin(np.pi/4))
+                y_rot = x * np.sin(np.pi/4) + (y * np.sin(np.pi/4)) 
+                
+                if (np.median(np.abs(y_rot - np.median(y_rot))) == 0):
+                    ransac = RANSACRegressor(min_samples=0.5, residual_threshold = 0.1)
+                    ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
+                else:
+                    ransac = RANSACRegressor(min_samples=0.5)
+                    ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
 
+                accuracy = sum(ransac.inlier_mask_)/len(y_rot)
+                
+                if debug:
+                    print("-----> accuracy after rotation = ",accuracy)
+   
             if accuracy > dir_min_accuracy:
                 clu_stra.append(label_num)
                 acc.append(accuracy)
