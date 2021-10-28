@@ -11,8 +11,8 @@
 'dir_minsamples'     : 20, ## N.B. this is always 2D, and it may differ from dbscan_minsamples (that can be Npix * intensity for 3D)
 'dir_thickness'      : 3.5,
 'time_threshold'     : 300, # seconds
-'max_attempts'       : 13,
-'isolation_radius'   : 10,
+'max_attempts'       : 9,
+'isolation_radius'   : 5,
 'metric'             : 'cityblock', # this is fundamental not to be "euclidean", in order not to merge close and long tracks
 'metric_params'      : None,
 'algorithm'          : 'auto',
