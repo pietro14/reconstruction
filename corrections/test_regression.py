@@ -343,5 +343,5 @@ if __name__ == '__main__':
     parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] ')
     (options, args) = parser.parse_args()
 
-    #makeResponseHistos(args[0],args[1])
+    makeResponseHistos(args[0],args[1])
     graphVsR("fit")
