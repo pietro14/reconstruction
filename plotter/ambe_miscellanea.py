@@ -205,7 +205,7 @@ def makeEff(f1,histo1,f2,histo2,f3=None,histo3=None,plotdir="./",xmax=31):
     
     ## add legend
     histos = [teffi,teffi2]
-    labels = ['#varepsilon_{B}^{total}=1%','#varepsilon_{B}^{total}=0.1%']
+    labels = ['#varepsilon_{B}^{total}=4%','#varepsilon_{B}^{total}=1%']
     styles = ['F','F']
     legend = doLegend(histos,labels,styles,corner='BR')
     #legend.Draw('same')
@@ -266,129 +266,7 @@ def compareROCs(f1,g1,f2,g2,plotdir):
     for ext in ['png','pdf']:
         c.SaveAs("{plotdir}/comp_roc.{ext}".format(plotdir=plotdir,ext=ext))
         
-def fitFeVsPosition(filename,outfile):
-
-    tf_out = ROOT.TFile(outfile,'recreate')
     
-    tf_in = ROOT.TFile(filename,'read')
-    tree = tf_in.Get('Events')
-    
-    presel = 'sc_length*0.152<10 && sc_width/sc_length>0.9'
-
-    xmax = 2304
-    binsize = 256
-    nbinsx = int(xmax/binsize)
-    cenb = int(nbinsx/2)+1
-    scaleMap = ROOT.TH2F('scale','',nbinsx,0,xmax,nbinsx,0,xmax)
-    scaleMap.GetXaxis().SetTitle('x')
-    scaleMap.GetYaxis().SetTitle('y')
-    resMap = scaleMap.Clone('res')
-
-    counts = ROOT.TH1F('counts','',24,0,5000)
-    counts.SetFillStyle(3005)
-    counts.SetMarkerStyle(ROOT.kFullCircle)
-    counts.SetMarkerSize(2)
-    counts.SetLineColor(ROOT.kBlack)
-    counts.SetMarkerColor(ROOT.kBlack)
-
-    for ix in range(nbinsx):
-        for iy in range(nbinsx):
-            hname = 'bin_ix{ix}_iy{iy}'.format(ix=ix,iy=iy)
-            print ("Fitting ",hname)
-            xlo = scaleMap.GetXaxis().GetBinLowEdge(ix+1)
-            xhi = xlo+binsize
-            ylo = scaleMap.GetYaxis().GetBinLowEdge(iy+1)
-            yhi = ylo+binsize
-            fullsel = '{pres} && sc_xmean>{xlo} && sc_xmean<{xhi} && sc_ymean>{ylo} && sc_ymean<{yhi}'.format(pres=presel,xlo=xlo,xhi=xhi,ylo=ylo,yhi=yhi)
-            #print ("Fullsel = ",fullsel)
-            hist = counts.Clone(hname)
-            tree.Draw("sc_integral>>{hname}".format(hname=hname),fullsel)
-            #print ("number of entries = ",hist.GetEntries())
-            nentries = hist.GetEntries()
-            if nentries>20:
-                if nentries<50:
-                    hist.Rebin(2)
-                mean = counts.GetMean()
-                rms  = counts.GetRMS()
-                f = ROOT.TF1('f','gaus',mean-rms,mean+rms) # there is the double-spot peak, skip it
-                f.SetParameter(1,mean);
-                f.SetParLimits(1,mean-rms,mean+rms);
-                f.SetParameter(2,rms/2.); # there is a tail
-                fitr_xmin = mean-rms/2.
-                fitr_xmax = mean+rms/2.
-                fitRe = hist.Fit(f,'SQ','',fitr_xmin,fitr_xmax)
-                rMean  = f.GetParameter(1); rMeanErr = f.GetParError(1)
-                rSigma = f.GetParameter(2); rSigmaErr = f.GetParError(1)
-                scaleMap.SetBinContent(iy+1,ix+1,rMean); scaleMap.SetBinError(iy+1,ix+1,rMeanErr)
-                resMap.SetBinContent(iy+1,ix+1,rSigma/rMean if rMean>0 else 0); resMap.SetBinError(iy+1,ix+1,rSigmaErr/rMean if rMean>0 else 0)
-                tf_out.cd()
-                hist.Write()
-            else:
-                scaleMap.SetBinContent(iy+1,ix+1,0)
-                resMap.SetBinContent(iy+1,ix+1,0)
-
-    print ("central bin = ",cenb)
-    normval = scaleMap.GetBinContent(cenb,cenb)
-    for ix in range(nbinsx):
-        for iy in range(nbinsx):
-            val = scaleMap.GetBinContent(iy+1,ix+1)
-            err = scaleMap.GetBinError(iy+1,ix+1)
-            scaleMap.SetBinContent(iy+1,ix+1,val/normval)
-            scaleMap.SetBinError(iy+1,ix+1,err/normval)
-
-    tf_out.cd()
-    scaleMap.Write()
-    resMap.Write()
-
-    ROOT.gStyle.SetPaintTextFormat("2.2f");
-
-    cScale = getCanvas('cscale')
-    scaleMap.SetMinimum(0.3)
-    scaleMap.SetMaximum(1.5)
-    scaleMap.Draw('colz')
-    scaleMap.Draw('texte same')
-    cScale.SaveAs(outfile.replace('.root','_scale.pdf'))
-    cScale.Write()
-    
-    cRes = getCanvas('cres')
-    resMap.SetMinimum(0.1)
-    resMap.SetMaximum(0.4)
-    resMap.Draw('colz')
-    resMap.Draw('texte same')
-    cRes.SaveAs(outfile.replace('.root','_resolution.pdf'))
-    cRes.Write()
-    
-    tf_out.Close()
-    tf_in.Close()
-            
-def fitIntegral(rfile,xmin,xmax,outfilename,hname='integral_diff'):
-    tf = ROOT.TFile.Open(rfile)
-    histo_sig = tf.Get(hname)
-    histo_sig.SetMarkerColor(ROOT.kBlack)
-    histo_sig.SetLineColor(ROOT.kBlack)
-    histo_sig.GetXaxis().SetTitle('cluster photons')
-    histo_sig.GetXaxis().SetTitleSize(0.05)
-    histo_sig.GetYaxis().SetTitle('superclusters (bkg subtracted)')
-    
-    c = getCanvas()
-    histo_sig.Draw("pe 1")
-
-    par = array( 'd', 3*[0.] )
-
-    g1 = ROOT.TF1("g1","gaus",xmin,xmax);
-    g1.SetLineColor(ROOT.kBlue+1)
-    histo_sig.Fit('g1','RS')
-    mean  = g1.GetParameter(1); mErr = g1.GetParError(1)
-    sigma = g1.GetParameter(2); sErr = g1.GetParError(2)
-    lat = ROOT.TLatex()
-    unit = 'counts'
-    ndigits = 0
-    lat.SetNDC(); lat.SetTextFont(42); lat.SetTextSize(0.03)
-    lat.DrawLatex(0.55, 0.70, "m_{{1}} = {m:.{nd}f} #pm {em:.{nd}f} {unit}".format(m=mean,em=mErr,unit=unit,nd=ndigits))
-    lat.DrawLatex(0.55, 0.65, "#sigma_{{1}} = {s:.{nd}f} #pm {es:.{nd}f} {unit}".format(s=sigma,es=sErr,unit=unit,nd=ndigits))
-
-    c.SaveAs(outfilename)
-    return [mean,mErr,sigma,sErr]
     
 ### this is meant to be run on top of ROOT files produced by simple_plots, not on the trees
 if __name__ == "__main__":
@@ -417,82 +295,15 @@ if __name__ == "__main__":
         #         'plots/ambe/clusters_3sourcesNloCalNeutrons_2020_05_05/'+var+'.root',           prefix+var,
         #         options.outdir)
         ## PAPER binning
-        # makeEff('plots/ambe/clusters_3sources_WP50Paper_2020_05_29/'+var+'.root',prefix+var,
-        #         'plots/ambe/clusters_3sources_FullSelPaper_2020_05_29/'+var+'.root',prefix+var,
-        #         'plots/ambe/clusters_3sources_WP40Paper_2020_05_29/'+var+'.root',prefix+var,
-        #         options.outdir)
-        ## LIME
-        makeEff('ambeplots/2021-03-29-ambeV6_cosmveto_WPbkg10em2/'+var+'.root',prefix+var,
-                'ambeplots/2021-03-29-ambeV6_cosmveto/'+var+'.root',prefix+var,
-                'ambeplots/2021-03-31-ambeV6_cosmveto_WPDNNbkg10em2/'+var+'.root',prefix+var,
+        makeEff('plots/ambe/clusters_3sources_WP50Paper_2020_05_29/'+var+'.root',prefix+var,
+                'plots/ambe/clusters_3sources_FullSelPaper_2020_05_29/'+var+'.root',prefix+var,
+                'plots/ambe/clusters_3sources_WP40Paper_2020_05_29/'+var+'.root',prefix+var,
                 options.outdir)
                 
     elif options.make == 'tworocs':
         compareROCs('plots/ambe/clusters_3sources_FullSelPaper_2020_05_29/density_roc.root','Graph',
                     'plots/ambe/clusters_3sources_FullSelAndPMTCutPaper_2020_05_29/density_roc.root','Graph',
                     options.outdir)
-    elif options.make == 'scalevspos':
-        fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v2/fe_lime.root','fe_novign.root')
-        fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v4/fe55_runs3686to3691_v4.root','fe_v4.root')
-        fitFeVsPosition('~/Work/data/cygnus/RECO/lime2020/v4/fe55_runs3686to3691_v4_OptVignetting.root','fe_v4_OptVignetting.root')
-
-    elif options.make == 'linearity':
-        #filepatt = 'ambeplots/2021-07-21-xrays-%s/integral.root'
-        filepatt = 'ambeplots/2021-10-12-xrays-%s/integral.root'
-        sources = ['Fe','Cu','Rb','Mo','Ag','Ba','Tb']
-        energies = [5.9,8,15,18,23.5,34.4,47]
-        files =  [filepatt%s for s in sources]
-        # old data
-        # ranges = [(5e3,1e4),(1e4,1.5e4),(1.3e4,2e4),(1.5e4,3e4),(2.5e4,4e4)]
-        # July 2021 data
-        ranges = [(8e3,1.2e4),(1e4,1.4e4),(1.7e4,2.5e4),(1.8e4,2.9e4),(2.2e4,3.8e4),(4e4,6.2e4),(5.2e4,8.0e4)]
-        pars = []
-        for i,f in enumerate(files):
-            pars.append(fitIntegral(f,ranges[i][0],ranges[i][1],sources[i]+'.pdf',hname='integral_diff'))
-
-        resp = ROOT.TGraphErrors(len(sources))
-        reso = ROOT.TGraphErrors(len(sources))
-        for i in range(len(sources)):
-            resp.SetPoint(i,energies[i],pars[i][0])
-            resp.SetPointError(i,0,pars[i][1])
-            reso.SetPoint(i,energies[i],100*pars[i][2]/pars[i][0])
-            reso.SetPointError(i,0,100*pars[i][3]/pars[i][0])
-
-
-        ## response linearity
-        c = getCanvas()
-        resp.SetTitle('')
-        resp.Draw("AP")
-        resp.SetMarkerStyle(ROOT.kFullCircle)
-        resp.SetMarkerSize(2)
-        resp.GetXaxis().SetLimits(0,50)
-        resp.GetXaxis().SetTitle("Energy (keV)")
-        resp.GetYaxis().SetLimits(0,8e4)
-        resp.GetYaxis().SetRangeUser(0,8e4)
-        resp.GetYaxis().SetTitle("Cluster integral (counts)")
-
-        resp.Fit("pol1")
-        
-        line = ROOT.TLine(0,0,50,50*30105/23.5) # Calibration from Ag
-        line.SetLineColor(ROOT.kBlue)
-        line.SetLineStyle(ROOT.kDashed)
-        line.Draw()
-        
-        c.SaveAs("linearity.pdf")
-
-        # energy resolution
-        c = getCanvas()
-        reso.SetTitle('')
-        reso.Draw("AP")
-        reso.SetMarkerStyle(ROOT.kFullCircle)
-        reso.SetMarkerSize(2)
-        reso.GetXaxis().SetLimits(0,50)
-        reso.GetXaxis().SetTitle("Energy (keV)")
-        reso.GetYaxis().SetLimits(0,30)
-        reso.GetYaxis().SetRangeUser(0,30)
-        reso.GetYaxis().SetTitle("#delta E/E (%)")        
-        c.SaveAs("resolution.pdf")
-
         
     else:
         print ("make ",options.make," not implemented.")

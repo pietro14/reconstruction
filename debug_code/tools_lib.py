@@ -67,7 +67,7 @@ def noisereductor(edges,rescale,meancut=0.35):
             if np.abs(spx - mpx) > tpx :
                 edges[i,j] = mpx
             # filter the pixels with no sufficient energy around
-            if (mpx < meancut):
+            if (mpx < 0.35):
                 edges[i,j] = 0
             # require at least two neighbors above threshold
             neighbors = len(frame[frame>0])

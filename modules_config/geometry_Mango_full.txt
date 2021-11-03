@@ -1,0 +1,7 @@
+{
+# MANGO_FULL
+'name'        : 'Mango_full',
+'pixelwidth'  : 0.049,  # mm
+'npixx'       : 2304,
+'vignette'    : 'data/vignette_runs03930to03932.root',
+}
