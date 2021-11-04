@@ -120,7 +120,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             y = data[labels==label_num][:,1]
             ransac = RANSACRegressor(PolynomialRegression(degree=3),
                                      residual_threshold=3 * np.std(y),
-                                     random_state=0)
+                                     random_state=0,min_samples=min_samples)
             ransac.fit(np.expand_dims(x, axis=1), y)
             #if (np.median(np.abs(y - np.median(y))) == 0):
             #    ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
