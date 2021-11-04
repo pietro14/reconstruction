@@ -16,3 +16,5 @@ __init__.py
 *#
 *.bak
 *.ipynb_checkpoints/
+*.out
+*.exe

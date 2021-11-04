@@ -126,24 +126,7 @@ int main(int argc, char** argv){
   {
     tree->GetEntry(k);
     cout << "Nev: "<< k << endl;
-    /*tree->GetEntry(4);
-    ////////////////test
-    cout<<"Event "<<event<<endl;
-    cout<<"nSc "<<nSc<<endl;
-    cout<<"ScNpixels "<<endl;
-    for(int i=0;i<15;i++) cout<<ScNpixels[i]<<" ";
-    cout<<"\nsc_ID "<<endl;
-    for(int i=0;i<4000;i++) cout<<scID[i]<<" ";
-    cout<<"\nxpixel "<<endl;
-    for(int i=0;i<4000;i++) cout<<XPix[i]<<" ";
-    cout<<"\nypixel "<<endl;
-    for(int i=0;i<4000;i++) cout<<YPix[i]<<" ";
-    cout<<"\nzpixel "<<endl;
-    for(int i=0;i<4000;i++) cout<<ZPix[i]<<" ";
-    cout<<"\n";
-    return 0;
-    ////////////////test
-    */
+   
     ScIndicesElem(nSc,ScNpixels,&BeginScPix,&EndScPix);
     ScIndicesElem(nSc,ScNpixelsall,&BeginScallPix,&EndScallPix);
 	
