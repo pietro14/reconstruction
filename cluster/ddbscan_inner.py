@@ -69,7 +69,7 @@ def ransac_polyfit(x,y,order,t,n=0.7,k=100,f=0.8):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=True):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=False):
     #Definitions
     #Beginning of the algorithm - DBSCAN check part
     label_num = 0
