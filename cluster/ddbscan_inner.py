@@ -69,7 +69,7 @@ def ransac_polyfit(x,y,order,t,n=0.7,k=100,f=0.8):
 # k - Number of tries 
 # f - Accuracy of the RANSAC to consider the fit a good one
 
-def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=False):
+def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radius, dir_min_accuracy, dir_minsamples, dir_thickness, time_threshold, max_attempts, isolation_radius, expand_noncore, debug=True):
     #Definitions
     #Beginning of the algorithm - DBSCAN check part
     label_num = 0
@@ -118,21 +118,40 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 print("==> cluster ",i," has ",sum(labels==label_num)," samples")
             x = data[labels==label_num][:,0]
             y = data[labels==label_num][:,1]
-            ransac = RANSACRegressor(PolynomialRegression(degree=3),
-                                     residual_threshold=3 * np.std(y),
-                                     random_state=0)
-            ransac.fit(np.expand_dims(x, axis=1), y)
-            #if (np.median(np.abs(y - np.median(y))) == 0):
-            #    ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
-            #    ransac.fit(np.expand_dims(x, axis=1), y)
-            #else:
-            #    ransac = RANSACRegressor(min_samples=0.8)
-            #    ransac.fit(np.expand_dims(x, axis=1), y)
+            #ransac = RANSACRegressor(PolynomialRegression(degree=3),
+            #                         residual_threshold=3 * np.std(y),
+            #                         random_state=0)
+            #ransac.fit(np.expand_dims(x, axis=1), y)
+            if (np.median(np.abs(y - np.median(y))) == 0):
+                ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.3)
+                ransac.fit(np.expand_dims(x, axis=1), y)
+            else:
+                ransac = RANSACRegressor(min_samples=0.8)
+                ransac.fit(np.expand_dims(x, axis=1), y)
             
             accuracy = sum(ransac.inlier_mask_)/len(y)
             if debug:
                 print("-----> accuracy = ",accuracy)
+            
+            #rotation incremented
+            if accuracy < dir_min_accuracy:
+                x_rot = x * np.cos(np.pi/4) - (y * np.sin(np.pi/4))
+                y_rot = x * np.sin(np.pi/4) + (y * np.sin(np.pi/4)) 
+                
+                if (np.median(np.abs(y_rot - np.median(y_rot))) == 0):
+                    ransac = RANSACRegressor(min_samples=0.5, residual_threshold = 0.3)
+                    ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
+                else:
+                    ransac = RANSACRegressor(min_samples=0.5)
+                    ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
 
+                accuracy = sum(ransac.inlier_mask_)/len(y_rot)
+                
+                if debug:
+                    print("-----> accuracy after rotation = ",accuracy)
+            
+            #end of rotation teste
+            
             if accuracy > dir_min_accuracy:
                 clu_stra.append(label_num)
                 acc.append(accuracy)
@@ -140,16 +159,18 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 clu_labels.append(label_num)
         label_num += 1
         
-    
+    t2_seeding = time.time()
     #End of DBSCAN loop - check if directional part is viable
     if debug:
+        print("ransac tests took... ",t2_seeding-ddbsc_t1)
         print("Clusters found in DBSCAN: %d" %(len(set(labels)) - (1 if -1 in labels else 0)))
-
+        
     if len(clu_stra) == 0:
         #If no cluster has a good fit model, the output will be the same of the DBSCAN
         la_aux = np.copy(labels)
         labels = np.zeros([la_aux.shape[0],2], dtype=np.intp)
         labels[:,0] = la_aux
+        print("Clustering ends at DBSCAN seeding")
         return labels
     else:
         #If any cluster has a good fit model, it'll be marked from the worst fitted cluster to the best, each of them respecting the accuracy threshold
@@ -359,6 +380,9 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             distances, isol_neigh_indices = neigh.kneighbors(data[noise_indexes], 1, return_distance=True)
         else:
             distances = np.full(len(noise_indexes),isolation_radius+1)
+        #removing the points close to polynomials from next clustering
+        labels[noise_indexes[np.where(distances < isolation_radius)[0]]] = len(data)
+        
         nt2 = time.time()
         if debug:
             print ("neighbs done in ",nt2-nt1," secs")
@@ -372,17 +396,10 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                     labels[i] = label_num
                     if is_core[i]:     #Only core points are expanded
                         neighb = neighborhoods[i]
-                        for j in range(neighb.shape[0]-1,-1,-1):
+                        for j in range(neighb.shape[0]):
                             v = neighb[j]
-                            if labels[v] != -1:
-                                del v
-                            else:
-                                index = np.where(noise_indexes==v)[0][0]
-                                dist_closest_clustered = distances[index]
-                                if dist_closest_clustered < isolation_radius:
-                                    del v
-                                else:
-                                    stack.append(v)
+                            if labels[v] == -1:
+                                stack.append(v)
 
                 if len(stack) == 0:
                     break
@@ -407,7 +424,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         la_aux = np.copy(labels)
         labels = np.zeros([la_aux.shape[0],2], dtype=np.intp)
         labels[:,0] = la_aux
-        labels[poly_clusters,1] = 1
+        poly_clusters_indexes = [i for i in range(len(la_aux)) if la_aux[i] in poly_clusters]
+        labels[poly_clusters_indexes,1] = 1
         
         
         if debug:
