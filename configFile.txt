@@ -27,8 +27,8 @@
 
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
-'rebin'                 : 6,
-'nsigma'                : 1.3,
+'rebin'                 : 4,
+'nsigma'                : 1.2,
 'cimax'                 : 5000,                    # Upper threshold (keep very high not to kill large signals)
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
@@ -36,8 +36,8 @@
 'tag'                   : 'Data',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
 'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
 
-'excImages'             : list(range(5))+[],       # To exlude some images of the analysis. Always exclude the first 5 which are messy
-'min_neighbors_average' : 0.55,                    # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
+'excImages'             : list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy
+'min_neighbors_average' : 0.75,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
 
 

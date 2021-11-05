@@ -108,14 +108,14 @@ class GBRLikelihoodTrainer:
         y = conc[:,0]
         return X,y
 
-    def train_model(self,X,y):
+    def train_model(self,X,y,options):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=13)
 
         self.models_ = {}
 
         # MEAN SQUARE ERRORS REGRESSION
         print("===> Training mean square errors regression...")
-        reg_ls = ensemble.GradientBoostingRegressor(loss='ls',
+        reg_ls = ensemble.GradientBoostingRegressor(loss='squared_error',
                                                     **self.training_params)
         self.models_["mse"] = reg_ls.fit(X_train, y_train)
         mse = mean_squared_error(y_test, reg_ls.predict(X_test))
@@ -123,7 +123,8 @@ class GBRLikelihoodTrainer:
 
         # QUANTILE REGRESSION
         print("===> Now training quantiles regression...")
-        for alpha in [0.05, 0.5, 0.95]:
+        alphas = [] if options.cvOnly==True else [0.05, 0.5, 0.95]
+        for alpha in alphas:
             print("\t### Quantile = ",alpha)
             reg = ensemble.GradientBoostingRegressor(loss='quantile', alpha=alpha,
                                                      **self.training_params)
@@ -197,7 +198,7 @@ class GBRLikelihoodTrainer:
         c = getCanvas('c')
         hists = {}
         maxy=-1
-        for k in ['mse','q0.50']: #['mse','q0.05','q0.50','q0.95']:
+        for k in ['mse','q0.50']:
             filename = "{prefix}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),k=k)
             print("Sanity check of the saved GBR model in the output file ",filename)
             model = joblib.load(filename)
@@ -241,6 +242,7 @@ if __name__ == '__main__':
     parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] ')
     parser.add_option('-o', '--outname', dest='outname', default='gbrLikelihood', type='string', help='prefix for the output name of the regression models')
     parser.add_option('-a', '--apply-only', dest='applyOnly', action='store_true', default=False,  help='only apply regression on saved models and the data of the input file. Do not train')
+    parser.add_option('--cv', '--central-value-only', dest='cvOnly', action='store_true', default=False,  help='Train only the central value regression, not the uncertainties.')
     (options, args) = parser.parse_args()
 
     recofile = args[0]
@@ -252,7 +254,7 @@ if __name__ == '__main__':
         X,y = GBR.get_dataset(recofile)
         print("Dataset loaded from file ",args[0], " Now train the model.")
     
-        GBR.train_model(X,y)
+        GBR.train_model(X,y,options)
         print("GBR likelihood computed. Now plot results and control plots")
     
         GBR.plot_training()

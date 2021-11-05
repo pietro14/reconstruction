@@ -26,7 +26,7 @@ def prepare_jobpack(jobdir,logdir,workdir,cmd,ijob=0):
     tmp_filecont = tmp_filecont.replace('CYGNOBASE',workdir+'/')
     tmp_file.write(tmp_filecont)
     tmp_file.close()
-    sub_cmd = 'qsub -q {queue} -l {ssd}ncpus={nt},mem={ram}mb -d {dpath} -e localhost:{logf} -o localhost:{logf} {jobf}'.format(dpath=workdir,logf=log_file_name,jobf=job_file_name,nt=nThreads,ram=RAM,ssd=ssdcache_opt,queue=options.queue)
+    sub_cmd = 'qsub -q {queue} -l {ssd}ncpus={nt},mem={ram}mb -d {dpath} -e localhost:{logf} -o localhost:{logf} -j oe {jobf}'.format(dpath=workdir,logf=log_file_name,jobf=job_file_name,nt=nThreads,ram=RAM,ssd=ssdcache_opt,queue=options.queue)
     return sub_cmd
 
 if __name__ == "__main__":
@@ -105,7 +105,6 @@ if __name__ == "__main__":
             (totEv,evPerJob) = options.eventChunks
             print ("Preparing jobs for run {r}. The task subdivides a total of {nT} events in chunks of {nJ} events per job.".format(r=run,nT=totEv,nJ=evPerJob))
             for ij,firstEvent in enumerate(range(0,totEv,evPerJob)):
-                
                 print ("Will submit job #{ij}, processing event range: [{fev}-{lev}]".format(ij=ij,fev=firstEvent,lev=min(firstEvent+evPerJob,totEv)))
                 cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -o reco_job{ijob} --first-event {fev} --max-entries {me} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt,fev=firstEvent,me=evPerJob,ijob=ij)
                 sub_cmd = prepare_jobpack(jobdir,logdir,abswpath,cmd,ij)

@@ -9,18 +9,28 @@ import math, joblib
 # map run - z distance
 #          no source        8.7       8.4        8.1k       5k
 #runs = {4433: 50, 4441: 46, 4448: 36, 4455: 26, 4463: 6}
-runs = {4441: 46, 4448: 36, 4455: 26}
+#runs = {4441: 46, 4448: 36, 4455: 26}
+runs = {4120: 46,
+        4128: 41,
+        4136: 36,
+        4144: 31,
+        4152: 26,
+        4160: 21,
+        4168: 16,
+        4176: 11,
+        4184: 6.5}
+
 
 def response_vsrun(inputfile,params,runN):
     params['selection'] = "({sel}) && run=={run}".format(sel=params['selection'],run=runN)
     print ("New selection SEL = {sel}".format(sel=params['selection']))
     GBR = GBRLikelihoodTrainer(params)
     X,y = GBR.get_dataset(inputfile)
-    filename = "gbrLikelihood_q0.50.sav"
+    filename = "gbrLikelihood_mse.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
 
-    h = ROOT.TH1F('h','',200,0,2)
+    h = ROOT.TH1F('h','',400,0,2)
     histos = {}
 
     histos['uncorr'] = h.Clone('h_uncorr')
@@ -125,25 +135,109 @@ def response2D(inputfile,params):
     # energy_1Ds['uncorr'].Draw("pe1")
     # energy_1Ds['regr'].Draw("pe1 same")
     # c.SaveAs("energy_1D.png")
-        
-    
-if __name__ == '__main__':
 
-    from optparse import OptionParser
-    parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] ')
-    (options, args) = parser.parse_args()
-
-    config = open(args[1], "r")
+def makeResponseHistos(treeFile,params_txt,outfileHistos="response_histos.root"):
+    outfile = ROOT.TFile.Open(outfileHistos,"recreate")
+    config = open(params_txt, "r")
     params = eval(config.read())
     config.close()
-    response2D(args[0],params)
+    response2D(treeFile,params)
+    outfile.cd()
+    for i,v in enumerate(runs.items()):
+        config = open(args[1], "r")
+        params = eval(config.read()) # re-read to reload run
+        config.close()
+        run,dist = v
+        print("filling graph with point ",i," and run = ",run," corresponding to distance ",dist)
+        histos = response_vsrun(args[0],params,run)
+        for ih,h in enumerate(histos):
+            h.Draw("hist")
+            suff = 'uncorr' if ih==0 else 'regr'
+            name = "resp_{suf}_{dist}".format(suf=suff,dist=dist)
+            h.SetName(name)
+            outfile.cd()
+            h.Write()                        
+    outfile.Close()
 
-    c = getCanvas('c')
+def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,color=ROOT.kRed+1):
+
+    histo.Rebin(rebin)
+    work = ROOT.RooWorkspace()
+    work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.7,1.4],sigma[0.05,0.1,0.30],alpha[1,0.1,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
+    work.Print()
+    
+    x = work.var('x')
+
+    histoname = histo.GetName()
+    rooData = ROOT.RooDataHist(histoname,histoname,ROOT.RooArgList(work.var("x")),histo)
+    getattr(work,'import')(rooData)
+
+    frame = x.frame()
+    frame.SetTitle('')
+
+    # fit histogram
+    rooData.plotOn(frame,ROOT.RooFit.MarkerStyle(marker))
+    pdf = work.pdf('cb')
+    pdf.fitTo(rooData,ROOT.RooFit.Save())#,ROOT.RooFit.PrintLevel(-1))
+    pdf.plotOn(frame,ROOT.RooFit.LineColor(color))
+    rooData.plotOn(frame,ROOT.RooFit.MarkerStyle(marker))
+
+    frame.GetYaxis().SetTitle("superclusters")
+    frame.GetXaxis().SetTitle("E/E^{raw}_{peak}")
+    frame.GetXaxis().SetTitleOffset(1.2)
+    
+    m = work.var('mean').getVal()
+    s = work.var('sigma').getVal()
+
+    em = work.var('mean').getError()
+    es = work.var('sigma').getError()
+
+    return (frame,m,s,em,es)
+
+def fitAllResponses(inputfile="response_histos.root"):
+
+    limits = {6.5 : (0.3,1.3),
+              11  : (0.3,1.5),
+              16  : (0.3,1.5),
+              21  : (0.3,1.6),
+              26  : (0.3,1.6),
+              31  : (0.3,1.5),
+              36  : (0.3,1.5),
+              41  : (0.3,1.5),
+              46  : (0.3,1.4),
+              }
+
+    results = {}
+    tf = ROOT.TFile(inputfile,"read")
+    for i,v in enumerate(runs.items()):
+        run,dist = v
+        c = getCanvas()
+        for corr in ["regr","uncorr"]:
+            hname = "resp_{corr}_{dist}".format(corr=corr,dist=dist)
+            histo = tf.Get(hname)
+            if corr=="uncorr":
+                marker = ROOT.kOpenSquare
+                linecol = ROOT.kRed+2
+            else:
+                marker = ROOT.kFullCircle
+                linecol = ROOT.kBlue
+            (frame,mean,sigma,meanerr,sigmaerr)=fitResponseHisto(histo,limits[dist][0],limits[dist][1],8,marker,linecol)
+            frame.Draw("same")
+            results[(corr,dist)] = (mean,sigma,meanerr,sigmaerr)
+        for ext in ['pdf','png']:
+            c.SaveAs('respcomp_{dist}_fit.{ext}'.format(dist=dist,ext=ext))
+    return results
+
+def graphVsR(typeInput='histo',histoFile="response_histos.root"):
+
 
     resp_vs_z_uncorr = ROOT.TGraphErrors(len(runs))
     reso_vs_z_uncorr = ROOT.TGraph(len(runs))
     resp_vs_z_regr = ROOT.TGraphErrors(len(runs))
     reso_vs_z_regr = ROOT.TGraph(len(runs))
+
+    reso_vs_z_uncorr_fullrms = ROOT.TGraph(len(runs))
+    reso_vs_z_regr_fullrms = ROOT.TGraph(len(runs))
 
     resp_vs_z_uncorr.GetXaxis().SetTitle("z (cm)")
     resp_vs_z_uncorr.GetYaxis().SetTitle("E/E^{peak}")
@@ -153,22 +247,45 @@ if __name__ == '__main__':
     reso_vs_z_uncorr.GetYaxis().SetTitle("E/E^{peak} resolution")
     reso_vs_z_uncorr.SetTitle("")
 
-    for i,v in enumerate(runs.items()):
-        config = open(args[1], "r")
-        params = eval(config.read()) # re-read to reload run
-        config.close()
-        run,dist = v
-        print("filling graph with point ",i," and run = ",run," corresponding to distance ",dist)
-        histos = response_vsrun(args[0],params,run)
+    if typeInput=="histo":
+        tf = ROOT.TFile(histoFile,"read")
+        for i,v in enumerate(runs.items()):
+            run,dist = v
+            huncorr = tf.Get("resp_uncorr_{dist}".format(dist=dist))
+            hregr   = tf.Get("resp_regr_{dist}".format(dist=dist))
+            resp_vs_z_uncorr.SetPoint(i,dist,huncorr.GetMean())
+            resp_vs_z_uncorr.SetPointError(i,0,huncorr.GetMeanError())
 
-        resp_vs_z_uncorr.SetPoint(i,dist,histos[0].GetXaxis().GetBinCenter(histos[0].GetMaximumBin()))
-        resp_vs_z_uncorr.SetPointError(i,0,histos[0].GetXaxis().GetBinWidth(histos[0].GetMaximumBin()))
-
-        resp_vs_z_regr.SetPoint(i,dist,histos[1].GetXaxis().GetBinCenter(histos[1].GetMaximumBin()))
-        resp_vs_z_regr.SetPointError(i,0,histos[0].GetXaxis().GetBinWidth(histos[1].GetMaximumBin()))
+            resp_vs_z_regr.SetPoint(i,dist,hregr.GetMean())
+            resp_vs_z_regr.SetPointError(i,0,hregr.GetMeanError())
         
-        reso_vs_z_uncorr.SetPoint(i,dist,histos[0].GetRMS())
-        reso_vs_z_regr.SetPoint(i,dist,histos[1].GetRMS())
+            reso_vs_z_uncorr.SetPoint(i,dist,huncorr.GetRMS()/huncorr.GetMean())
+            reso_vs_z_regr.SetPoint(i,dist,hregr.GetRMS()/hregr.GetMean())
+        tf.Close()
+
+    elif typeInput=="fit":
+        results = fitAllResponses()
+        tf = ROOT.TFile(histoFile,"read")
+        for i,v in enumerate(runs.items()):
+            run,dist = v
+
+            mean,sigma,meanerr,sigmaerr = results[('uncorr',dist)]
+            resp_vs_z_uncorr.SetPoint(i,dist,mean)
+            resp_vs_z_uncorr.SetPointError(i,0,meanerr)
+            reso_vs_z_uncorr.SetPoint(i,dist,sigma/mean)
+
+            mean,sigma,meanerr,sigmaerr = results[('regr',dist)]
+            resp_vs_z_regr.SetPoint(i,dist,mean)
+            resp_vs_z_regr.SetPointError(i,0,meanerr)
+            reso_vs_z_regr.SetPoint(i,dist,sigma/mean)
+
+            huncorr = tf.Get("resp_uncorr_{dist}".format(dist=dist))
+            hregr   = tf.Get("resp_regr_{dist}".format(dist=dist))
+            reso_vs_z_uncorr_fullrms.SetPoint(i,dist,huncorr.GetRMS()/huncorr.GetMean())
+            reso_vs_z_regr_fullrms.SetPoint(i,dist,hregr.GetRMS()/hregr.GetMean())
+        tf.Close()
+
+    c = getCanvas('c')
 
     # response
     resp_vs_z_uncorr.SetMarkerStyle(ROOT.kFullCircle)
@@ -179,22 +296,16 @@ if __name__ == '__main__':
     resp_vs_z_uncorr.SetLineColor(ROOT.kRed)
     resp_vs_z_regr.SetMarkerColor(ROOT.kBlack)
     resp_vs_z_uncorr.Draw("Ape")
-    resp_vs_z_uncorr.Fit("pol1")
     resp_vs_z_regr.Draw("pe")
-    resp_vs_z_regr.Fit("pol1")
 
     responses = [resp_vs_z_uncorr,resp_vs_z_regr]
     titles = ['uncorrected','regression']
     styles = ['pl','pl']
     
-    f = resp_vs_z_regr.GetListOfFunctions().FindObject("pol1")
-    if f!=None:
-        f.SetLineColor(ROOT.kBlack)
-        f.SetLineWidth(3)
-        f.SetLineStyle(2)
-    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.8,1.2)
+    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.85,1.3)
     legend = doLegend(responses,titles,styles,corner="TL")    
-    c.SaveAs("response.png")
+    for ext in ['pdf','png']:
+        c.SaveAs("response.%s"%ext)
 
     # resolution
     reso_vs_z_uncorr.SetMarkerStyle(ROOT.kFullCircle)
@@ -205,7 +316,32 @@ if __name__ == '__main__':
     reso_vs_z_regr.SetMarkerSize(2)
     reso_vs_z_uncorr.Draw("Ape")
     reso_vs_z_regr.Draw("pe")
-    reso_vs_z_uncorr.GetYaxis().SetRangeUser(0.10,0.25)
-    legend = doLegend(responses,titles,styles,corner="TL")
+    legCols = 1
+    if typeInput=='fit':
+        reso_vs_z_uncorr_fullrms.SetMarkerStyle(ROOT.kOpenSquare)
+        reso_vs_z_regr_fullrms.SetMarkerStyle(ROOT.kOpenSquare)
+        reso_vs_z_uncorr_fullrms.SetMarkerColor(ROOT.kRed)
+        reso_vs_z_regr_fullrms.SetMarkerColor(ROOT.kBlack)
+        reso_vs_z_uncorr_fullrms.SetMarkerSize(2)
+        reso_vs_z_regr_fullrms.SetMarkerSize(2)
+        responses = [resp_vs_z_uncorr,resp_vs_z_regr,reso_vs_z_uncorr_fullrms,reso_vs_z_regr_fullrms]
+        titles = ['uncorrected (#sigma_{G})','regression (#sigma_{G})','uncorrected (rms)','regression (rms)']
+        styles = ['pl','pl','pl','pl']
+        reso_vs_z_uncorr_fullrms.Draw("pe")
+        reso_vs_z_regr_fullrms.Draw("pe")
+        legCols=2
+        
+    reso_vs_z_uncorr.GetYaxis().SetRangeUser(0.05,0.4)
+    legend = doLegend(responses,titles,styles,corner="TL",textSize=0.03,legWidth=0.8,nColumns=legCols)
+    for ext in ['pdf','png']:
+        c.SaveAs("resolution.%s"%ext)
 
-    c.SaveAs("resolution.png")
+            
+if __name__ == '__main__':
+
+    from optparse import OptionParser
+    parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] ')
+    (options, args) = parser.parse_args()
+
+    makeResponseHistos(args[0],args[1])
+    graphVsR("fit")
