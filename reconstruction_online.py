@@ -87,9 +87,27 @@ class analysis:
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
         self.outTree.branch("pedestal_run", "I")
+        if self.options.Save_MC_data:
+#            self.outTree.branch("MC_track_len","F")
+            self.outTree.branch("eventnumber","I")
+            self.outTree.branch("particle_type","I")
+            self.outTree.branch("energy","F")
+            self.outTree.branch("ioniz_energy","F")
+            self.outTree.branch("drift","F")
+            self.outTree.branch("phi_initial","F")
+            self.outTree.branch("theta_initial","F")
+            self.outTree.branch("MC_x_vertex","F")
+            self.outTree.branch("MC_y_vertex","F")
+            self.outTree.branch("MC_z_vertex","F")
+            self.outTree.branch("MC_x_vertex_end","F")
+            self.outTree.branch("MC_y_vertex_end","F")
+            self.outTree.branch("MC_z_vertex_end","F")
+            self.outTree.branch("MC_3D_pathlength","F")
+            self.outTree.branch("MC_2D_pathlength","F")
+
         if self.options.camera_mode:
             self.autotree.createCameraVariables()
-            self.autotree.createClusterVariables('cl')
+        #    self.autotree.createClusterVariables('cl')
             self.autotree.createClusterVariables('sc')
         #if self.options.pmt_mode:
         #    self.autotree.createPMTVariables()
@@ -100,7 +118,7 @@ class analysis:
         
     def getNEvents(self):
         tf = ROOT.TFile.Open(self.tmpname)
-        ret = int(len(tf.GetListOfKeys())/4) if (self.options.daq=='midas' and self.options.pmt_mode) else len(tf.GetListOfKeys())
+        ret = int(len(tf.GetListOfKeys())/(options.waveform_number+1)) if (self.options.daq=='midas' and self.options.pmt_mode) else len(tf.GetListOfKeys())
         tf.Close()
         return ret
 
@@ -123,7 +141,7 @@ class analysis:
         # first calculate the mean 
         numev = 0
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/4 # when PMT is present
+            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/(options.waveform_number+1) # when PMT is present
             if iev in self.options.excImages: continue
             if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
             
@@ -144,7 +162,7 @@ class analysis:
         numev=0
         pedsqdiff = np.zeros((nx,ny))
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/4 # when PMT is present
+            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/(options.waveform_number+1) # when PMT is present
             if iev in self.options.excImages: continue
             if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
             
@@ -198,7 +216,7 @@ class analysis:
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            iev = int(iobj/4) if self.options.daq == 'midas' and self.options.pmt_mode else iobj
+            iev = int(iobj/(options.waveform_number+1)) if self.options.daq == 'midas' and self.options.pmt_mode else iobj
             #print("max entries = ",self.options.maxEntries)
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
@@ -229,6 +247,25 @@ class analysis:
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
                 self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
+                if self.options.Save_MC_data:
+                    mc_tree = tf.Get('event_info/info_tree')
+                    mc_tree.GetEntry(event)
+#                    self.outTree.fillBranch("MC_track_len",mc_tree.MC_track_len)
+                    self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
+                    self.outTree.fillBranch("particle_type",mc_tree.particle_type)
+                    self.outTree.fillBranch("energy",mc_tree.energy_ini)
+                    self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
+                    self.outTree.fillBranch("drift",mc_tree.drift)
+                    self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
+                    self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
+                    self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
+                    self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
+                    self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
+                    self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
+                    self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
+                    self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
+                    self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
+                    self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
 
             if self.options.camera_mode:
                 if obj.InheritsFrom('TH2'):
@@ -292,7 +329,7 @@ class analysis:
             if (self.options.daq == 'midas' and self.options.pmt_mode):
                 #if obj.InheritsFrom('TGraph'):			#works only if you have one waveform
                 nome = obj.GetName()
-                if "ch8" in nome:			#if you have mesh as last waveform use "mesh"
+                if "ch8" in nome:			#if you have mesh as last waveform use "mesh" or "wfm".. look first at the data
                     self.outTree.fill()
             else:
                 self.outTree.fill()

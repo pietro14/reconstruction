@@ -1,4 +1,4 @@
-//This in particular compile using  g++ Analyzer.cxx Base_script.cxx -o nameprog `root-config --libs --cflags`
+//This in particular compile using  g++ Analyzer.cxx Base_script.cxx -o nameprog `root-config --libs --cflags` -lSpectrum
 //Then use as ./nameprog path_to_rootfile
 
 #include <iostream>

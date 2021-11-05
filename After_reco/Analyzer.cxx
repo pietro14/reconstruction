@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cmath>
+#include <vector>
 #include <Riostream.h>
 #include <TFile.h>
 #include "Analyzer.h"
@@ -10,6 +11,7 @@
 #include <TCanvas.h>
 #include <TGraph.h>
 #include <TLegend.h>
+#include <TSpectrum.h>
 
 
 double RMSOnLine(double XBar, double YBar, double Phi);
@@ -856,4 +858,224 @@ void Analyzer::ImprCorrectAngle(){
     }//chiudo else qIP
   }//chiudo esle angolo
   
+}
+
+//Leftmost and rightmost points in track (used in longitudinal and transverse profile) 
+void Analyzer::Edges(double &Xl, double &Yl, double &Xr, double &Yr, double slope) 
+{
+  double Xp, Yp, Zp;
+  double dist, tempdist_r=0, tempdist_l=0;
+
+  Barycenter(fTrack, &fXbar, &fYbar);
+
+  for(int i=1;i<fnpixelx;i++)
+  {
+	for(int j=1;j<fnpixely;j++)
+	{  
+	  
+	  Zp=fTrack->GetBinContent(i,j);
+	  if(Zp!=0)
+	  {
+	    Xp = (1./(1+pow(slope,2)))*(i+fXbar*pow(slope,2)+slope*(j-fYbar));
+	    Yp = fYbar+(slope/(1+pow(slope,2)))*(i-fXbar+slope*(j-fYbar));
+	    dist = sqrt(pow((Xp-fXbar),2)+pow((Yp-fYbar),2));
+	    if(dist>tempdist_r && Xp>fXbar)
+	    {
+			tempdist_r = dist;
+			Xr = Xp; Yr = Yp;
+	    }
+	    else if(dist>tempdist_l && Xp<fXbar)
+	    {
+			tempdist_l = dist;
+			Xl = Xp; Yl = Yp;
+	    }
+	  }
+
+	}
+  }
+
+  return;
+}
+
+
+//Profiling over main axis of the track
+//if longitudinal is 1 it profiles on longitudinal axis (along principal axis), else it profiles on transverse axis (perpendicular) 
+TH1D* Analyzer::FillProfile(bool longitudinal) 
+{
+
+  double xl,yl,xr,yr;
+  double slope;
+  
+  if(longitudinal) slope =  tan(AngleLineMaxRMS());
+  else slope = tan(TMath::Pi()/2.+AngleLineMaxRMS());
+  
+  Edges(xl,yl,xr,yr,slope);
+  int binmax = (int)sqrt(pow((xl-xr),2)+pow((yl-yr),2));
+  TH1D* TrackProfile=new TH1D("TrackProf","TrackProf",binmax+2,0,binmax+2);
+  
+  double Xp, Yp, Zp;
+  
+  Barycenter(fTrack, &fXbar, &fYbar); //Now it is not really necessary.. Barycenter is calculated in AngleLineMaxRMS and stored in private variables
+
+  for(int i=1;i<fnpixelx;i++)
+  {
+	for(int j=1;j<fnpixely;j++)
+	{  
+	  
+	  Zp=fTrack->GetBinContent(i,j);
+	  if(Zp!=0)
+	  {
+	    Xp = (1/(1+pow(slope,2)))*(i+fXbar*pow(slope,2)+slope*(j-fYbar));
+	    Yp = fYbar+(slope/(1+pow(slope,2)))*(i-fXbar+slope*(j-fYbar));
+  	    TrackProfile->Fill(sqrt(pow((Xp-xl),2)+pow((Yp-yl),2)),Zp);
+      }
+    }
+  }
+
+  return TrackProfile;
+}
+
+//Profile along x direction
+TH1D* Analyzer::FillProfileX() 
+{
+  double Zp;
+
+  TH1D* TrackProfileX=new TH1D("TrackProfX","TrackProfX",fnpixelx,0,fnpixelx);
+
+  for(int i=1;i<fnpixelx;i++)
+  {
+	for(int j=1;j<fnpixely;j++)
+	{  
+	  
+	  Zp=fTrack->GetBinContent(i,j);
+	  if(Zp!=0)
+	  {
+  	    TrackProfileX->Fill(i,Zp);
+      }
+    }
+  }
+
+  return TrackProfileX;
+
+}
+
+//Profile along y direction
+TH1D* Analyzer::FillProfileY() 
+{
+  double Zp;
+
+  TH1D* TrackProfileY=new TH1D("TrackProfY","TrackProfY",fnpixely,0,fnpixely);
+
+  for(int i=1;i<fnpixelx;i++)
+  {
+	for(int j=1;j<fnpixely;j++)
+	{ 
+	  Zp=fTrack->GetBinContent(i,j);
+	  if(Zp!=0)
+	  {
+  	    TrackProfileY->Fill(j,Zp);
+      }
+     }
+  }
+
+  return TrackProfileY;
+
+}
+
+//
+void Analyzer::FindNPeaks(TH1D* h, int &n, double &pos)
+{
+
+  TSpectrum* s = new TSpectrum();
+
+  int npeaks;
+  double* peaksPos={0};
+  std::vector<double> peaks;
+  std::vector<double> peaks_tocompare;
+
+  for(int i=2; i<16; i=i+1){ //scan for different sigma
+
+    npeaks = s->Search(h,i,"nobackground",0.1); //number of peaks with current sigma (npeaks2=number of peaks with previous sigma)
+    peaksPos = s->GetPositionX(); //positions of peaks with current sigma (peaks2=positions of peaks with previous sigma)
+    if (npeaks == 0){continue;} //if no peaks are found, go to next sigma
+    else{ //if peaks are found
+//if any of the peaks found in the previous iteration is equal (within one sigma) to the current one, ignore it; otherwise, save the position of the new peak and increase the total number of peaks
+      for(int j=0; j<npeaks; j++){ //loop over number of new peaks
+
+        if(!peaks_tocompare.empty()){ 
+
+          auto it = std::find_if(peaks_tocompare.begin(), peaks_tocompare.end(), [&](double p){ return (p>(peaksPos[j]-(double)i) && p<(peaksPos[j]+(double)i)); });
+          if(it != peaks_tocompare.end()){
+            continue;
+          }
+	       else{
+				peaks.push_back(peaksPos[j]); 
+				continue;
+          }
+        }
+        peaks.push_back(peaksPos[j]);
+      } //end loop sui picchi trovati
+    } //end if peaks were found
+  
+  peaks_tocompare.clear();
+  for(int k=0; k<npeaks; k++){peaks_tocompare.push_back(peaksPos[k]);}
+  
+  } //end scan on different sigma
+
+ n = peaks.size();
+ pos = peaks[0];
+ 
+ delete s;
+ 
+ return;
+
+}
+
+//coordinates of maximum intensity pixel
+void Analyzer::FindPeak(double &xpeak, double &ypeak, double &xpeak_rebin, double &ypeak_rebin) 
+{
+
+  int maxbin = fTrack->GetMaximumBin();
+  int x,y,z;
+  fTrack->GetBinXYZ(maxbin, x, y, z);
+
+  xpeak=fTrack->GetXaxis()->GetBinCenter(x);
+  ypeak=fTrack->GetYaxis()->GetBinCenter(y);
+
+  TH2F* TrackRebin = (TH2F*)fTrack->Clone();
+  TrackRebin->Rebin2D(2,2);
+  maxbin = TrackRebin->GetMaximumBin();
+  TrackRebin->GetBinXYZ(maxbin, x, y, z);
+  xpeak_rebin=TrackRebin->GetXaxis()->GetBinCenter(x);
+  ypeak_rebin=TrackRebin->GetYaxis()->GetBinCenter(y);
+
+}
+
+//
+void Analyzer::LeastSquareLine(double &a, double &b) 
+{
+  double sum1=0, sum2=0, sum3=0, sum4=0, sum5=0;
+  double Z=0;
+
+  for(int i=1;i<fnpixelx;i++)
+  {
+	for(int j=1;j<fnpixely;j++)
+	{  
+	  Z=fTrack->GetBinContent(i,j);
+	  if(Z!=0)
+	  {
+		  sum1+= Z*i*i;
+		  sum2+= Z*j;
+		  sum3+= Z*i;
+		  sum4+= Z*i*j;
+		  sum5+= Z;
+	  }
+	}
+  }
+
+a = (sum1*sum2-sum3*sum4)/(sum5*sum1-(sum3*sum3));
+b = (sum5*sum4-sum3*sum2)/(sum5*sum1-(sum3*sum3));
+
+return; 
+
 }

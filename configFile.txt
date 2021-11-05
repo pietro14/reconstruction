@@ -3,9 +3,9 @@
 'geometry'  : 'Mango_full',
 
 # DEBUG plots
-'debug_mode'            : 0,
+'debug_mode'            : 1,
 
-'ev'                    : 2,
+'ev'                    : 65,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -46,10 +46,13 @@
 'min_neighbors_average' : 3.5,                     # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : False,                    # Remove or not the file from the tmp folder
 
+# saving MC truth from digitisation
+'Save_MC_data'          : False,
+
 # Setting i2DBSCAN parameters
 
 'iterative'             : 4,
-'tip'                   : '3D_MC',
+'tip'                   : '3D',
 'vector_eps'            : [1, 6.5,  4,  2], #[ 1,   2,  3.2,  5], # [ 3,    6.5,  7,  7.5], # [2.26, 3, 3.5, 4],
 'vector_min_samples'    : [1, 200,  35, 25], #[5, 100, 40, 50] , # [30,  1180,  360, 80],  # [30,  55,  28, 13],
 'cuts'                  : [500, 100],
@@ -62,7 +65,8 @@
 'cosmic_killer'         : True,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 0,
+'pmt_mode'              : 1,
+'waveform_number'       : 9,		# how many waveforms (TGraph) you have in your data
 
 'time_range'            : [7300,7700],
 'threshold'             : 0,

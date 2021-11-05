@@ -7,6 +7,7 @@
 class TH2F;
 class TF1;
 class TGraph;
+class TH1D;
 
 class Analyzer {
 
@@ -69,12 +70,17 @@ class Analyzer {
   void ApplyThr();
   void ImpactPoint(const char* nometh2);
   void ScaledTrack(const char* nometh2);
-  //	void Analyze(double percrad)
   
   void Direction();
   void ImprCorrectAngle();
 
-  
+  void Edges(double &Xl, double &Yl, double &Xr, double &Yr, double slope);
+  TH1D* FillProfile(bool longitudinal);
+  TH1D* FillProfileX();
+  TH1D* FillProfileY();
+  void FindNPeaks(TH1D* h, int &n, double &pos);
+  void FindPeak(double &xpeak, double &ypeak, double &xpeak_rebin, double &ypeak_rebin);
+  void LeastSquareLine(double &a, double &b);
   
  private:
   
