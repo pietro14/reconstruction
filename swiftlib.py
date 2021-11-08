@@ -3,15 +3,7 @@
 def swift_root_file(tag, run):
     sel = rootlocation(tag,run)    
     
-    BASE_URL = "https://s3.cloud.infn.it/v1/AUTH_2ebf769785574195bde2ff418deac08a/"
-    if 'MC' in tag:
-        bucket = 'cygnus' if tag=='MC-old' else 'cygno-sim'
-    elif tag=='Data':
-        bucket = 'cygnus' if run<4505 else 'cygno-data'
-    elif tag=='DataMango':
-        bucket = 'cygnus' if run<3242 else 'cygno-data'
-
-    BASE_URL = BASE_URL + bucket + '/'
+    BASE_URL  = "https://swift.cloud.infn.it:8080/v1/AUTH_1e60fe39fba04701aa5ffc0b97871ed8/Cygnus/"
     file_root = (sel+'/histograms_Run%05d.root' % run)
     return BASE_URL+file_root
 
@@ -28,12 +20,12 @@ def reporthook(blocknum, blocksize, totalsize):
     else: # total size is unknown
         sys.stderr.write("read %d\n" % (readsofar,))
 
-def swift_download_root_file(url,run,tmp=None):
+def swift_download_root_file(url,run):
     import ROOT
     import os
     from urllib.request import urlretrieve
     USER = os.environ['USER']
-    tmpdir = tmp if tmp else '/tmp/'
+    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     tmpname = ("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
     urlretrieve(url, tmpname, reporthook)
@@ -44,20 +36,20 @@ def rootlocation(tag,run):
     if tag == 'Data':
         if (run>=936) and (run<=1601):
             sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<4505):
+        elif (run>=1632) and (run<=4000):
             sel = 'Data/LAB'
-        elif (run>=4470) and (run<10000):
-            sel = 'LAB'
         else:
-           print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
-           exit()
+            print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
+            exit()
+    
     elif tag == 'DataMango':
-            sel= 'Data/MAN' if run<3242 else 'MAN' 
+            sel= 'Data/MAN'
+            
     elif tag == 'MC':
         sel = 'Simulation'
         print("WARNING: automatic download for Simulated data not implemented yet")
         exit()
-        
+ 
     return sel
 
 def swift_read_root_file(tmpname):
@@ -70,10 +62,10 @@ def swift_rm_root_file(tmpname):
     os.remove(tmpname)
     print("tmp file removed")
 
-def checkfiletmp(run,tmp=None):
+def checkfiletmp(run):
     import os.path
     USER = os.environ['USER']
-    tmpdir = tmp if tmp else '/tmp/'
+    tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
 
@@ -92,7 +84,7 @@ def root_TH2_name(root_file):
 def swift_pedestal_file(run):
     pedrun = selectPedestal(run)    
     
-    BASE_URL = "https://s3.cloud.infn.it/v1/AUTH_2ebf769785574195bde2ff418deac08a/cygnus/Pedestals/"
+    BASE_URL  = "https://swift.cloud.infn.it:8080/v1/AUTH_1e60fe39fba04701aa5ffc0b97871ed8/Cygnus/Pedestals/"
     file_root = ('pedmap_run%05d_rebin1.root' % pedrun)
     return BASE_URL+file_root
 

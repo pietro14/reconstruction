@@ -197,71 +197,78 @@ class Cluster:
         # now compute the length along major axis, long profile, etc
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
-        xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.2)
-        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.3)
-        xedg = [(x-int(rxmin)) for x in xedg]
-        yedg = [(y-int(rymin)) for y in yedg]
+        #xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.2)
+        #yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.3)
+        #xedg = [(x-int(rxmin)) for x in xedg]
+        #yedg = [(y-int(rymin)) for y in yedg]
 
+        pixw = self.cg.pixelwidth
         length=(rxmax-rxmin); width=(rymax-rymin)
-        if len(xedg)>1:
-            longprof = ROOT.TH1F(name+'_long','longitudinal profile',len(xedg)-1,array('f',[x for x in xedg]))
-            longprof.SetDirectory(0)
-        else: longprof = 0
-        if len(yedg)>1:
-            latprof = ROOT.TH1F(name+'_lat','lateral profile',len(yedg)-1,array('f',[y for y in yedg]))
-            latprof.SetDirectory(0)
-        else: latprof = 0
+        #if len(xedg)>1:
+        #    longprof = ROOT.TH1F(name+'_long','longitudinal profile',len(xedg)-1,array('f',[pixw * x for x in xedg]))
+        #    longprof.SetDirectory(0)
+        #else: longprof = 0
+        #if len(yedg)>1:
+        #    latprof = ROOT.TH1F(name+'_lat','lateral profile',len(yedg)-1,array('f',[pixw * y for y in yedg]))
+        #    latprof.SetDirectory(0)
+        #else: latprof = 0
         
-        cluth2d = ROOT.TH2D('cluth2d','',int(length)+2,0,int(length)+2, int(width)+2,0,int(width)+2)
-        for h in rot_hits:
-            x,y,z=h[0],h[1],h[2]
-            if longprof: longprof.Fill(x-rxmin,z)
-            if latprof: latprof.Fill(y-rymin,z)
-            # if a neighbor (rounded) has 0 or little, do not kill a good illuminated pixel for that, at a cost of a little shape bias
-            cluth2d.SetBinContent(int(np.round(x-rxmin))+1,int(np.round(y-rymin))+1,z)
+        #cluth2d = ROOT.TH2D('cluth2d','',int(length)+2,0,int(length)+2, int(width)+2,0,int(width)+2)
+        #for h in rot_hits:
+        #    x,y,z=h[0],h[1],h[2]
+        #    if longprof: longprof.Fill(pixw*(x-rxmin),z)
+        #    if latprof: latprof.Fill(pixw*(y-rymin),z)
+        #    # if a neighbor (rounded) has 0 or little, do not kill a good illuminated pixel for that, at a cost of a little shape bias
+        #    cluth2d.SetBinContent(int(np.round(x-rxmin))+1,int(np.round(y-rymin))+1,z)
 
-        profiles = [longprof,latprof]
-        titles = ['longitudinal','transverse']
-        fitResults = {}
-        for ip,p in enumerate(profiles):
-            if p:
-                p.GetXaxis().SetTitle('X_{%s} (mm)' % titles[ip])
-                p.GetYaxis().SetTitle('Number of photons per slice')
-                self.applyProfileStyle(p)
-                if self.iteration<3:
-                    fitResults[titles[ip]] = self.fitProfile(p)
-                else:
-                    fitResults[titles[ip]] = {'amp': -999, 'mean': -999, 'sigma': -999, 'chi2': -999, 'status': -999}
+        #profiles = [longprof,latprof]
+        #titles = ['longitudinal','transverse']
+        #fitResults = {}
+        #for ip,p in enumerate(profiles):
+        #    if p:
+        #        p.GetXaxis().SetTitle('X_{%s} (mm)' % titles[ip])
+        #        p.GetYaxis().SetTitle('Number of photons per slice')
+        #        self.applyProfileStyle(p)
+        #        if self.iteration<3:
+        #            fitResults[titles[ip]] = self.fitProfile(p)
+        #        else:
+        #            fitResults[titles[ip]] = {'amp': -999, 'mean': -999, 'sigma': -999, 'chi2': -999, 'status': -999}
                     
         # now set the cluster shapes and profiles
-        self.profiles['long'] = longprof
-        self.profiles['lat'] = latprof
+        #self.profiles['long'] = longprof
+        #self.profiles['lat'] = latprof
         # those are not used, since they include the "margins" at 0
         # just used as the starting values in clusterShapes()
         self.widths['long'] = length
         self.widths['lat'] = width
         # variances along major/minor axis
-        self.shapes['longrms'] = cluth2d.ProjectionX().GetRMS()
-        self.shapes['latrms'] = cluth2d.ProjectionY().GetRMS()
+        #self.shapes['longrms'] = cluth2d.ProjectionX().GetRMS()
+        #self.shapes['latrms'] = cluth2d.ProjectionY().GetRMS()
         # inclination wrt the vertical
-        self.shapes['theta'] = self.theta
-        
-        self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
-        self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+        #self.shapes['theta'] = self.theta
+
+        try:
+           self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+           self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+        except:
+           self.shapes['xmean'] = 0
+           self.shapes['ymean'] = 0
+
         self.shapes['xmin'] = np.min(np.array(self.hits_fr[:,0]))
         self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,1]))
         self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,0]))
         self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,1]))
-        for direction in titles:
-            self.shapes['{direction}gaussamp'.format(direction=direction[0])] = (fitResults[direction])['amp']
-            self.shapes['{direction}gaussmean'.format(direction=direction[0])] = (fitResults[direction])['mean']
-            self.shapes['{direction}gausssigma'.format(direction=direction[0])] = (fitResults[direction])['sigma']
-            self.shapes['{direction}chi2'.format(direction=direction[0])] = (fitResults[direction])['chi2']
-            self.shapes['{direction}status'.format(direction=direction[0])] = (fitResults[direction])['status']
+       # for direction in titles:
+       #     self.shapes['{direction}gaussamp'.format(direction=direction[0])] = (fitResults[direction])['amp']
+       #     self.shapes['{direction}gaussmean'.format(direction=direction[0])] = (fitResults[direction])['mean']
+       #     self.shapes['{direction}gausssigma'.format(direction=direction[0])] = (fitResults[direction])['sigma']
+       #     self.shapes['{direction}chi2'.format(direction=direction[0])] = (fitResults[direction])['chi2']
+       #     self.shapes['{direction}status'.format(direction=direction[0])] = (fitResults[direction])['status']
 
         # get the peaks inside the profile
         for direction in ['lat','long']:
-            self.clusterShapes(direction,plot)
+            self.shapes['%s_width' % direction] = self.widths[direction]
+            #self.clusterShapes(direction,plot)
         
     def getProfile(self,name='long'):
         if len(self.profiles)==0:
