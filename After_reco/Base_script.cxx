@@ -105,6 +105,7 @@ int main(int argc, char** argv){
     tree->GetEntry(k);
     cout << "Nev: "<< k << "\n";
     cout << "nSc:  " << nSc << endl;
+    
     ScIndicesElem(nSc,ScNpixels.data(),BeginScPix,EndScPix);
     ScIndicesElem(nSc,ScNpixelsall.data(),BeginScallPix,EndScallPix);
 	
@@ -146,4 +147,3 @@ int main(int argc, char** argv){
   
   return 0;
 }
-

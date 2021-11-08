@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cmath>
 #include <vector>
+#include <stdlib.h>
 #include <Riostream.h>
 #include <TFile.h>
 #include "Analyzer.h"
@@ -989,7 +990,7 @@ void Analyzer::FindNPeaks(TH1D* h, int &n, double &pos)
   TSpectrum* s = new TSpectrum();
 
   int npeaks;
-  double* peaksPos={0};
+  double* peaksPos={0};			//better to use nullptr
   std::vector<double> peaks;
   std::vector<double> peaks_tocompare;
 
@@ -1078,4 +1079,12 @@ b = (sum5*sum4-sum3*sum2)/(sum5*sum1-(sum3*sum3));
 
 return; 
 
+}
+
+
+//Minifuction launching Atul's script
+int Analyzer::Execute_Atul_script(std::string pyvers, std::string inputfile, std::string outfolder, int entries, bool plot, bool text ) const
+{
+	int i=system("python"+pyvers+" discriminating_vars_BaData.py -I "+inputfile+ " -E "+entries+ " -P "+plot+" -T "+text+"  -O outfolder ");
+	return i;		//0 if the command was successful, 1 if not
 }

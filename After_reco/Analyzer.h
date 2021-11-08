@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cmath>
+#include <string>
 
 class TH2F;
 class TF1;
@@ -26,25 +27,25 @@ class Analyzer {
   void BuildLineDirection();
 
   //Simple returners
-  inline double GetIntegral() {return fintegral;}
-  inline double GetHeight() {return fheight;}
-  inline double GetRadius() {return fradius;}
+  inline double GetIntegral() const {return fintegral;}
+  inline double GetHeight() const {return fheight;}
+  inline double GetRadius() const {return fradius;}
   
-  inline TH2F* GetHistoTrack() {return fTrack;}
-  inline TH2F* GetHistoTrackTail() {return fTrackTail;}
-  inline TH2F* GetHistoScaledTrack() {return fScaledTrack;}
+  inline TH2F* GetHistoTrack() const {return fTrack;}
+  inline TH2F* GetHistoTrackTail() const {return fTrackTail;}
+  inline TH2F* GetHistoScaledTrack() const {return fScaledTrack;}
   
-  inline void GetCentre(double &x, double &y) {x=fxcentr; y=fycentr;};
-  inline double GetXbar() {return fXbar;}
-  inline double GetYbar()  {return fYbar;}
-  inline double GetRMSOnMainAxis() {return fRMSOnMainAxis;}
-  inline double GetSkewOnMainAxis() {return fSkewOnLine;}
-  inline double GetPointSkew(double X, double Y) {return ( (X-fXbar)*cos(fPhiMainAxis) + (Y-fYbar)*sin(fPhiMainAxis) )/fSkewOnLine;}
-  inline TF1* GetLineMaxRMS() {return fLineMaxRMS;}
-  inline double GetXIP() {return fXIP;}
-  inline double GetYIP() {return fYIP;}
-  inline double GetDir() {return fPhiDir;}
-  inline double PDistCm(double X, double Y) {return sqrt( ( (X-fXbar)*(X-fXbar) + (Y-fYbar)*(Y-fYbar) ));}
+  inline void GetCentre(double &x, double &y) const {x=fxcentr; y=fycentr;};
+  inline double GetXbar() const {return fXbar;}
+  inline double GetYbar() const  {return fYbar;}
+  inline double GetRMSOnMainAxis() const {return fRMSOnMainAxis;}
+  inline double GetSkewOnMainAxis() const {return fSkewOnLine;}
+  inline double GetPointSkew(double X, double Y) const {return ( (X-fXbar)*cos(fPhiMainAxis) + (Y-fYbar)*sin(fPhiMainAxis) )/fSkewOnLine;}
+  inline TF1* GetLineMaxRMS() const  {return fLineMaxRMS;}
+  inline double GetXIP() const {return fXIP;}
+  inline double GetYIP() const {return fYIP;}
+  inline double GetDir() const {return fPhiDir;}
+  inline double PDistCm(double X, double Y) const {return sqrt( ( (X-fXbar)*(X-fXbar) + (Y-fYbar)*(Y-fYbar) ));}
 
   
   
@@ -81,6 +82,8 @@ class Analyzer {
   void FindNPeaks(TH1D* h, int &n, double &pos);
   void FindPeak(double &xpeak, double &ypeak, double &xpeak_rebin, double &ypeak_rebin);
   void LeastSquareLine(double &a, double &b);
+
+  int Execute_Atul_script(std::string pyvers, std::string inputfile, std::string outfolder, int entries, bool plot, bool text ) const;
   
  private:
   
