@@ -83,7 +83,7 @@ class Analyzer {
   void FindPeak(double &xpeak, double &ypeak, double &xpeak_rebin, double &ypeak_rebin);
   void LeastSquareLine(double &a, double &b);
 
-  int Execute_Atul_script(std::string pyvers, std::string inputfile, std::string outfolder, int entries, bool plot, bool text ) const;
+  int Execute_Atul_script(std::string pyvers, std::string inputfile, std::string outfolder, int entries, bool plot=false, bool text=false ) const;
   
  private:
   
