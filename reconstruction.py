@@ -309,7 +309,7 @@ if __name__ == '__main__':
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='int', help='Process only the first n entries')
     parser.add_option(      '--first-event', dest='firstEvent', default=-1, type='int', help='Skip all the events before this one')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
-    parser.add_option(      '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
+    parser.add_option('-t',  '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
     
@@ -331,7 +331,12 @@ if __name__ == '__main__':
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
         
     if not hasattr(options,"pedrun"):
-        pf = open("pedestals/pedruns.txt","r")
+        pedname= 'pedruns.txt'
+        if options.tag == 'DataMango':
+             pedname = 'pedruns_MANGO.txt'
+        if options.tag == 'MC':
+             pedname = 'pedruns_MC.txt'
+        pf = open("pedestals/"+pedname,"r")
         peddic = eval(pf.read())
         options.pedrun = -1
         for runrange,ped in peddic.items():
@@ -339,7 +344,7 @@ if __name__ == '__main__':
                 options.pedrun = int(ped)
                 print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
                 break
-        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/pedruns.txt. Check the dictionary inside it!")
+        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/",pedname," Check the dictionary inside it!")
             
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
@@ -352,10 +357,12 @@ if __name__ == '__main__':
     # override the default, if given by option
     if options.tmpdir:
         tmpdir = options.tmpdir
-
-    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+        os.system('mkdir -p {tmpdir}/'.format(tmpdir=tmpdir))
+    else:
+        os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+        tmpdir = '{tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER)
     if sw.checkfiletmp(int(options.run),tmpdir):
-        options.tmpname = "%s/%s/histograms_Run%05d.root" % (tmpdir,USER,int(options.run))
+        options.tmpname = "%s/histograms_Run%05d.root" % (tmpdir,int(options.run))
         print(options.tmpname)
     else:
         print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))

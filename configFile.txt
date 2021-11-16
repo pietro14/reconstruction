@@ -1,10 +1,10 @@
 {
 # DETECTOR
-'geometry'  : 'lime',
+'geometry'  : 'Mango_full',
 
 # DEBUG plots
 'debug_mode'            : 1,
-'ev'                    : 70,
+'ev'                    : 53,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -28,15 +28,15 @@
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
 'rebin'                 : 4,
-'nsigma'                : 1.2,
+'nsigma'                : 1.9,
 'cimax'                 : 5000,                    # Upper threshold (keep very high not to kill large signals)
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
-'tag'                   : 'Data',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
+'tag'                   : 'DataMango',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
 'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
 
-'excImages'             : list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy
+'excImages'             : [], #list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy (not true anymore)
 'min_neighbors_average' : 0.75,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
 
@@ -45,13 +45,13 @@
 'saturation_corr'       : False,
 
 # Superclusters parameters are hardcoded
-'calibrate_clusters'    : True,
+'calibrate_clusters'    : False,
 
 # Run the cosmic killer (linear track extrapolation)
 'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 0,
+'pmt_mode'              : 1,
 
 'time_range'            : [7300,7700],
 'threshold'             : 0,
