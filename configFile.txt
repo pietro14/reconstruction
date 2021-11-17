@@ -10,7 +10,7 @@
 # Plots that will be made if debug_mode = 1
 
 'flag_full_image'       : 0,
-'flag_rebin_image'      : 0,
+'flag_rebin_image'      : 1,
 'flag_edges_image'      : 1,
 'flag_polycluster'      : 1,
 'flag_dbscan_seeds'     : 1,
@@ -28,7 +28,7 @@
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
 'rebin'                 : 4,
-'nsigma'                : 1.9,
+'nsigma'                : 1.8,
 'cimax'                 : 5000,                    # Upper threshold (keep very high not to kill large signals)
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
@@ -40,6 +40,8 @@
 'min_neighbors_average' : 0.75,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
 
+'scfullinfo'            : True,			   # If True some the supercluster pixels info will be saved
+'save_MC_data'          : False,			   # If True save the MC informations
 
 'tip'                   : '3D',
 'saturation_corr'       : False,

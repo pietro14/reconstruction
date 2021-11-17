@@ -84,11 +84,29 @@ class analysis:
         # prepare output tree
         self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
         self.outTree = OutputTree(self.outputFile,self.outputTree)
-        self.autotree = AutoFillTreeProducer(self.outTree)
+        self.autotree = AutoFillTreeProducer(self.outTree,self.options.scfullinfo)
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
         self.outTree.branch("pedestal_run", "I")
+        if self.options.save_MC_data:
+#            self.outTree.branch("MC_track_len","F")
+            self.outTree.branch("eventnumber","I")
+            self.outTree.branch("particle_type","I")
+            self.outTree.branch("energy","F")
+            self.outTree.branch("ioniz_energy","F")
+            self.outTree.branch("drift","F")
+            self.outTree.branch("phi_initial","F")
+            self.outTree.branch("theta_initial","F")
+            self.outTree.branch("MC_x_vertex","F")
+            self.outTree.branch("MC_y_vertex","F")
+            self.outTree.branch("MC_z_vertex","F")
+            self.outTree.branch("MC_x_vertex_end","F")
+            self.outTree.branch("MC_y_vertex_end","F")
+            self.outTree.branch("MC_z_vertex_end","F")
+            self.outTree.branch("MC_3D_pathlength","F")
+            self.outTree.branch("MC_2D_pathlength","F")
+
         if self.options.camera_mode:
             self.autotree.createCameraVariables()
             self.autotree.createClusterVariables('cl')
@@ -234,6 +252,25 @@ class analysis:
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
                 self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
+                if self.options.save_MC_data:
+                    mc_tree = tf.Get('event_info/info_tree')
+                    mc_tree.GetEntry(event)
+#                    self.outTree.fillBranch("MC_track_len",mc_tree.MC_track_len)
+                    self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
+                    self.outTree.fillBranch("particle_type",mc_tree.particle_type)
+                    self.outTree.fillBranch("energy",mc_tree.energy_ini)
+                    self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
+                    self.outTree.fillBranch("drift",mc_tree.drift)
+                    self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
+                    self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
+                    self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
+                    self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
+                    self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
+                    self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
+                    self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
+                    self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
+                    self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
+                    self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
 
             if self.options.camera_mode:
                 if obj.InheritsFrom('TH2'):

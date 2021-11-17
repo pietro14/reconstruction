@@ -10,7 +10,7 @@ import utilities
 utilities = utilities.utils()
 
 class Cluster:
-    def __init__(self,hits,rebin,img_fr,img_fr_zs,geometry,debug=False):
+    def __init__(self,hits,rebin,img_fr,img_fr_zs,geometry,debug=False,fullinfo=False,clID=0):
         self.hits = hits
         self.rebin = rebin
         self.debug = debug
@@ -19,6 +19,42 @@ class Cluster:
             self.hits_fr,self.hits_fr_zs = self.fullResHits(img_fr,img_fr_zs)
         else:
             print("WARNING! Cluster created without underlying image... Are you using it standalone?")
+
+        if fullinfo:			#savin he pixel for the scfullinfo 
+
+            self.nclu = clID
+            self.ID=[]
+            self.IDall=[]
+            if self.integral()>0 and self.hits_fr_zs != [] and self.size()<1000000:		#tries to avoid to save cluster with zero integral or too big (like with afterglow of pixels)
+                  self.nintpixels = self.sizeActive()
+                  self.nallintpixels = self.size()
+                  for k in range(self.nintpixels):
+                      self.ID.append(clID)
+                  for k in range(self.nallintpixels):
+                      self.IDall.append(clID)
+                  self.xpixelcoord= self.hits_fr_zs[:,0]
+                  self.ypixelcoord= self.hits_fr_zs[:,1]
+                  self.zpixel= self.hits_fr_zs[:,2]
+                  self.xallpixelcoord= self.hits_fr[:,0]
+                  self.yallpixelcoord= self.hits_fr[:,1]
+                  self.zallpixel= self.hits_fr[:,2]
+            else:								#clusters with ID =-1 can be avoided during analysis of the pixels
+                  self.ID.append(-1)
+                  self.nintpixels = 1
+                  self.IDall.append(-1)
+                  self.nallintpixels = 1
+                  if self.hits_fr_zs != []:
+                      self.xpixelcoord= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,0]
+                      self.ypixelcoord= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,1]
+                      self.zpixel= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,2]
+                  else:
+                      self.xpixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,0]
+                      self.ypixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,1]
+                      self.zpixel= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,2]
+ 
+                  self.xallpixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,0]
+                  self.yallpixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,1]   
+                  self.zallpixel= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,2]
         self.mean_point = np.array([np.mean(self.x),np.mean(self.y)])
         self.EVs,self.theta = self.eigenvectors()
         self.widths = {}

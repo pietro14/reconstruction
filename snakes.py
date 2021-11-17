@@ -185,9 +185,8 @@ class SnakesFactory:
             
             # both core and neighbor samples are saved in the cluster in the event
             if k>-1 and len(x)>1:
-                cl = Cluster(xy,self.rebin,image_fr_vignetted,image_fr_zs_vignetted,self.options.geometry,debug=False)
+                cl = Cluster(xy,self.rebin,image_fr_vignetted,image_fr_zs_vignetted,self.options.geometry,debug=False,fullinfo=self.options.scfullinfo,clID=k)
                 cl.iteration = 0
-                cl.nclu = k
                 cl.pearson = 999#p_value
                 superclusters.append(cl)
                 
