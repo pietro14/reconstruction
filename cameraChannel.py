@@ -18,7 +18,7 @@ class cameraTools:
         self.geometry = geometry
         # attach to a dict to make it persistent
         # the matrix is the max size possible, still ok if rebinned (because it is redone from the TH2D when it is readout)
-        self.vignetteMap = { 'Mango_full' : np.zeros((int(self.geometry.npixx),int(self.geometry.npixx))) }
+        self.vignetteMap = { self.geometry.name : np.zeros((int(self.geometry.npixx),int(self.geometry.npixx))) }
 
     def pedsub(self,img,pedarr):
         return img - pedarr
