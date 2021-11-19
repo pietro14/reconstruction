@@ -77,9 +77,10 @@ class Analyzer {
 
   void Edges(double &Xl, double &Yl, double &Xr, double &Yr, double slope);
   TH1D* FillProfile(bool longitudinal);
+  TH1D* CutProfile(TH1D* profile);
   TH1D* FillProfileX();
   TH1D* FillProfileY();
-  void FindNPeaks(TH1D* h, int &n, double &pos);
+  void FindNPeaks(TH1D* h,std::vector<double> &pos);
   void FindPeak(double &xpeak, double &ypeak, double &xpeak_rebin, double &ypeak_rebin);
   void LeastSquareLine(double &a, double &b);
 

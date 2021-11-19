@@ -305,8 +305,8 @@ fLineDirection(nullptr)
 	  fintegral+=Z[i];
 	}
 
-	fTrack->Rebin2D(2,2);
-	
+	//fTrack->Rebin2D(2,2);
+
 	fPhiMainAxis=AngleLineMaxRMS();
 	BuildLineMaxRMS();
 	fRMSOnMainAxis=GetRMSOnMainAxis();
@@ -866,6 +866,7 @@ void Analyzer::Edges(double &Xl, double &Yl, double &Xr, double &Yr, double slop
 {
   double Xp, Yp, Zp;
   double dist, tempdist_r=0, tempdist_l=0;
+  double ii=0, jj=0;
 
   Barycenter(fTrack, &fXbar, &fYbar);
 
@@ -877,8 +878,10 @@ void Analyzer::Edges(double &Xl, double &Yl, double &Xr, double &Yr, double slop
 	  Zp=fTrack->GetBinContent(i,j);
 	  if(Zp!=0)
 	  {
-	    Xp = (1./(1+pow(slope,2)))*(i+fXbar*pow(slope,2)+slope*(j-fYbar));
-	    Yp = fYbar+(slope/(1+pow(slope,2)))*(i-fXbar+slope*(j-fYbar));
+	    ii=fTrack->GetXaxis()->GetBinCenter(i);
+	    jj=fTrack->GetYaxis()->GetBinCenter(j);
+	    Xp = (1./(1+pow(slope,2)))*(ii+fXbar*pow(slope,2)+slope*(jj-fYbar));
+	    Yp = fYbar+(slope/(1+pow(slope,2)))*(ii-fXbar+slope*(jj-fYbar));
 	    dist = sqrt(pow((Xp-fXbar),2)+pow((Yp-fYbar),2));
 	    if(dist>tempdist_r && Xp>fXbar)
 	    {
@@ -906,6 +909,7 @@ TH1D* Analyzer::FillProfile(bool longitudinal)
 
   double xl,yl,xr,yr;
   double slope;
+  double ii=0, jj=0;
   
   if(longitudinal) slope =  tan(AngleLineMaxRMS());
   else slope = tan(TMath::Pi()/2.+AngleLineMaxRMS());
@@ -916,7 +920,7 @@ TH1D* Analyzer::FillProfile(bool longitudinal)
   
   double Xp, Yp, Zp;
   
-  Barycenter(fTrack, &fXbar, &fYbar); //Now it is not really necessary.. Barycenter is calculated in AngleLineMaxRMS and stored in private variables
+  //Barycenter(fTrack, &fXbar, &fYbar); //Now it is not really necessary.. Barycenter is calculated in AngleLineMaxRMS and stored in private variables
 
   for(int i=1;i<fnpixelx;i++)
   {
@@ -926,8 +930,10 @@ TH1D* Analyzer::FillProfile(bool longitudinal)
 	  Zp=fTrack->GetBinContent(i,j);
 	  if(Zp!=0)
 	  {
-	    Xp = (1/(1+pow(slope,2)))*(i+fXbar*pow(slope,2)+slope*(j-fYbar));
-	    Yp = fYbar+(slope/(1+pow(slope,2)))*(i-fXbar+slope*(j-fYbar));
+	    ii=fTrack->GetXaxis()->GetBinCenter(i);
+	    jj=fTrack->GetYaxis()->GetBinCenter(j);
+	    Xp = (1/(1+pow(slope,2)))*(ii+fXbar*pow(slope,2)+slope*(jj-fYbar));
+	    Yp = fYbar+(slope/(1+pow(slope,2)))*(ii-fXbar+slope*(jj-fYbar));
   	    TrackProfile->Fill(sqrt(pow((Xp-xl),2)+pow((Yp-yl),2)),Zp);
       }
     }
@@ -936,12 +942,32 @@ TH1D* Analyzer::FillProfile(bool longitudinal)
   return TrackProfile;
 }
 
+//To be called with longitudinal or transverse profile to cut it around the main energy deposit
+TH1D* Analyzer::CutProfile(TH1D* profile){
+
+  int binmin = profile->FindFirstBinAbove(0.005*profile->GetMaximum(),1); //first bin above 0.5% of max intensity
+  int binmax = profile->FindLastBinAbove(0.005*profile->GetMaximum(),1); //last bin above 0.5% of max intensity
+  int bins_cut = 0;
+
+  std::string title = profile->GetTitle();
+  title += "_cut";
+  TH1D* profile_cut = new TH1D(title.c_str(),title.c_str(),binmax-binmin,0,binmax-binmin);
+
+  for(int bins=binmin; bins<binmax; bins++){
+    profile_cut->SetBinContent(bins_cut,profile->GetBinContent(bins));
+    bins_cut++;
+  }
+
+  return profile_cut;
+
+}
+
 //Profile along x direction
 TH1D* Analyzer::FillProfileX() 
 {
   double Zp;
-
-  TH1D* TrackProfileX=new TH1D("TrackProfX","TrackProfX",fnpixelx,0,fnpixelx);
+  
+  TH1D* TrackProfileX=new TH1D("TrackProfX","TrackProfX",fnpixelx,fminx,fmaxx);
 
   for(int i=1;i<fnpixelx;i++)
   {
@@ -951,7 +977,7 @@ TH1D* Analyzer::FillProfileX()
 	  Zp=fTrack->GetBinContent(i,j);
 	  if(Zp!=0)
 	  {
-  	    TrackProfileX->Fill(i,Zp);
+  	    TrackProfileX->Fill(fTrack->GetXaxis()->GetBinCenter(i),Zp);
       }
     }
   }
@@ -965,7 +991,7 @@ TH1D* Analyzer::FillProfileY()
 {
   double Zp;
 
-  TH1D* TrackProfileY=new TH1D("TrackProfY","TrackProfY",fnpixely,0,fnpixely);
+  TH1D* TrackProfileY=new TH1D("TrackProfY","TrackProfY",fnpixely,fminy,fmaxy);
 
   for(int i=1;i<fnpixelx;i++)
   {
@@ -974,7 +1000,7 @@ TH1D* Analyzer::FillProfileY()
 	  Zp=fTrack->GetBinContent(i,j);
 	  if(Zp!=0)
 	  {
-  	    TrackProfileY->Fill(j,Zp);
+  	    TrackProfileY->Fill(fTrack->GetYaxis()->GetBinCenter(j),Zp);
       }
      }
   }
@@ -984,13 +1010,13 @@ TH1D* Analyzer::FillProfileY()
 }
 
 //
-void Analyzer::FindNPeaks(TH1D* h, int &n, double &pos)
+void Analyzer::FindNPeaks(TH1D* h, std::vector<double> &pos)
 {
 
   TSpectrum* s = new TSpectrum();
 
   int npeaks;
-  double* peaksPos={0};			//better to use nullptr
+  double* peaksPos(nullptr);			//better to use nullptr
   std::vector<double> peaks;
   std::vector<double> peaks_tocompare;
 
@@ -1023,8 +1049,7 @@ void Analyzer::FindNPeaks(TH1D* h, int &n, double &pos)
   
   } //end scan on different sigma
 
- n = peaks.size();
- pos = peaks[0];
+ pos = peaks;
  
  delete s;
  
@@ -1085,6 +1110,6 @@ return;
 //Minifuction launching Atul's script
 int Analyzer::Execute_Atul_script(std::string pyvers, std::string inputfile, std::string outfolder, int entries, bool plot, bool text ) const
 {
-	int i=system("python"+pyvers+" discriminating_vars_BaData.py -I "+inputfile+ " -E "+entries+ " -P "+plot+" -T "+text+"  -O outfolder ");
+	int i=system("python"+pyvers+" discriminating_vars_BaData.py -I "+inputfile+ " -E "+entries+ " -P "+plot+" -T "+text+"  -O "+ outfolder);
 	return i;		//0 if the command was successful, 1 if not
 }
