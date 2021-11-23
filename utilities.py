@@ -6,7 +6,7 @@ import numpy as np
 from root_numpy import hist2array
 import ROOT,math
 from cameraChannel import cameraTools, cameraGeometry
-import onlines3lib as s3on
+import swiftlib as sw
 
 class utils:
     def __init__(self):
@@ -95,13 +95,11 @@ class utils:
         mapsum = np.zeros((nx,nx))
 
         USER = os.environ['USER']
-        tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
-        os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-        if os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,int(run))):
+        if sw.checkfiletmp(int(run)):
             infile = "/tmp/%s/histograms_Run%05d.root" % (USER,int(run))
         else:
-            print ('Downloading file: ' + s3on.s3_root_file('Data', int(run)))
-            infile = s3on.s3_download_root_file(s3on.s3_root_file('Data', int(run)),int(run))
+            print ('Downloading file: ' + sw.swift_root_file('Data', int(run)))
+            infile = sw.swift_download_root_file(sw.swift_root_file('Data', int(run)),int(run))
            
         tf_in = ROOT.TFile.Open(infile);
 

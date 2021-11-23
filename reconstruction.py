@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.8
 from multiprocessing import Pool,set_start_method
 
-import os,math,sys,random
+import os,math,sys,random,re
 import numpy as np
 
 import ROOT
@@ -13,6 +13,7 @@ from cameraChannel import cameraTools, cameraGeometry
 from snakes import SnakesProducer
 from output import OutputTree
 from treeVars import AutoFillTreeProducer
+import swiftlib as sw
 
 # this kills also the still running subprocesses.
 # use with a safe MAX TIMEOUT duration, since it will kill everything
@@ -86,7 +87,7 @@ class analysis:
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
         self.outTree.branch("pedestal_run", "I")
-        if self.options.Save_MC_data:
+        if self.options.save_MC_data:
 #            self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
             self.outTree.branch("particle_type","I")
@@ -116,17 +117,16 @@ class analysis:
         self.outputFile.Close()
         
     def getNEvents(self):
-        tf =  ROOT.TFile.Open(self.tmpname)
-        ret = int(len(tf.GetListOfKeys())/(options.waveform_number+1)) if (self.options.daq=='midas' and self.options.pmt_mode) else len(tf.GetListOfKeys())
+        tf = sw.swift_read_root_file(self.tmpname)
+        pics = [k.GetName() for k in tf.GetListOfKeys() if 'pic' in k.GetName()]
         tf.Close()
-        return ret
+        return len(pics)
 
     def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
         nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
-        #pedfilename = 'pedestals/pedmap_ex%d_rebin%d.root' % (options.pedexposure,rebin)
         pedfilename = 'pedestals/pedmap_run%s_rebin%d.root' % (options.run,rebin)
         
         pedfile = ROOT.TFile.Open(pedfilename,'recreate')
@@ -135,17 +135,20 @@ class analysis:
 
         pedsum = np.zeros((nx,ny))
         
-        tf = ROOT.TFile.Open(self.tmpname)
+        tf = sw.swift_read_root_file(self.tmpname)
 
         # first calculate the mean 
         numev = 0
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/(options.waveform_number+1) # when PMT is present
-            if iev in self.options.excImages: continue
-            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
-            
             name=e.GetName()
             obj=e.ReadObj()
+            if 'pic' in name:
+                patt = re.compile('\S+run(\d+)_ev(\d+)')
+                m = patt.match(name)
+                run = int(m.group(1))
+                event = int(m.group(2))
+            if event in self.options.excImages: continue
+            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
 
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pedestal mean with event: ",name)
@@ -161,12 +164,16 @@ class analysis:
         numev=0
         pedsqdiff = np.zeros((nx,ny))
         for i,e in enumerate(tf.GetListOfKeys()):
-            iev = i if self.options.daq != 'midas' and self.options.pmt_mode else i/(options.waveform_number+1) # when PMT is present
-            if iev in self.options.excImages: continue
-            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
-            
             name=e.GetName()
             obj=e.ReadObj()
+            if 'pic' in name:
+                patt = re.compile('\S+run(\d+)_ev(\d+)')
+                m = patt.match(name)
+                run = int(m.group(1))
+                event = int(m.group(2))
+            if event in self.options.excImages: continue
+            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pedestal rms with event: ",name)
             if rebin>1:
@@ -207,33 +214,29 @@ class analysis:
         ROOT.gStyle.SetPalette(ROOT.kRainBow)
         savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
-        tf = ROOT.TFile.Open(self.tmpname)
-        #c1 = ROOT.TCanvas('c1','',600,600)
+        tf = sw.swift_read_root_file(self.tmpname)
         ctools = cameraTools(self.cg)
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            iev = int(iobj/(options.waveform_number+1)) if self.options.daq == 'midas' and self.options.pmt_mode else iobj
-            #print("max entries = ",self.options.maxEntries)
-            if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
-            if sum(evrange[1:])>-2:
-                if iev<evrange[1] or iev>evrange[2]: continue
-
+            #if self.options.maxEntries>0 and event==max(evrange[0],0)+self.options.maxEntries: break
             name=key.GetName()
             obj=key.ReadObj()
 
-            # Routine to skip some images if needed
-            if iev in self.options.excImages: continue
+            if 'pic' in name:
+                patt = re.compile('\S+run(\d+)_ev(\d+)')
+                m = patt.match(name)
+                run = int(m.group(1))
+                event = int(m.group(2))
 
-            if self.options.debug_mode == 1 and iev != self.options.ev: continue
+            if event<evrange[1] or event>evrange[2]: continue
+
+            # Routine to skip some images if needed
+            if event in self.options.excImages: continue
+
+            if self.options.debug_mode == 1 and event != self.options.ev: continue
 
             if obj.InheritsFrom('TH2'):
-                if self.options.daq == 'btf':
-                    run,event=(int(name.split('_')[0].split('run')[-1].lstrip("0")),int(name.split('_')[-1].lstrip("0")))
-                elif self.options.daq == 'h5':
-                    run,event=(int(name.split('_')[0].split('run')[-1]),int(name.split('_')[-1]))
-                else:
-                    run,event=(int(name.split('_')[1].split('run')[-1].lstrip("0")),int(name.split('_')[-1].split('ev')[-1]))
                 print("Processing Run: ",run,"- Event ",event,"...")
                 
                 testspark=100*self.cg.npixx*self.cg.npixx+9000000
@@ -244,7 +247,7 @@ class analysis:
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
                 self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
-                if self.options.Save_MC_data:
+                if self.options.save_MC_data:
                     mc_tree = tf.Get('event_info/info_tree')
                     mc_tree.GetEntry(event)
 #                    self.outTree.fillBranch("MC_track_len",mc_tree.MC_track_len)
@@ -323,13 +326,9 @@ class analysis:
             #        self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
             #        
             # fill reco tree (just once/event, and the TGraph is analyses as last)
-            if (self.options.daq == 'midas' and self.options.pmt_mode):
-                #if obj.InheritsFrom('TGraph'):			#works only if you have one waveform
-                nome = obj.GetName()
-                if "ch8" in nome:			#if you have mesh as last waveform use "mesh" or "wfm".. look first at the data
+            if self.options.camera_mode:
+                if obj.InheritsFrom('TH2'):
                     self.outTree.fill()
-            else:
-                self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
@@ -341,9 +340,11 @@ if __name__ == '__main__':
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
+    parser.add_option(      '--first-event', dest='firstEvent', default=-1, type='int', help='Skip all the events before this one')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
-    parser.add_option(      '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
+    parser.add_option('-t',  '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
+    parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
     
     (options, args) = parser.parse_args()
     
@@ -356,14 +357,19 @@ if __name__ == '__main__':
     run = int(options.run)
     
     if options.debug_mode == 1:
-        setattr(options,'outFile','reco_run%d_%s_debug.root' % (run, options.tip))
-        if options.ev: options.maxEntries = options.ev + 1
+        setattr(options,'outFile','%s_run%d_%s_debug.root' % (options.outname, run, options.tip))
+        #if options.ev: options.maxEntries = options.ev + 1
         #if options.daq == 'midas': options.ev +=0.5 
     else:
-        setattr(options,'outFile','reco_run%05d_%s.root' % (run, options.tip))
+        setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
         
     if not hasattr(options,"pedrun"):
-        pf = open("pedestals/pedruns.txt","r")
+        pedname= 'pedruns.txt'
+        if options.tag == 'DataMango':
+             pedname = 'pedruns_MANGO.txt'
+        if options.tag == 'MC':
+             pedname = 'pedruns_MC.txt'
+        pf = open("pedestals/"+pedname,"r")
         peddic = eval(pf.read())
         options.pedrun = -1
         for runrange,ped in peddic.items():
@@ -371,23 +377,39 @@ if __name__ == '__main__':
                 options.pedrun = int(ped)
                 print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
                 break
-        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/pedruns.txt. Check the dictionary inside it!")
+        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/",pedname," Check the dictionary inside it!")
             
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
-    options.tmpname ="../data/histograms_Run%05d.root" % int(options.run)				#"../../Saturation_Mango_Sim/digitization/out/histograms_Run%05d.root" % int(options.run)
+    USER = os.environ['USER']
+    #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
+    # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
+    tmpdir = '/tmp/'
+    # override the default, if given by option
+    if options.tmpdir:
+        tmpdir = options.tmpdir
+        os.system('mkdir -p {tmpdir}/'.format(tmpdir=tmpdir))
+    else:
+        os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+        tmpdir = '{tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER)
+    if sw.checkfiletmp(int(options.run),tmpdir):
+        options.tmpname = "%s/histograms_Run%05d.root" % (tmpdir,int(options.run))
+        print(options.tmpname)
+    else:
+        print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
+        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),tmpdir)
 
   
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
         if options.donotremove == False:
-            os.remove(tmpname)
+            sw.swift_rm_root_file(options.tmpname)
             print("tmp file removed")
         sys.exit(0)     
     
     ana = analysis(options)
-    nev = ana.getNEvents() if options.maxEntries == -1 else int(options.maxEntries)
+    nev = ana.getNEvents() #if options.maxEntries == -1 else int(options.maxEntries)
     print("This run has ",nev," events.")
     print("Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
@@ -399,10 +421,13 @@ if __name__ == '__main__':
     else:
         nThreads = options.jobs
 
+    firstEvent = 0 if options.firstEvent<0 else options.firstEvent
+    lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
+    print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
     if nThreads>1:
         print ("RUNNING USING ",nThreads," THREADS.")
-        nj = int(nev/nThreads)
-        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(0,nev,nj))]
+        nj = int(nev/nThreads) if options.maxEntries==-1 else max(int((lastEvent-firstEvent)/nThreads),1)
+        chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(firstEvent,lastEvent,nj))]
         print(chunks)
         pool = Pool(nThreads)
         ret = list(pool.apply_async(ana,args=(c, )) for c in chunks)
@@ -417,15 +442,22 @@ if __name__ == '__main__':
             pool.terminate()
             pool.join()
         except TimeoutError:
-            print("except")
+            print("Maximum time of {ns} seconds reached. Terminating processes brutally!".format(ns=maxTime))
+            ## add the chunks before terminating the job if timeout is reached
+            print("Now hadding the chunks...")
+            base = options.outFile.split('.')[0]
+            os.system('{rootsys}/bin/hadd -k -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
+            os.system('rm {base}_chunk*.root'.format(base=base))
             terminate_pool_2(pool)
+
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         os.system('{rootsys}/bin/hadd -k -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
         os.system('rm {base}_chunk*.root'.format(base=base))
     else:
         ana.beginJob(options.outFile)
-        ana.reconstruct()
+        evrange=(-1,firstEvent,lastEvent)
+        ana.reconstruct(evrange)
         ana.endJob()
 
     #### FOR SOME REASON THIS DOESN'T WORK IN BATCH.

@@ -5,7 +5,7 @@
 # DEBUG plots
 'debug_mode'            : 1,
 
-'ev'                    : 65,
+'ev'                    : 53,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -33,7 +33,7 @@
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
 'rebin'                 : 4,
-'nsigma'                : 2,
+'nsigma'                : 1.8,
 'cimax'                 : 300,                     # Upper threshold
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
@@ -47,7 +47,7 @@
 'donotremove'           : False,                    # Remove or not the file from the tmp folder
 
 # saving MC truth from digitisation
-'Save_MC_data'          : False,
+'save_MC_data'          : False,
 
 # Setting i2DBSCAN parameters
 
