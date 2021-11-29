@@ -366,13 +366,12 @@ if __name__ == '__main__':
         #if options.daq == 'midas': options.ev +=0.5 
     else:
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
-        
+    
+    patt = re.compile('\S+_(\S+).txt')
+    m = patt.match(args[0])
+    detector = m.group(1)
     if not hasattr(options,"pedrun"):
-        pedname= 'pedruns.txt'
-        if options.tag == 'DataMango':
-             pedname = 'pedruns_MANGO.txt'
-        if options.tag == 'MC':
-             pedname = 'pedruns_MC.txt'
+        pedname= 'pedruns_%s.txt' % (detector)
         pf = open("pedestals/"+pedname,"r")
         peddic = eval(pf.read())
         options.pedrun = -1
