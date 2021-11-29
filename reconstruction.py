@@ -84,11 +84,29 @@ class analysis:
         # prepare output tree
         self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
         self.outTree = OutputTree(self.outputFile,self.outputTree)
-        self.autotree = AutoFillTreeProducer(self.outTree)
+        self.autotree = AutoFillTreeProducer(self.outTree,self.options.scfullinfo)
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
         self.outTree.branch("pedestal_run", "I")
+        if self.options.save_MC_data:
+#            self.outTree.branch("MC_track_len","F")
+            self.outTree.branch("eventnumber","I")
+            self.outTree.branch("particle_type","I")
+            self.outTree.branch("energy","F")
+            self.outTree.branch("ioniz_energy","F")
+            self.outTree.branch("drift","F")
+            self.outTree.branch("phi_initial","F")
+            self.outTree.branch("theta_initial","F")
+            self.outTree.branch("MC_x_vertex","F")
+            self.outTree.branch("MC_y_vertex","F")
+            self.outTree.branch("MC_z_vertex","F")
+            self.outTree.branch("MC_x_vertex_end","F")
+            self.outTree.branch("MC_y_vertex_end","F")
+            self.outTree.branch("MC_z_vertex_end","F")
+            self.outTree.branch("MC_3D_pathlength","F")
+            self.outTree.branch("MC_2D_pathlength","F")
+
         if self.options.camera_mode:
             self.autotree.createCameraVariables()
             self.autotree.createClusterVariables('cl')
@@ -234,6 +252,25 @@ class analysis:
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
                 self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
+                if self.options.save_MC_data:
+                    mc_tree = tf.Get('event_info/info_tree')
+                    mc_tree.GetEntry(event)
+#                    self.outTree.fillBranch("MC_track_len",mc_tree.MC_track_len)
+                    self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
+                    self.outTree.fillBranch("particle_type",mc_tree.particle_type)
+                    self.outTree.fillBranch("energy",mc_tree.energy_ini)
+                    self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
+                    self.outTree.fillBranch("drift",mc_tree.drift)
+                    self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
+                    self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
+                    self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
+                    self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
+                    self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
+                    self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
+                    self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
+                    self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
+                    self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
+                    self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
 
             if self.options.camera_mode:
                 if obj.InheritsFrom('TH2'):
@@ -309,7 +346,7 @@ if __name__ == '__main__':
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='int', help='Process only the first n entries')
     parser.add_option(      '--first-event', dest='firstEvent', default=-1, type='int', help='Skip all the events before this one')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
-    parser.add_option(      '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
+    parser.add_option('-t',  '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
     
@@ -329,9 +366,13 @@ if __name__ == '__main__':
         #if options.daq == 'midas': options.ev +=0.5 
     else:
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
-        
+    
+    patt = re.compile('\S+_(\S+).txt')
+    m = patt.match(args[0])
+    detector = m.group(1)
     if not hasattr(options,"pedrun"):
-        pf = open("pedestals/pedruns.txt","r")
+        pedname= 'pedruns_%s.txt' % (detector)
+        pf = open("pedestals/"+pedname,"r")
         peddic = eval(pf.read())
         options.pedrun = -1
         for runrange,ped in peddic.items():
@@ -339,7 +380,7 @@ if __name__ == '__main__':
                 options.pedrun = int(ped)
                 print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
                 break
-        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/pedruns.txt. Check the dictionary inside it!")
+        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/",pedname," Check the dictionary inside it!")
             
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
@@ -352,10 +393,12 @@ if __name__ == '__main__':
     # override the default, if given by option
     if options.tmpdir:
         tmpdir = options.tmpdir
-
-    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+        os.system('mkdir -p {tmpdir}/'.format(tmpdir=tmpdir))
+    else:
+        os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+        tmpdir = '{tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER)
     if sw.checkfiletmp(int(options.run),tmpdir):
-        options.tmpname = "%s/%s/histograms_Run%05d.root" % (tmpdir,USER,int(options.run))
+        options.tmpname = "%s/histograms_Run%05d.root" % (tmpdir,int(options.run))
         print(options.tmpname)
     else:
         print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))

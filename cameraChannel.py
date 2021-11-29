@@ -23,7 +23,7 @@ class cameraTools:
         self.geometry = geometry
         # attach to a dict to make it persistent
         # the matrix is the max size possible, still ok if rebinned (because it is redone from the TH2D when it is readout)
-        self.vignetteMap = { 'lime' : np.zeros((int(self.geometry.npixx),int(self.geometry.npixx))) }
+        self.vignetteMap = { self.geometry.name : np.zeros((int(self.geometry.npixx),int(self.geometry.npixx))) }
 
     def pedsub(self,img,pedarr):
         return img - pedarr
@@ -89,10 +89,13 @@ class cameraTools:
         det = self.geometry.name
         if det == 'lemon': # not implemented (we were taking the efficienct region within the FC)
             return self.vignetteMap[det]
-        elif det == 'lime':
+        elif det == 'lime' or 'Mango_full':
             if not self.vignetteMap[det].any():
                 tf = ROOT.TFile.Open(self.geometry.vignette)
-                hmap = tf.Get('normmap_'+self.geometry.name)
+                namehmap = 'normmap_'+self.geometry.name
+                if det == 'Mango_full':
+                       namehmap = 'normmap_lime'		#in vignette_runs... there is no mango_full, so lime is used
+                hmap = tf.Get(namehmap)
                 vignetteMapRebinned = hist2array(hmap)
                 tf.Close()
                 rebinx = int(self.geometry.npixx/vignetteMapRebinned.shape[0])

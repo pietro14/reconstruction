@@ -1,0 +1,23 @@
+{
+# format: (first_run, last_run), ped_run,
+(1000,1003) :   1000, # runs taken manually 3/11/2021 (Ti source - run numbers are fictive)
+(2316,2321) :   2316,
+(2096,2099) :	2170,
+(2155,2164) :   2155,
+(2053,2055) :	2155,
+(3631,3700) :   3700,
+(3729,3797) :   3797, #3792
+(3799,3804) :   3804,
+(3806,3807) :   3807,
+(3808,3865) :   3808,
+(3933,3938) :   3938, # ORCA flash pedestals 
+(3939,3944) :   3941, # ORCA fusion pedestals 
+(3930,3932) :   2311, # white pictures for vignetting (old camera)
+(4374,4383) :   4374, # X rays variable energy (200 ms)
+(4384,4391) :   4384, # X rays variable energy (50 ms)
+(4396,4415) :   4396, # high statistics variable X-rays source (50 ms)
+(4117,4118) :   4418, # 13/04 Lime RING FC test
+(4119,4190) :   4119, # 13/04 Lime Z-scan
+(4432,4469) :   4432, # Fe Vg1, Z scans, 30/07/2021
+(4470,4504) :   4470, # variable X-rays source
+}

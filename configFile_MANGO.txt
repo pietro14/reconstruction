@@ -1,0 +1,65 @@
+{
+# DETECTOR
+'geometry'  : 'Mango_full',
+
+# DEBUG plots
+'debug_mode'            : 1,
+'ev'                    : 53,
+'nclu'                  : -1,        # -1
+
+# Plots that will be made if debug_mode = 1
+
+'flag_full_image'       : 0,
+'flag_rebin_image'      : 1,
+'flag_edges_image'      : 1,
+'flag_polycluster'      : 1,
+'flag_dbscan_seeds'     : 1,
+'flag_stats'            : 0,
+
+'camera_mode'            : 1,
+
+# Parameters of the plots
+'cmapcolor'             : 'gray',
+'figsizeY'              : 12,
+'figsizeX'              : 12,
+
+# Setting environments parameters
+
+'numPedEvents'          : -1,
+'pedExclRegion'         : None,
+'rebin'                 : 4,
+'nsigma'                : 1.8,
+'cimax'                 : 5000,                    # Upper threshold (keep very high not to kill large signals)
+'justPedestal'          : False,
+'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
+'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
+'tag'                   : 'DataMango',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
+'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
+
+'excImages'             : [], #list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy (not true anymore)
+'min_neighbors_average' : 0.75,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
+'donotremove'           : True,                   # Remove or not the file from the tmp folder
+
+'scfullinfo'            : True,			   # If True some the supercluster pixels info will be saved
+'save_MC_data'          : False,			   # If True save the MC informations
+
+'tip'                   : '3D',
+'saturation_corr'       : False,
+
+# Superclusters parameters are hardcoded
+'calibrate_clusters'    : False,
+
+# Run the cosmic killer (linear track extrapolation)
+'cosmic_killer'         : False,
+
+### PMT waveform reconstruction
+'pmt_mode'              : 1,
+
+'time_range'            : [7300,7700],
+'threshold'             : 0,
+'minPeakDistance'       : 5,
+'prominence'            : 50,
+'width'                 : 10,
+'resample'              : 5,
+'pmt_plotpy'            : False,
+}

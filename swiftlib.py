@@ -34,8 +34,11 @@ def swift_download_root_file(url,run,tmp=None):
     from urllib.request import urlretrieve
     USER = os.environ['USER']
     tmpdir = tmp if tmp else '/tmp/'
-    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-    tmpname = ("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
+    if tmpdir == '/tmp/':
+         os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+         tmpname = ("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
+    else:
+         tmpname = ("%s/histograms_Run%05d.root" % (tmpdir,run))
     urlretrieve(url, tmpname, reporthook)
     return tmpname 
 
@@ -74,8 +77,12 @@ def checkfiletmp(run,tmp=None):
     import os.path
     USER = os.environ['USER']
     tmpdir = tmp if tmp else '/tmp/'
-    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-    return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
+    
+    if tmpdir=='/tmp/':
+         os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+         return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
+    else:
+         return os.path.isfile("%s/histograms_Run%05d.root" % (tmpdir,run))
 
 
 def root_TH2_name(root_file):
