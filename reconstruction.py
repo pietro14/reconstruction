@@ -153,7 +153,7 @@ class analysis:
                 run = int(m.group(1))
                 event = int(m.group(2))
             if event in self.options.excImages: continue
-            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+            if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
                 
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pedestal mean with event: ",name)
@@ -177,7 +177,7 @@ class analysis:
                 run = int(m.group(1))
                 event = int(m.group(2))
             if event in self.options.excImages: continue
-            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+            if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
 
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pedestal rms with event: ",name)
