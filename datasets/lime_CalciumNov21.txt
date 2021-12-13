@@ -1,0 +1,5 @@
+runs = list(range(6143,6290))
+pedestals = list(range(6153,6288,11))
+for p in pedestals:
+    if p in runs:
+       runs.remove(p)

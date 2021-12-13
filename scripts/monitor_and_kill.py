@@ -4,7 +4,7 @@ import subprocess,os,sys
 
 if __name__ == "__main__":
 
-    seconds = 30
+    seconds = 900
     myPID = os.getpid()
     
     while True:
