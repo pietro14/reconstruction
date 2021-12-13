@@ -13,6 +13,8 @@
 #include <TGraph.h>
 #include <TLegend.h>
 #include <TSpectrum.h>
+#include <TMatrixD.h>
+#include "TDecompSVD.h"
 
 
 double RMSOnLine(double XBar, double YBar, double Phi);
@@ -254,7 +256,7 @@ fLineDirection(nullptr)
 	OriTrack->SaveAs(Form("Tracks/%s.png",Tracklarge->GetName()));
 	delete OriTrack;
 
-	//fTrack->Rebin2D(2,2);
+	fTrack->Rebin2D(2,2);
 }
 
 ////Constructor 
@@ -306,7 +308,7 @@ fLineDirection(nullptr)
 	}
 
 	//fTrack->Rebin2D(2,2);
-
+	
 	fPhiMainAxis=AngleLineMaxRMS();
 	BuildLineMaxRMS();
 	fRMSOnMainAxis=GetRMSOnMainAxis();
@@ -904,7 +906,7 @@ void Analyzer::Edges(double &Xl, double &Yl, double &Xr, double &Yr, double slop
 
 //Profiling over main axis of the track
 //if longitudinal is 1 it profiles on longitudinal axis (along principal axis), else it profiles on transverse axis (perpendicular) 
-TH1D* Analyzer::FillProfile(bool longitudinal) 
+TH1D* Analyzer::FillProfile(bool longitudinal, float x1, float x2)
 {
 
   double xl,yl,xr,yr;
@@ -919,8 +921,6 @@ TH1D* Analyzer::FillProfile(bool longitudinal)
   TH1D* TrackProfile=new TH1D("TrackProf","TrackProf",binmax+2,0,binmax+2);
   
   double Xp, Yp, Zp;
-  
-  //Barycenter(fTrack, &fXbar, &fYbar); //Now it is not really necessary.. Barycenter is calculated in AngleLineMaxRMS and stored in private variables
 
   for(int i=1;i<fnpixelx;i++)
   {
@@ -928,13 +928,15 @@ TH1D* Analyzer::FillProfile(bool longitudinal)
 	{  
 	  
 	  Zp=fTrack->GetBinContent(i,j);
-	  if(Zp!=0)
+	  if(Zp!=0 )
 	  {
 	    ii=fTrack->GetXaxis()->GetBinCenter(i);
 	    jj=fTrack->GetYaxis()->GetBinCenter(j);
-	    Xp = (1/(1+pow(slope,2)))*(ii+fXbar*pow(slope,2)+slope*(jj-fYbar));
-	    Yp = fYbar+(slope/(1+pow(slope,2)))*(ii-fXbar+slope*(jj-fYbar));
-  	    TrackProfile->Fill(sqrt(pow((Xp-xl),2)+pow((Yp-yl),2)),Zp);
+            if(ii>x1 && ii<x2){
+	      Xp = (1/(1+pow(slope,2)))*(ii+fXbar*pow(slope,2)+slope*(jj-fYbar));
+	      Yp = fYbar+(slope/(1+pow(slope,2)))*(ii-fXbar+slope*(jj-fYbar));
+  	      TrackProfile->Fill(sqrt(pow((Xp-xl),2)+pow((Yp-yl),2)),Zp);
+            }
       }
     }
   }
@@ -943,10 +945,12 @@ TH1D* Analyzer::FillProfile(bool longitudinal)
 }
 
 //To be called with longitudinal or transverse profile to cut it around the main energy deposit
-TH1D* Analyzer::CutProfile(TH1D* profile){
+TH1D* Analyzer::CutProfile(TH1D* profile, double height)
+{ 
+//height: cut bins with content lower than height*maximum intensity in the profile  (default is 0.25%)
 
-  int binmin = profile->FindFirstBinAbove(0.005*profile->GetMaximum(),1); //first bin above 0.5% of max intensity
-  int binmax = profile->FindLastBinAbove(0.005*profile->GetMaximum(),1); //last bin above 0.5% of max intensity
+  int binmin = profile->FindFirstBinAbove(height*profile->GetMaximum(),1);
+  int binmax = profile->FindLastBinAbove(height*profile->GetMaximum(),1); 
   int bins_cut = 0;
 
   std::string title = profile->GetTitle();
@@ -1009,15 +1013,49 @@ TH1D* Analyzer::FillProfileY()
 
 }
 
-//
-void Analyzer::FindNPeaks(TH1D* h, std::vector<double> &pos)
+
+void Analyzer::AnglePCA(double &ang)
+{
+TMatrixD M(2,2);
+TMatrixD V(2,2);
+double x,y,x2,y2,xy;
+double Z;
+
+  for(int i=0; i<fnpixelx; i++)
+  {
+    for(int j=0; j<fnpixely; j++)
+    {
+      Z=fTrack->GetBinContent(i,j);
+      if(Z!=0){
+        x=(fTrack->GetXaxis()->GetBinCenter(i)-fXbar)*Z;
+        y=(fTrack->GetYaxis()->GetBinCenter(j)-fYbar)*Z;
+        x2 += x*x;
+        y2 += y*y;
+        xy += x*y;
+      }
+    }
+  }
+
+M(0,0) = x2;
+M(0,1) = M(1,0) = xy;
+M(1,1) = y2;
+
+TDecompSVD SVDmatrix(M);
+if(SVDmatrix.Decompose()) V = SVDmatrix.GetV();
+
+ang = TMath::ATan(V(1,0)/V(0,0));
+
+}
+
+void Analyzer::FindNPeaks(TH1D* h, std::vector<std::pair<double,double>> &foundpeaks)
 {
 
   TSpectrum* s = new TSpectrum();
 
   int npeaks;
-  double* peaksPos(nullptr);			//better to use nullptr
-  std::vector<double> peaks;
+  double* peaksPos(nullptr);
+
+  std::vector< std::pair<double,double> > peaks;
   std::vector<double> peaks_tocompare;
 
   for(int i=2; i<16; i=i+1){ //scan for different sigma
@@ -1026,21 +1064,21 @@ void Analyzer::FindNPeaks(TH1D* h, std::vector<double> &pos)
     peaksPos = s->GetPositionX(); //positions of peaks with current sigma (peaks2=positions of peaks with previous sigma)
     if (npeaks == 0){continue;} //if no peaks are found, go to next sigma
     else{ //if peaks are found
-//if any of the peaks found in the previous iteration is equal (within one sigma) to the current one, ignore it; otherwise, save the position of the new peak and increase the total number of peaks
+      //if any of the peaks found in the previous iteration is equal (within one sigma) to the current one, ignore it; otherwise, save the position of the new peak and increase the total number of peaks
       for(int j=0; j<npeaks; j++){ //loop over number of new peaks
 
         if(!peaks_tocompare.empty()){ 
 
           auto it = std::find_if(peaks_tocompare.begin(), peaks_tocompare.end(), [&](double p){ return (p>(peaksPos[j]-(double)i) && p<(peaksPos[j]+(double)i)); });
-          if(it != peaks_tocompare.end()){
+          if(it != peaks_tocompare.end()){ //if it's already stored
             continue;
           }
-	       else{
-				peaks.push_back(peaksPos[j]); 
-				continue;
+	  else{ //it's a new peak, save it
+            peaks.push_back( std::make_pair(peaksPos[j],(double)i) );
+	    continue;
           }
         }
-        peaks.push_back(peaksPos[j]);
+        peaks.push_back(std::make_pair(peaksPos[j],(double)i));
       } //end loop sui picchi trovati
     } //end if peaks were found
   
@@ -1049,8 +1087,8 @@ void Analyzer::FindNPeaks(TH1D* h, std::vector<double> &pos)
   
   } //end scan on different sigma
 
- pos = peaks;
- 
+foundpeaks = peaks; 
+
  delete s;
  
  return;
@@ -1078,9 +1116,9 @@ void Analyzer::FindPeak(double &xpeak, double &ypeak, double &xpeak_rebin, doubl
 }
 
 //
-void Analyzer::LeastSquareLine(double &a, double &b) 
+/*TF1* Analyzer::LeastSquareLine() 
 {
-  double sum1=0, sum2=0, sum3=0, sum4=0, sum5=0;
+  double sum1=0, sum2=0, sum3=0, sum4=0, sum5=0, a=0 , b=0;
   double Z=0;
 
   for(int i=1;i<fnpixelx;i++)
@@ -1090,10 +1128,10 @@ void Analyzer::LeastSquareLine(double &a, double &b)
 	  Z=fTrack->GetBinContent(i,j);
 	  if(Z!=0)
 	  {
-		  sum1+= Z*i*i;
-		  sum2+= Z*j;
-		  sum3+= Z*i;
-		  sum4+= Z*i*j;
+		  sum1+= Z*(fTrack->GetXaxis()->GetBinCenter(i))*(fTrack->GetXaxis()->GetBinCenter(i));
+		  sum2+= Z*(fTrack->GetYaxis()->GetBinCenter(j));
+		  sum3+= Z*(fTrack->GetXaxis()->GetBinCenter(i));
+		  sum4+= Z*(fTrack->GetXaxis()->GetBinCenter(i))*(fTrack->GetYaxis()->GetBinCenter(j));
 		  sum5+= Z;
 	  }
 	}
@@ -1102,9 +1140,12 @@ void Analyzer::LeastSquareLine(double &a, double &b)
 a = (sum1*sum2-sum3*sum4)/(sum5*sum1-(sum3*sum3));
 b = (sum5*sum4-sum3*sum2)/(sum5*sum1-(sum3*sum3));
 
-return; 
+TF1* line = new TF1("leastsquare","[0]*x+[1]",1000,2000);
+line->SetParameters(b,a);
 
-}
+return line; 
+
+}*/
 
 
 //Minifuction launching Atul's script
