@@ -32,6 +32,7 @@ Firstly, create pedestal map (example with pedestal run 4159):
 2. add this line to `pedestals/pedruns_MC.txt`: `(4159, 4159) :   4159,`
 3. copy pedestal root file (`histograms_Run04159.root`) to `/tmp/<username>`  
 4. create pedmap with: `python reconstruction.py configFile_MC.txt -r 4159`
+ 
 Now, you should have the file `pedestals/pedmap_run4159_rebin1.root`
 
 Secondly, reconstruct digitized images (example with 3 root input files):
