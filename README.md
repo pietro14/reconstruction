@@ -32,7 +32,7 @@ Firstly, create pedestal map (example with pedestal run 4159):
 3. put pedestal root file (`histograms_Run04159.root`) in `pedestals/` directory
 4. create pedmap with: `python reconstruction.py configFile_MC.txt -r 4159`
 
-Secondly, reconstruct digitized images (example with 3 root input files)
+Secondly, reconstruct digitized images (example with 3 root input files):
 5. set `justPedestal` to `False` and `debug_mode` to `0` in `configFile_MC.txt`
 6. rename the 3 root input files: `histograms_Run00001.root`, `histograms_Run00002.root` and `histograms_Run00003.root` 
 7. move the 3 root input files to `/tmp/<username>` 
