@@ -229,7 +229,13 @@ class analysis:
 
             name=key.GetName()
             obj=key.ReadObj()
-
+            
+            if self.options.tag=="MC":
+                if name=="event_info":
+                    continue
+                if name=="param_dir":
+                    continue
+            
             if 'pic' in name:
                 patt = re.compile('\S+run(\d+)_ev(\d+)')
                 m = patt.match(name)
