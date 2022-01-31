@@ -153,10 +153,11 @@ class analysis:
                 run = int(m.group(1))
                 event = int(m.group(2))
             if event in self.options.excImages: continue
-            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+            if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
                 
             if not obj.InheritsFrom('TH2'): continue
-            print("Calc pedestal mean with event: ",name)
+            if event%20 == 0:
+                print("Calc pedestal mean with event: ",name)
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
@@ -177,10 +178,11 @@ class analysis:
                 run = int(m.group(1))
                 event = int(m.group(2))
             if event in self.options.excImages: continue
-            if maxImages>-1 and i>min(len(tf.GetListOfKeys()),maxImages): break
+            if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
 
             if not obj.InheritsFrom('TH2'): continue
-            print("Calc pedestal rms with event: ",name)
+            if event%20 == 0:
+                print("Calc pedestal rms with event: ",name)
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
@@ -227,7 +229,13 @@ class analysis:
 
             name=key.GetName()
             obj=key.ReadObj()
-
+            
+            if self.options.tag=="MC":
+                if name=="event_info":
+                    continue
+                if name=="param_dir":
+                    continue
+            
             if 'pic' in name:
                 patt = re.compile('\S+run(\d+)_ev(\d+)')
                 m = patt.match(name)
@@ -244,7 +252,7 @@ class analysis:
             if obj.InheritsFrom('TH2'):
                 print("Processing Run: ",run,"- Event ",event,"...")
                 
-                testspark=100*self.cg.npixx*self.cg.npixx+9000000
+                testspark=100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
                 if obj.Integral()>testspark:
                           print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
                           continue

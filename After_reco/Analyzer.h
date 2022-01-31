@@ -4,6 +4,8 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include "TMatrixD.h"
+#include "TDecompSVD.h"
 
 class TH2F;
 class TF1;
@@ -76,13 +78,14 @@ class Analyzer {
   void ImprCorrectAngle();
 
   void Edges(double &Xl, double &Yl, double &Xr, double &Yr, double slope);
-  TH1D* FillProfile(bool longitudinal);
-  TH1D* CutProfile(TH1D* profile);
+  TH1D* FillProfile(bool longitudinal, float x1=0, float x2=2304);
+  TH1D* CutProfile(TH1D* profile, double height=0.0025);
   TH1D* FillProfileX();
   TH1D* FillProfileY();
-  void FindNPeaks(TH1D* h,std::vector<double> &pos);
+  void AnglePCA(double &ang);
+  void FindNPeaks(TH1D* h, std::vector<std::pair<double,double>> &foundpeaks);
   void FindPeak(double &xpeak, double &ypeak, double &xpeak_rebin, double &ypeak_rebin);
-  void LeastSquareLine(double &a, double &b);
+  //TF1* LeastSquareLine();
 
   int Execute_Atul_script(std::string pyvers, std::string inputfile, std::string outfolder, int entries, bool plot=false, bool text=false ) const;
   
