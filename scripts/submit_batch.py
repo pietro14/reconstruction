@@ -39,6 +39,7 @@ if __name__ == "__main__":
     parser.add_option('-q',   '--queue',    dest='queue',    type="string", default='cygno-custom', help='queue to be used for the jobs');
     parser.add_option('--mh'  '--max-hours',dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('--nev' '--event-chunks',dest='eventChunks', default=[], nargs=2,  type='int', help='T C: Total number of events to process and events per job')
+    parser.add_option('--cfg' '--config-file',dest='configFile', default="configFile_LNF.txt",  type='string', help='the config file to be run')
     (options, args) = parser.parse_args()
 
     if len(args)<2:
@@ -106,11 +107,11 @@ if __name__ == "__main__":
             print ("Preparing jobs for run {r}. The task subdivides a total of {nT} events in chunks of {nJ} events per job.".format(r=run,nT=totEv,nJ=evPerJob))
             for ij,firstEvent in enumerate(range(0,totEv,evPerJob)):
                 print ("Will submit job #{ij}, processing event range: [{fev}-{lev}]".format(ij=ij,fev=firstEvent,lev=min(firstEvent+evPerJob,totEv)))
-                cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -o reco_job{ijob} --first-event {fev} --max-entries {me} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt,fev=firstEvent,me=evPerJob,ijob=ij)
+                cmd = 'python3.8 reconstruction.py {cfg} -r {r} -o reco_job{ijob} --first-event {fev} --max-entries {me} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt,fev=firstEvent,me=evPerJob,ijob=ij,cfg=options.configFile)
                 sub_cmd = prepare_jobpack(jobdir,logdir,abswpath,cmd,ij)
                 commands.append(sub_cmd)
         else:
-            cmd = 'python3.8 reconstruction.py configFile.txt -r {r} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt)
+            cmd = 'python3.8 reconstruction.py {cfg} -r {r} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt,cfg=options.configFile)
             prepare_jobpack(jobdir,logdir,abswpath,cmd)
             sub_cmd = prepare_jobpack(jobdir,logdir,abswpath,cmd)
             commands.append(sub_cmd)

@@ -3,7 +3,7 @@
 'geometry'  : 'lime',
 
 # DEBUG plots
-'debug_mode'            : 1,
+'debug_mode'            : 0,
 'ev'                    : 70,
 'nclu'                  : -1,        # -1
 
@@ -40,7 +40,7 @@
 'min_neighbors_average' : 0.75,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
 
-'scfullinfo'            : True,			   # If True some the supercluster pixels info will be saved
+'scfullinfo'            : False,			   # If True some the supercluster pixels info will be saved
 'save_MC_data'          : False,			   # If True save the MC informations
 
 'tip'                   : '3D',
