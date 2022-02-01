@@ -49,7 +49,7 @@ class AutoFillTreeProducer:
                 self.outTree.branch('{name}_redpixIdx'.format(name=name),   'F',  lenVar=sizeStr)
                 self.outTree.branch('redpix_ix',        'I', lenVar='nRedpix') 
                 self.outTree.branch('redpix_iy',        'I', lenVar='nRedpix') 
-                self.outTree.branch('redpix_iz',        'I', lenVar='nRedpix') 
+                self.outTree.branch('redpix_iz',        'F', lenVar='nRedpix') 
         self.outTree.branch('{name}_theta'.format(name=name),        'F', lenVar=sizeStr)
         self.outTree.branch('{name}_length'.format(name=name),       'F', lenVar=sizeStr)
         self.outTree.branch('{name}_width'.format(name=name),        'F', lenVar=sizeStr)
@@ -120,7 +120,7 @@ class AutoFillTreeProducer:
                         redPixIdxs.append(len(ix))
                         ix = ix + [round(cl.xallpixelcoord[i]) for i in range(cl.nallintpixels)]
                         iy = iy + [round(cl.yallpixelcoord[i]) for i in range(cl.nallintpixels)]
-                        iz = iz + [round(cl.zallpixel[i]) for i in range(cl.nallintpixels)]
+                        iz = iz + [round(cl.zallpixel[i]*10)/10. for i in range(cl.nallintpixels)]
                     else:
                         redPixIdxs.append(-1)
                 self.outTree.fillBranch('redpix_ix', ix)
