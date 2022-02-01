@@ -15,7 +15,7 @@ or *histograms_Run01515.root* if it was already a root file.
 
 
 # Updated HOW-TO-RUN
-## Running the analysis code:
+## Running the analysis code (in general):
 
 `python3 reconstruction.py configFile.txt --pdir plots --max-entries X -jX`
 
@@ -23,6 +23,28 @@ or *histograms_Run01515.root* if it was already a root file.
 - *pdir* is the directory where the plots will be saved.
 - *max-entries* is the number of images you want to analyse.
 - *j* is the number of cores you want to use.
+
+
+
+## Running the analysis code on MC data (updated on December 2021):
+Firstly, create pedestal map (example with pedestal run 4159):
+1. set `justPedestal` to `True` in `configFile_MC.txt`
+2. add this line to `pedestals/pedruns_MC.txt`: `(4159, 4159) :   4159,`
+3. copy pedestal root file (`histograms_Run04159.root`) to `/tmp/<username>`  
+4. create pedmap with: `python reconstruction.py configFile_MC.txt -r 4159`
+ 
+Now, you should have the file `pedestals/pedmap_run4159_rebin1.root`
+
+Secondly, reconstruct digitized images (example with 3 root input files):
+1. set `justPedestal` to `False` and `debug_mode` to `0` in `configFile_MC.txt`
+2. copy pedestal root file (`histograms_Run04159.root`) in `pedestals/`
+3. rename the 3 root input files: `histograms_Run00001.root`, `histograms_Run00002.root` and `histograms_Run00003.root` 
+4. create the directory `./input` and copy the 3 root input files in it
+5. add to `configFile_MC.txt`: `'tmpdir'  : './input/',`
+6. set right pedestal for run 1 to 3 in `pedestals/pedruns_MC.txt`: `(1,3) :   4159,`
+7. run in batch: `python scripts/submit_batch.py --outdir out/ --cfg configFile_MC.txt $(pwd) '[1-3]'`
+
+
 
 
 # Prerequisite to run:
