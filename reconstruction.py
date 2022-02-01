@@ -48,6 +48,11 @@ class analysis:
         self.cg = cameraGeometry(geometryParams)
         self.xmax = self.cg.npixx
 
+        eventContentPSet = open('modules_config/reco_eventcontent.txt')
+        self.eventContentParams = eval(eventContentPSet.read())
+        for k,v in self.eventContentParams.items():
+            setattr(self.options,k,v)
+        
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
@@ -84,7 +89,7 @@ class analysis:
         # prepare output tree
         self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
         self.outTree = OutputTree(self.outputFile,self.outputTree)
-        self.autotree = AutoFillTreeProducer(self.outTree,self.options.scfullinfo)
+        self.autotree = AutoFillTreeProducer(self.outTree,self.eventContentParams)
 
         self.outTree.branch("run", "I")
         self.outTree.branch("event", "I")
@@ -417,8 +422,8 @@ if __name__ == '__main__':
         print("Pedestals done. Exiting.")
         if options.donotremove == False:
             sw.swift_rm_root_file(options.tmpname)
-        sys.exit(0)     
-    
+        sys.exit(0)
+
     ana = analysis(options)
     nev = ana.getNEvents()
     print("This run has ",nev," events.")

@@ -1,10 +1,10 @@
 import numpy as np
 
 class AutoFillTreeProducer:
-    def __init__(self,tree,fullinfosc):
+    def __init__(self,tree,eventContent):
         self.outTree = tree
         self.saveKillerVars = False
-        self.scfullinfo = fullinfosc
+        self.eventContent = eventContent
         
     def createPMTVariables(self):
         self.outTree.branch('pmt_integral', 'F')
@@ -43,23 +43,13 @@ class AutoFillTreeProducer:
         self.outTree.branch('{name}_corrintegral'.format(name=name),     'F', lenVar=sizeStr)
         # filled only for the supercluster
         if name=='sc':
-            self.outTree.branch('{name}_nslices'.format(name=name), 'F', lenVar=sizeStr)
             self.outTree.branch('{name}_energy'.format(name=name),  'F', lenVar=sizeStr)
             self.outTree.branch('{name}_pathlength'.format(name=name),    'F', lenVar=sizeStr)
-            self.outTree.branch('{name}_energyprof'.format(name=name),    'F', lenVar=sizeStr+'*nSlices')
-            self.outTree.branch('{name}_xprof'.format(name=name),    'F', lenVar=sizeStr+'*nSlices')
-            self.outTree.branch('{name}_yprof'.format(name=name),    'F', lenVar=sizeStr+'*nSlices')
-            if self.scfullinfo == True:
-                  self.outTree.branch('{name}_ID'.format(name=name),             'I', lenVar=sizeStr+'*nIntpixels')
-                  self.outTree.branch('{name}_nintpixels'.format(name=name),     'I', lenVar=sizeStr)
-                  self.outTree.branch('{name}_xpixelcoord'.format(name=name),    'F', lenVar=sizeStr+'*nIntpixels')
-                  self.outTree.branch('{name}_ypixelcoord'.format(name=name),    'F', lenVar=sizeStr+'*nIntpixels')
-                  self.outTree.branch('{name}_zpixel'.format(name=name),         'F', lenVar=sizeStr+'*nIntpixels')
-                  self.outTree.branch('{name}_IDall'.format(name=name),          'I', lenVar=sizeStr+'*nAllintpixels')
-                  self.outTree.branch('{name}_nallintpixels'.format(name=name),  'I', lenVar=sizeStr)
-                  self.outTree.branch('{name}_xallpixelcoord'.format(name=name), 'F', lenVar=sizeStr+'*nAllintpixels')
-                  self.outTree.branch('{name}_yallpixelcoord'.format(name=name), 'F', lenVar=sizeStr+'*nAllintpixels')
-                  self.outTree.branch('{name}_zallpixel'.format(name=name),      'F', lenVar=sizeStr+'*nAllintpixels')
+            if self.eventContent["scfullinfo"] == True:
+                self.outTree.branch('{name}_redpixIdx'.format(name=name),   'F',  lenVar=sizeStr)
+                self.outTree.branch('redpix_ix',        'I', lenVar='nRedpix') 
+                self.outTree.branch('redpix_iy',        'I', lenVar='nRedpix') 
+                self.outTree.branch('redpix_iz',        'I', lenVar='nRedpix') 
         self.outTree.branch('{name}_theta'.format(name=name),        'F', lenVar=sizeStr)
         self.outTree.branch('{name}_length'.format(name=name),       'F', lenVar=sizeStr)
         self.outTree.branch('{name}_width'.format(name=name),        'F', lenVar=sizeStr)
@@ -115,27 +105,28 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('{name}_corrintegral'.format(name=name), [cl.corr_integral() for cl in clusters])
         # filled only for the supercluster
         if name=='sc':
-            self.outTree.fillBranch('{name}_nslices'.format(name=name), [cl.nslices for cl in clusters])
             self.outTree.fillBranch('{name}_energy'.format(name=name), [cl.calibratedEnergy for cl in clusters])
             self.outTree.fillBranch('{name}_pathlength'.format(name=name),    [cl.pathlength for cl in clusters])
-            self.outTree.fillBranch('{name}_energyprof'.format(name=name),    [cl.energyprofile[i] for cl in clusters for i in range(cl.nslices)])
-            self.outTree.fillBranch('{name}_xprof'.format(name=name),         [cl.centers[i][0] for cl in clusters for i in range(cl.nslices)])
-            self.outTree.fillBranch('{name}_yprof'.format(name=name),         [cl.centers[i][1] for cl in clusters for i in range(cl.nslices)])
             if self.saveKillerVars == True:
                 self.outTree.fillBranch('{name}_mindist'.format(name=name), [cl.minDistKiller for cl in clusters])
                 self.outTree.fillBranch('{name}_nmatchweak'.format(name=name), [cl.nMatchKillerWeak for cl in clusters])
                 self.outTree.fillBranch('{name}_nmatchrobust'.format(name=name), [cl.nMatchKiller for cl in clusters])
-            if self.scfullinfo == True:
-                  self.outTree.fillBranch('{name}_ID'.format(name=name),             [cl.ID[i] for cl in clusters for i in range(cl.nintpixels)])
-                  self.outTree.fillBranch('{name}_nintpixels'.format(name=name),     [cl.nintpixels for cl in clusters])
-                  self.outTree.fillBranch('{name}_xpixelcoord'.format(name=name),    [cl.xpixelcoord[i] for cl in clusters for i in range(cl.nintpixels)])
-                  self.outTree.fillBranch('{name}_ypixelcoord'.format(name=name),    [cl.ypixelcoord[i] for cl in clusters for i in range(cl.nintpixels)])
-                  self.outTree.fillBranch('{name}_zpixel'.format(name=name),         [cl.zpixel[i] for cl in clusters for i in range(cl.nintpixels)])
-                  self.outTree.fillBranch('{name}_IDall'.format(name=name),          [cl.IDall[i] for cl in clusters for i in range(cl.nallintpixels)])
-                  self.outTree.fillBranch('{name}_nallintpixels'.format(name=name),  [cl.nallintpixels for cl in clusters])
-                  self.outTree.fillBranch('{name}_xallpixelcoord'.format(name=name), [cl.xallpixelcoord[i] for cl in clusters for i in range(cl.nallintpixels)])
-                  self.outTree.fillBranch('{name}_yallpixelcoord'.format(name=name), [cl.yallpixelcoord[i] for cl in clusters for i in range(cl.nallintpixels)])
-                  self.outTree.fillBranch('{name}_zallpixel'.format(name=name),      [cl.zallpixel[i] for cl in clusters for i in range(cl.nallintpixels)])
+            if self.eventContent["scfullinfo"] == True:
+                selection = self.eventContent["scpixels_sel"]
+                redPixIdxs = []
+                ix = []; iy = []; iz = []
+                for cl in clusters:
+                    if cl.shapes['long_width'] < float(selection["max_len"]) and cl.integral() > float(selection["min_integral"]):
+                        redPixIdxs.append(len(ix))
+                        ix = ix + [round(cl.xallpixelcoord[i]) for i in range(cl.nallintpixels)]
+                        iy = iy + [round(cl.yallpixelcoord[i]) for i in range(cl.nallintpixels)]
+                        iz = iz + [round(cl.zallpixel[i]) for i in range(cl.nallintpixels)]
+                    else:
+                        redPixIdxs.append(-1)
+                self.outTree.fillBranch('redpix_ix', ix)
+                self.outTree.fillBranch('redpix_iy', iy)
+                self.outTree.fillBranch('redpix_iz', iz)
+                self.outTree.fillBranch('{name}_redpixIdx'.format(name=name),   redPixIdxs)
         self.outTree.fillBranch('{name}_theta'.format(name=name),    [cl.shapes['theta'] for cl in clusters])
         self.outTree.fillBranch('{name}_length'.format(name=name),   [cl.shapes['long_width'] for cl in clusters])
         self.outTree.fillBranch('{name}_width'.format(name=name),    [cl.shapes['lat_width'] for cl in clusters])
