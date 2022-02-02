@@ -41,7 +41,7 @@ cosm_energycalib = {'fe'   : 1, # not enough cosmics (split parts of the sensor)
 
 ### ABSOLUTE ENERGY SCALE ###
 fe_truth = 5.9 # keV
-fe_integral_mpv = 1900. # number of photons most probable value
+fe_integral_mpv = 10000. # number of photons most probable value
 fe_calib_gaussigma = [1.07,0.014] # central value, stat error
 fe_calib_gauspeak  = [fe_truth*1000./fe_integral_mpv,0.013] # central value, stat error in eV/ph
 ##########################################################
@@ -281,7 +281,7 @@ def plotNClusters(iteration=1):
     c.SaveAs("nclusters_iter1_run70_71.pdf")
 
 
-def LimeEfficientRegion(xmean,ymean,r=800,shape=NX[GEOMETRY]):
+def LimeEfficientRegion(xmean,ymean,r=900,shape=NX[GEOMETRY]):
     center = shape/2.
     x1 = xmean-center
     y1 = ymean-center
@@ -303,9 +303,12 @@ def withinFCFull(xmin,ymin,xmax,ymax,ax=480,ay=600,shape=NX[GEOMETRY]):
     y2 = (ymax-center)*1.2
     return math.hypot(x1,y1)<ax and math.hypot(x2,y2)<ax
 
-# the large 600pix framesize is for the ambient light...
-def limeQuietRegion(xmean,ymean,framesize=500):
-    return xmean>framesize and xmean<NX[GEOMETRY]-framesize and ymean>framesize and ymean<NX[GEOMETRY]-framesize
+
+def limeQuietRegion(xmean,ymean,framesize=400):
+    # the large 600pix framesize is for the ambient light...
+    #return xmean>framesize and xmean<NX[GEOMETRY]-framesize and ymean>framesize and ymean<NX[GEOMETRY]-framesize
+    # this instead is sc_xmean > 400 to reject more the sensor noise
+    return xmean>framesize
 
 def slimnessCut(l,w,th=0.6):
     
@@ -345,17 +348,18 @@ def varChoice(var):
 def fillSpectra():
 
     ret = {}
-    data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/v2/xrays'
-    tf_ambe  = ROOT.TFile('{d}/reco_runBa_3D.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/reco_run04471_3D.root'.format(d=data_dir))
-    tf_fe55 = ROOT.TFile('{d}/reco_run04471_3D.root'.format(d=data_dir)) # not used
+    #data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/v2/xrays'
+    data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/v2/titaniumTransparency_03Nov21'
+    tf_ambe  = ROOT.TFile('{d}/reco_runTi.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/reco_runBkg.root'.format(d=data_dir))
+    tf_fe55 = ROOT.TFile('{d}/reco_runFe55.root'.format(d=data_dir))
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
 
     entries = {'fe': tf_fe55.Events.GetEntries(), 'ambe': tf_ambe.Events.GetEntries(), 'cosm': tf_cosmics.Events.GetEntries()}
     
     ## Fe55 region histograms
-    ret[('ambe','integral')] = ROOT.TH1F("integral",'',17,0,9e4)
+    ret[('ambe','integral')] = ROOT.TH1F("integral",'',75,0,3e4)
     #ret[('ambe','integral')] = ROOT.TH1F("integral",'',31,0,1e5)
     ret[('ambe','integralExt')] = ROOT.TH1F("integralExt",'',50,0,25e4)
     ret[('ambe','calintegral')] = ROOT.TH1F("calintegral",'',50,0,30)
@@ -535,8 +539,8 @@ def fillSpectra():
                 ##########################
                 # if not limeQuietRegion(xmean,ymean):
                 #     continue
-                if not LimeEfficientRegion(xmean,ymean):
-                    continue
+                # if not LimeEfficientRegion(xmean,ymean):
+                #     continue
                 #if not noiseSuppression(nhits,size,latrms,mindist):
                 #    continue
 
@@ -599,7 +603,8 @@ def fillSpectra():
                         ##########################
                         # remove long/slim cosmics
                         #if integral<1e3 or length > 1000. or width/length<0.5:
-                        if integral<1e3 or length > 200.: # up to Ba (Ba<200 and Tb<300)
+                        #if integral<1e3 or length > 200.: # up to Ba (Ba<200 and Tb<300)
+                        if integral<1e3 or length > 100. or slimness<0.8: # Titanium (transparency) + Fe residual
                             continue
                         # remove the bad cluster shapes cosmics
                         #if not clusterShapeQuality(gamp,gsigma,gchi2,gstatus):
@@ -910,7 +915,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     histo_bkg_errs.Scale(cosm_rate_calib[0])
     
     histos = [histo_sig,histo_bkg] + ([histo_sig2] if histo_sig2 else [])
-    labels = ['Ba (35 keV)','%.2f #times no source' % cosm_rate_calib[0]] + ([ '%.2f #times ^{55}Fe' % fe_integral_rescale] if histo_sig2 else [])
+    labels = ['Ti (4.5 keV) + Fe (5.9 keV)','%.2f #times no source' % cosm_rate_calib[0]] + ([ '%.2f #times ^{55}Fe' % fe_integral_rescale] if histo_sig2 else [])
     styles = ['pe','f'] + (['f'] if histo_sig2 else [])
     
     legend = doLegend(histos,labels,styles,corner="TR")
@@ -946,7 +951,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         padBottom.SetLogy(1)
 
     ratios.append(ratio)
-    labelsR.append('Ba (35 keV) - no source')
+    labelsR.append('[Ti (4.5 keV) + Fe (5.9 keV)]  - no source')
     stylesR.append('pe')
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure
@@ -974,7 +979,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         ratio2.GetYaxis().SetTitle("{num} - {den}".format(num=labels[0],den=labels[1]))
         ratio2.Draw('pe same')
         ratios.append(ratio2)
-        labelsR.append('%.1f #times Ag (22 keV) - no source' % fe_integral_rescale)
+        labelsR.append('%.1f #times Fe (5.9 keV) - no source' % fe_integral_rescale)
         stylesR.append('pe')
         rmax = max(ratio.GetMaximum(),ratio2.GetMaximum())
         ratio.SetMaximum(1.1*rmax)
@@ -1118,8 +1123,8 @@ def drawSpectra(histos,plotdir,entries,normEntries=False):
             if histos[('fe',var)]:
                 histos[('fe',var)].SetFillColorAlpha(ROOT.kViolet-4,0.5)
                 #histos[('fe',var)].SetFillStyle(3354)
-            #drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
-            drawOne(histos[('ambe',var)],histos[('cosm',var)],histo_sig2=None,plotdir=plotdir,normEntries=normEntries)
+            drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
+            #drawOne(histos[('ambe',var)],histos[('cosm',var)],histo_sig2=None,plotdir=plotdir,normEntries=normEntries)
         elif histos[('fe',var)].InheritsFrom('TGraph'):
             drawOneGraph(histos[('ambe',var)],var,plotdir)
             

@@ -112,7 +112,10 @@ class Cluster:
         if hasattr(self,'iteration'):
             return self.iteration
         else: return 0
-        
+
+    def rms(self):
+        return np.std(np.array([z for (x,y,z) in self.hits_fr]))
+            
     def getXmax(self):
         if hasattr(self,'xmax'):
             return self.xmax
@@ -282,12 +285,20 @@ class Cluster:
         # inclination wrt the vertical
         self.shapes['theta'] = self.theta
         
-        self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
-        self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
-        self.shapes['xmin'] = np.min(np.array(self.hits_fr[:,0]))
-        self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,1]))
-        self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,0]))
-        self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,1]))
+        if self.integral()<10:
+              self.shapes['xmean'] = 0
+              self.shapes['ymean'] = 0
+              self.shapes['xmin'] = 0
+              self.shapes['ymin'] = 0
+              self.shapes['xmax'] = 0
+              self.shapes['ymax'] = 0
+        else:
+              self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+              self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+              self.shapes['xmin'] = np.min(np.array(self.hits_fr[:,0]))
+              self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,1]))
+              self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,0]))
+              self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,1]))
         for direction in titles:
             self.shapes['{direction}gaussamp'.format(direction=direction[0])] = (fitResults[direction])['amp']
             self.shapes['{direction}gaussmean'.format(direction=direction[0])] = (fitResults[direction])['mean']

@@ -439,17 +439,18 @@ if __name__ == "__main__":
     elif options.make == 'linearity':
         #filepatt = 'ambeplots/2021-07-21-xrays-%s/integral.root'
         filepatt = 'ambeplots/2021-10-12-xrays-%s/integral.root'
-        sources = ['Fe','Cu','Rb','Mo','Ag','Ba','Tb']
-        energies = [5.9,8,15,18,23.5,34.4,47]
+        sources = ['Ti','Fe','Cu','Rb','Mo','Ag','Ba','Tb']
+        energies = [4.51,5.9,8,15,18,23.5,34.4,47]
         files =  [filepatt%s for s in sources]
         # old data
         # ranges = [(5e3,1e4),(1e4,1.5e4),(1.3e4,2e4),(1.5e4,3e4),(2.5e4,4e4)]
         # July 2021 data
-        ranges = [(8e3,1.2e4),(1e4,1.4e4),(1.7e4,2.5e4),(1.8e4,2.9e4),(2.2e4,3.8e4),(4e4,6.2e4),(5.2e4,8.0e4)]
+        ranges = [(6.5e3,8.5e3),(8e3,1.2e4),(1e4,1.4e4),(1.7e4,2.5e4),(1.8e4,2.9e4),(2.2e4,3.8e4),(3.5e4,6.2e4),(5.2e4,8.0e4)]
         pars = []
         for i,f in enumerate(files):
             pars.append(fitIntegral(f,ranges[i][0],ranges[i][1],sources[i]+'.pdf',hname='integral_diff'))
 
+        fout = ROOT.TFile.Open("linearity.root","recreate")
         resp = ROOT.TGraphErrors(len(sources))
         reso = ROOT.TGraphErrors(len(sources))
         for i in range(len(sources)):
@@ -477,9 +478,13 @@ if __name__ == "__main__":
         line.SetLineColor(ROOT.kBlue)
         line.SetLineStyle(ROOT.kDashed)
         line.Draw()
-        
-        c.SaveAs("linearity.pdf")
 
+        fout.cd()
+        resp.Write()
+        c.Write()
+        c.SaveAs("linearity.pdf")
+        fout.Close()
+        
         # energy resolution
         c = getCanvas()
         reso.SetTitle('')
