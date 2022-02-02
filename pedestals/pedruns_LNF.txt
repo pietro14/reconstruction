@@ -6,9 +6,8 @@
 (2155,2164) :   2155,
 (2053,2055) :	2155,
 (3631,3700) :   3700,
-(3729,3797) :   3797, #3792
-(3799,3804) :   3804,
-(3806,3807) :   3807,
+(3729,3797) :   3797, # 3792
+(3799,3806) :   3804,
 (3808,3865) :   3808,
 (3933,3938) :   3938, # ORCA flash pedestals 
 (3939,3944) :   3941, # ORCA fusion pedestals 
@@ -20,9 +19,10 @@
 (4119,4150) :   4119, # 13/04 Lime Z-scan
 (4151,4158) :   4151, # 13/04 Lime Z-scan 26 cm (synch with D. Pinci NNC)
 (4159,4190) :   4119, # 13/04 Lime Z-scan
-(4432,4469) :   4432, # Fe Vg1, Z scans, 30/07/2021
+(4416,4469) :   4432, # Fe Vg1, Z scans, 30/07/2021
 (4470,4504) :   4470, # variable X-rays source
 (5783,5789) :   5783, # 04/11 Study with targets - WATER (25 C) cooling, internal trigger. Hokawo
+(5790,5860) :   5790, # 04/11 Study with targets - WATER (25 C) cooling, internal trigger. Hokawo. Lab light off
 (5861,5911) :   5861, # 04/11 Scan in Z - source Fe - water cooled - dark lab (He/CF4)
-(6132,6290) :   6208, # Calcium, 04/11
+(6122,6290) :   6208, # Ti and Calcium, 04/11
 }
