@@ -112,7 +112,10 @@ class Cluster:
         if hasattr(self,'iteration'):
             return self.iteration
         else: return 0
-        
+
+    def rms(self):
+        return np.std(np.array([z for (x,y,z) in self.hits_fr]))
+            
     def getXmax(self):
         if hasattr(self,'xmax'):
             return self.xmax
