@@ -22,5 +22,7 @@
 (4159,4190) :   4119, # 13/04 Lime Z-scan
 (4432,4469) :   4432, # Fe Vg1, Z scans, 30/07/2021
 (4470,4504) :   4470, # variable X-rays source
+(5783,5789) :   5783, # 04/11 Study with targets - WATER (25 C) cooling, internal trigger. Hokawo
+(5861,5911) :   5861, # 04/11 Scan in Z - source Fe - water cooled - dark lab (He/CF4)
 (6132,6290) :   6208, # Calcium, 04/11
 }
