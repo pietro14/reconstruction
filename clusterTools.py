@@ -218,6 +218,7 @@ class Cluster:
             rSigma = -999
 
         ret = {'amp': rInt, 'mean': rMean, 'sigma': rSigma, 'chi2': chi2, 'status': status}
+        del f
         return ret
         
     def calcProfiles(self,name='prof',plot=None):
@@ -252,6 +253,7 @@ class Cluster:
         else: latprof = 0
         
         cluth2d = ROOT.TH2D('cluth2d','',int(length)+2,0,int(length)+2, int(width)+2,0,int(width)+2)
+        cluth2d.SetDirectory(0)
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
             if longprof: longprof.Fill(x-rxmin,z)
@@ -264,6 +266,7 @@ class Cluster:
         fitResults = {}
         for ip,p in enumerate(profiles):
             if p:
+                #print ("profile entries = ",p.GetEntries())
                 p.GetXaxis().SetTitle('X_{%s} (mm)' % titles[ip])
                 p.GetYaxis().SetTitle('Number of photons per slice')
                 self.applyProfileStyle(p)
@@ -309,6 +312,8 @@ class Cluster:
         # get the peaks inside the profile
         for direction in ['lat','long']:
             self.clusterShapes(direction,plot)
+
+        del cluth2d, latprof, longprof
         
     def getProfile(self,name='long'):
         if len(self.profiles)==0:
