@@ -247,7 +247,8 @@ class analysis:
 
             name=key.GetName()
             obj=key.ReadObj()
-            obj.SetDirectory(0)
+            if obj.InheritsFrom('TH2'):
+                obj.SetDirectory(0)
             
             if self.options.tag=="MC":
                 if name=="event_info":
