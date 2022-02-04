@@ -156,16 +156,23 @@ class analysis:
                 m = patt.match(name)
                 run = int(m.group(1))
                 event = int(m.group(2))
-            if event in self.options.excImages: continue
+            justSkip=False
+            if event in self.options.excImages: justSkip=True
             if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
                 
-            if not obj.InheritsFrom('TH2'): continue
+            if not obj.InheritsFrom('TH2'): justSkip=True
             if event%20 == 0:
                 print("Calc pedestal mean with event: ",name)
+            if justSkip:
+                 obj.Delete()
+                 del obj
+                 continue
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
             arr = hist2array(obj)
+            obj.Delete()
+            del obj
             pedsum = np.add(pedsum,arr)
             numev += 1
         pedmean = pedsum / float(numev)
@@ -181,16 +188,23 @@ class analysis:
                 m = patt.match(name)
                 run = int(m.group(1))
                 event = int(m.group(2))
-            if event in self.options.excImages: continue
+            justSkip=False
+            if event in self.options.excImages: justSkip=True
             if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
 
-            if not obj.InheritsFrom('TH2'): continue
+            if not obj.InheritsFrom('TH2'): justSkip=True
             if event%20 == 0:
                 print("Calc pedestal rms with event: ",name)
+            if justSkip:
+                 obj.Delete()
+                 del obj
+                 continue
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
             arr = hist2array(obj)
+            obj.Delete()
+            del obj       
             pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
             numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
@@ -233,6 +247,7 @@ class analysis:
 
             name=key.GetName()
             obj=key.ReadObj()
+            obj.SetDirectory(0)
             
             if self.options.tag=="MC":
                 if name=="event_info":
@@ -246,13 +261,15 @@ class analysis:
                 run = int(m.group(1))
                 event = int(m.group(2))
 
-            if event<evrange[1] or event>evrange[2]: continue
-
-            # Routine to skip some images if needed
-            if event in self.options.excImages: continue
-
-            if self.options.debug_mode == 1 and event != self.options.ev: continue
-
+            justSkip = False
+            if event<evrange[1] or event>evrange[2]: justSkip=True
+            if event in self.options.excImages: justSkip=True
+            if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
+            if justSkip:
+                obj.Delete()
+                del obj
+                continue
+            
             if obj.InheritsFrom('TH2'):
                 print("Processing Run: ",run,"- Event ",event,"...")
                 
@@ -288,7 +305,10 @@ class analysis:
                 if obj.InheritsFrom('TH2'):
      
                     pic_fullres = obj.Clone(obj.GetName()+'_fr')
+                    pic_fullres.SetDirectory(0)
                     img_fr = hist2array(pic_fullres).T
+                    pic_fullres.Delete()
+                    del pic_fullres
 
                     # Upper Threshold full image
                     img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
@@ -321,6 +341,7 @@ class analysis:
                     snakes = snprod.run()
                     self.autotree.fillCameraVariables(img_fr_zs)
                     self.autotree.fillClusterVariables(snakes,'sc')
+                    del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
                     
             if self.options.pmt_mode:
                 if obj.InheritsFrom('TGraph'):
@@ -345,6 +366,9 @@ class analysis:
             if self.options.camera_mode:
                 if obj.InheritsFrom('TH2'):
                     self.outTree.fill()
+                    
+            obj.Delete()
+            del obj
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
@@ -474,6 +498,7 @@ if __name__ == '__main__':
         evrange=(-1,firstEvent,lastEvent)
         ana.reconstruct(evrange)
         ana.endJob()
+
 
     # now add the git commit hash to track the version in the ROOT file
     tf = ROOT.TFile.Open(options.outFile,'update')
