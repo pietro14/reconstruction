@@ -1,0 +1,7 @@
+runs = list(range(3737,3805))
+pedestals = [3797,3798,3804,3805]
+for p in pedestals:
+    if p in runs:
+       runs.remove(p)
+print("RUNS = ",runs)
+

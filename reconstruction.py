@@ -156,16 +156,23 @@ class analysis:
                 m = patt.match(name)
                 run = int(m.group(1))
                 event = int(m.group(2))
-            if event in self.options.excImages: continue
+            justSkip=False
+            if event in self.options.excImages: justSkip=True
             if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
                 
-            if not obj.InheritsFrom('TH2'): continue
+            if not obj.InheritsFrom('TH2'): justSkip=True
             if event%20 == 0:
                 print("Calc pedestal mean with event: ",name)
+            if justSkip:
+                 obj.Delete()
+                 del obj
+                 continue
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
             arr = hist2array(obj)
+            obj.Delete()
+            del obj
             pedsum = np.add(pedsum,arr)
             numev += 1
         pedmean = pedsum / float(numev)
@@ -181,16 +188,23 @@ class analysis:
                 m = patt.match(name)
                 run = int(m.group(1))
                 event = int(m.group(2))
-            if event in self.options.excImages: continue
+            justSkip=False
+            if event in self.options.excImages: justSkip=True
             if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
 
-            if not obj.InheritsFrom('TH2'): continue
+            if not obj.InheritsFrom('TH2'): justSkip=True
             if event%20 == 0:
                 print("Calc pedestal rms with event: ",name)
+            if justSkip:
+                 obj.Delete()
+                 del obj
+                 continue
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
             arr = hist2array(obj)
+            obj.Delete()
+            del obj       
             pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
             numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
