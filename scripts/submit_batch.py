@@ -10,7 +10,6 @@ ulimit -c 0 -H
 set -e
 cd CYGNOBASE
 source scripts/activate_cygno_lngs.sh
-python3.8 scripts/monitor_and_kill.py &
 RECOSTRING
 '''
 
@@ -35,7 +34,7 @@ if __name__ == "__main__":
     parser = OptionParser(usage='%prog workdir runs [options] ')
     parser.add_option(        '--dry-run',  dest='dryRun',   action='store_true', default=False, help='Do not run the job, only print the command');
     parser.add_option(        '--outdir',   dest='outdir',   type="string", default=None, help='outdirectory');
-    parser.add_option(        '--nthreads', dest='nthreads', type="string", default=24, help='number of threads / job');
+    parser.add_option(        '--nthreads', dest='nthreads', type="string", default=None, help='number of threads / job. If not given, it will be decided based on the queue');
     parser.add_option('-q',   '--queue',    dest='queue',    type="string", default='cygno-custom', help='queue to be used for the jobs');
     parser.add_option('--mh'  '--max-hours',dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('--nev' '--event-chunks',dest='eventChunks', default=[], nargs=2,  type='int', help='T C: Total number of events to process and events per job')
@@ -50,7 +49,6 @@ if __name__ == "__main__":
     if not os.path.isdir(abswpath):
         raise RuntimeError('ERROR: {p} is not a valid directory. This is the base dir where the jobs run'.format(p=abswpath))
 
-    nThreads = int(options.nthreads)
     runr = args[1]
     runs = []
     if os.path.exists(runr):
@@ -89,10 +87,21 @@ if __name__ == "__main__":
     if not os.path.isdir(logdir):
         os.system('mkdir {od}'.format(od=logdir))
 
-    # typically for LIME images (~4MP) MEM = 600MB. 1GB for safety
-    if 'custom' not in options.queue:
-        nThreads = min(8,nThreads)
-    RAM = nThreads*2000 if 'custom' in options.queue else nThreads*1000
+    # typically for LIME images (~4MP) MEM ~1GB/core
+    if options.nthreads:
+        nThreads = int(options.nthreads)
+        RAM = nThreads * 1000
+    else:
+        if options.queue=='cygno':
+            nThreads = 7
+            RAM = nThreads * 1250 # max is 9 GB
+        elif options.queue=='cygno-custom':
+            nThreads = 64
+            RAM = nThreads * 1500 # max is 110 GB
+        else:
+            print("WARNING: queue ",options.queue," not foreseen. Using 4 threads and 1 GB/thread by default")
+            nThreads = 4
+            RAM = nThreads * 1000
     ssdcache_opt = 'nodes=1:disk10,' if options.queue=='cygno-custom' else ''
     # cygno-custom mounts /mnt/ssdcache, not the other queues. It seems that sometimes testing its presence works, sometimes not,
     # so when not in cygno-custom, force the usage to /tmp
