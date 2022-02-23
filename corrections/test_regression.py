@@ -10,15 +10,15 @@ import math, joblib
 #          no source        8.7       8.4        8.1k       5k
 #runs = {4433: 50, 4441: 46, 4448: 36, 4455: 26, 4463: 6}
 #runs = {4441: 46, 4448: 36, 4455: 26}
-runs = {4120: 46,
-        4128: 41,
-        4136: 36,
-        4144: 31,
-        4152: 26,
-        4160: 21,
-        4168: 16,
-        4176: 11,
-        4184: 6.5}
+runs = {5870: 46,
+        5875: 41,
+        5880: 36,
+        5885: 31,
+        5890: 26,
+        5895: 21,
+        5900: 16,
+        5905: 11,
+        5910: 6.5}
 
 
 def response_vsrun(inputfile,params,runN):
@@ -196,15 +196,15 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
 def fitAllResponses(inputfile="response_histos.root"):
 
-    limits = {6.5 : (0.3,1.3),
-              11  : (0.3,1.5),
-              16  : (0.3,1.5),
-              21  : (0.3,1.6),
-              26  : (0.3,1.6),
-              31  : (0.3,1.5),
-              36  : (0.3,1.5),
-              41  : (0.3,1.5),
-              46  : (0.3,1.4),
+    limits = {6.5 : (0.5,1.2),
+              11  : (0.5,1.2),
+              16  : (0.5,1.4),
+              21  : (0.5,1.6),
+              26  : (0.5,1.6),
+              31  : (0.5,1.5),
+              36  : (0.5,1.5),
+              41  : (0.5,1.5),
+              46  : (0.5,1.4),
               }
 
     results = {}
@@ -302,7 +302,7 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     titles = ['uncorrected','regression']
     styles = ['pl','pl']
     
-    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.85,1.3)
+    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.7,1.3)
     legend = doLegend(responses,titles,styles,corner="TL")    
     for ext in ['pdf','png']:
         c.SaveAs("response.%s"%ext)
