@@ -16,7 +16,7 @@ class Module:
         """process event, return True (go to next module) or False (fail, go to next event)"""
         pass
 
-def eventLoop(modules, inputFile, outputFile, inputTree, wrappedOutputTree, maxEvents=-1, eventRange=None, progress=(10000,sys.stdout), filterOutput=True): 
+def eventLoop(modules, inputFile, outputFile, inputTree, wrappedOutputTree, maxEvents=-1, eventRange=None, progress=(1000,sys.stdout), filterOutput=True): 
     for m in modules: 
         m.beginFile(inputFile, outputFile, inputTree, wrappedOutputTree)
 
