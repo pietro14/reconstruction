@@ -60,7 +60,7 @@ def response2D(inputfile,params):
     energy_2D = ROOT.TH3D('energy_2D','',10,0,2304,10,0,2304,200,0,2)
     energy_1D = ROOT.TH2D('energy_1D','',20,0,2304/math.sqrt(2.),70,0,2)
     
-    filename = "gbrLikelihood_q0.50.sav"
+    filename = "gbrLikelihood_mse.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
 
@@ -163,7 +163,7 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
     histo.Rebin(rebin)
     work = ROOT.RooWorkspace()
-    work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.7,1.4],sigma[0.05,0.1,0.30],alpha[1,0.1,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
+    work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.5,1.4],sigma[0.05,0.01,0.50],alpha[1,0.05,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
     work.Print()
     
     x = work.var('x')

@@ -198,7 +198,7 @@ class GBRLikelihoodTrainer:
         c = getCanvas('c')
         hists = {}
         maxy=-1
-        for k in ['mse','q0.50']:
+        for k in ['mse']:
             filename = "{prefix}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),k=k)
             print("Sanity check of the saved GBR model in the output file ",filename)
             model = joblib.load(filename)
@@ -217,7 +217,7 @@ class GBRLikelihoodTrainer:
                   'q0.50': 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS())
                   }
 
-        colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan, 'q0.50': ROOT.kBlack}
+        colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan}#, 'q0.50': ROOT.kBlack}
         styles = {'uncorr': 3005, 'mse': 3004, 'q0.50': 0}
         arr_hists = []; arr_styles = []; arr_labels = []
         for i,k in enumerate(colors):
