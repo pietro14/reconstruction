@@ -19,12 +19,12 @@ def onePlot(source, params):
 
     histo1.GetXaxis().SetLabelSize(0.03)
     histo1.GetXaxis().SetLabelFont(42)
-    histo1.GetXaxis().SetTitleSize(0.05)
-    histo1.GetYaxis().SetLabelSize(0.04)
+    histo1.GetXaxis().SetTitleSize(0.04)
+    histo1.GetYaxis().SetLabelSize(0.03)
     histo1.GetYaxis().SetLabelFont(42)
-    histo1.GetYaxis().SetTitleSize(0.05)
+    histo1.GetYaxis().SetTitleSize(0.04)
     histo1.GetYaxis().SetTitleFont(42)
-    histo1.GetYaxis().SetTitleOffset(2.0)
+    histo1.GetYaxis().SetTitleOffset(1.5)
     histo1.GetXaxis().SetTitle("integral")
     histo1.GetYaxis().SetTitle("superclusters")
 
