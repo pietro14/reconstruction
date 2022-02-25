@@ -6,10 +6,9 @@ from framework.datamodel import Collection
 from framework.eventloop import Module
 
 class ClusterVarsLime(Module):
-    def __init__(self,weightsFile,scale):
+    def __init__(self,weightsFile):
         self.vars = ["sc_regr_integral"]
         self.model = joblib.load(weightsFile)
-        self.scale = scale
         
     def beginJob(self):
         pass
@@ -29,26 +28,13 @@ class ClusterVarsLime(Module):
 
         clusters = Collection(event,"sc","nSc")
         for c in clusters:
-            if c.integral/self.scale < 1.6 and c.nhits>150 and c.rms>10 and c.xmean>250:
-                inputs = np.array([c.longrms,
-                                   c.latrms,
-                                   c.lfullrms,
-                                   c.tfullrms,
-                                   c.xmean,
-                                   c.ymean,
-                                   c.tgausssigma,
-                                   c.lgausssigma,
-                                   c.width,
-                                   c.length,
-                                   c.tgaussmean/c.width,
-                                   c.lgaussmean/c.length,
-                                   c.tgaussamp/c.integral,
-                                   c.lgaussamp/c.integral])
+            if c.integral>0 and c.nhits>150 and c.rms>10 and c.xmean>250:
+                inputs = np.array([c.xmean,c.ymean,c.tgaussamp/c.tgausssigma,c.lgaussamp/c.lgausssigma])
                 y_pred = self.model.predict(inputs.reshape(1,-1))
-                # print ("X = ", inputs)
-                # print ("y = ",y_pred)
-                # print ("====")
-                ret["sc_regr_integral"].append(y_pred * self.scale)
+                #print ("X = ", inputs)
+                #print ("y = ",y_pred)
+                #print ("====")
+                ret["sc_regr_integral"].append(c.integral/y_pred)
             else:
                 ret["sc_regr_integral"].append(c.integral)
 
@@ -57,5 +43,5 @@ class ClusterVarsLime(Module):
 
         return True
 
-regressedEnergy = lambda : ClusterVarsLime("../data/gbrLikelihood_440V_mse.sav",scale=8000)
+regressedEnergy = lambda : ClusterVarsLime("../data/gbrLikelihood_440V_mse.sav")
 
