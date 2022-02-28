@@ -50,6 +50,6 @@ class ClusterVarsLime(Module):
 
 regressedEnergy = lambda : ClusterVarsLime({"regr"     : "../data/gbrLikelihood_440V_mse.sav",
                                             "qregr"    : "../data/gbrLikelihood_440V_q0.50.sav",
-                                            "qregr_up" : "../data/gbrLikelihood_440V_q0.95.sav",
-                                            "qregr_dn" : "../data/gbrLikelihood_440V_q0.05.sav"})
+                                            "qregr_up" : "../data/gbrLikelihood_440V_q0.05.sav",
+                                            "qregr_dn" : "../data/gbrLikelihood_440V_q0.95.sav"})
 
