@@ -17,12 +17,13 @@ or *histograms_Run01515.root* if it was already a root file.
 # Updated HOW-TO-RUN
 ## Running the analysis code (in general):
 
-`python3 reconstruction.py configFile.txt --pdir plots --max-entries X -jX`
+`python3 reconstruction.py configFile.txt --pdir plots --max-entries X -jX` -r R
 
 - *configFile.txt* is the configuration file with all the settings.
 - *pdir* is the directory where the plots will be saved.
 - *max-entries* is the number of images you want to analyse.
 - *j* is the number of cores you want to use.
+- R is the run number to process
 
 
 
