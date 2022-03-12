@@ -91,10 +91,12 @@ class GBRLikelihoodTrainer:
     def variables(self):
         return self.var.split("|")
     
-    def get_dataset(self,rfile):
+    def get_dataset(self,rfile,friendrfile=None):
         tfile = ROOT.TFile.Open(rfile)
         tree = tfile.Get(self.tree_name)
-
+        if friendrfile:
+            tree.AddFriend("Friends",friendrfile)
+        
         # so target is always the first variable
         variables = [self.target] + self.var.split("|")
         print("List of variables = ",variables)
@@ -109,7 +111,7 @@ class GBRLikelihoodTrainer:
         return X,y
 
     def train_model(self,X,y,options):
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=13)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=13)
 
         self.models_ = {}
 
@@ -181,14 +183,15 @@ class GBRLikelihoodTrainer:
     def get_testdata(self):
         return self.X_test, self.y_test
 
-    def test_models(self,recofile,prefix):
+    def test_models(self,recofile,options):
+        prefix=options.outname
         print ("Test the saved models on the input file: ",recofile)
         # use the ones of the object if testing after training (to ensure orthogonality wrt training sample)
         if self.training:
             X_test = self.X_test
             y_test = self.y_test
         else:
-            X,y = self.get_dataset(recofile)
+            X,y = self.get_dataset(recofile,options.friend)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.95, random_state=13)
 
         hist = ROOT.TH1F('hist','',50,0.,2.0)
@@ -198,7 +201,8 @@ class GBRLikelihoodTrainer:
         c = getCanvas('c')
         hists = {}
         maxy=-1
-        for k in ['mse','q0.50']:
+        alphas = ['mse'] if options.cvOnly==True else ['mse', 'q0.05', 'q0.50', 'q0.95']
+        for k in alphas:
             filename = "{prefix}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),k=k)
             print("Sanity check of the saved GBR model in the output file ",filename)
             model = joblib.load(filename)
@@ -214,10 +218,12 @@ class GBRLikelihoodTrainer:
         fill_hist(hists["uncorr"],y_test)
         labels = {'uncorr': "raw ({rms:1.2f}%)".format(rms=hists['uncorr'].GetRMS()),
                   'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS()),
-                  'q0.50': 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS())
-                  }
+                  'q0.50': 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS()) }
+        colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan}
+        color_median = {'q0.50': ROOT.kBlack}
+        if options.cvOnly==False:
+            colors.update(color_median)
 
-        colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan, 'q0.50': ROOT.kBlack}
         styles = {'uncorr': 3005, 'mse': 3004, 'q0.50': 0}
         arr_hists = []; arr_styles = []; arr_labels = []
         for i,k in enumerate(colors):
@@ -239,10 +245,11 @@ class GBRLikelihoodTrainer:
 if __name__ == '__main__':
     from optparse import OptionParser
 
-    parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] ')
-    parser.add_option('-o', '--outname', dest='outname', default='gbrLikelihood', type='string', help='prefix for the output name of the regression models')
-    parser.add_option('-a', '--apply-only', dest='applyOnly', action='store_true', default=False,  help='only apply regression on saved models and the data of the input file. Do not train')
+    parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] [-f friend.root] ')
+    parser.add_option('-o',   '--outname', dest='outname', default='gbrLikelihood', type='string', help='prefix for the output name of the regression models')
+    parser.add_option('-a',   '--apply-only', dest='applyOnly', action='store_true', default=False,  help='only apply regression on saved models and the data of the input file. Do not train')
     parser.add_option('--cv', '--central-value-only', dest='cvOnly', action='store_true', default=False,  help='Train only the central value regression, not the uncertainties.')
+    parser.add_option('-f',   '--friend', dest='friend', default=None, type='string', help='file to be used as friend (eg for Etrue)')
     (options, args) = parser.parse_args()
 
     recofile = args[0]
@@ -251,7 +258,7 @@ if __name__ == '__main__':
 
     GBR = GBRLikelihoodTrainer(params)
     if options.applyOnly == False:
-        X,y = GBR.get_dataset(recofile)
+        X,y = GBR.get_dataset(recofile,options.friend)
         print("Dataset loaded from file ",args[0], " Now train the model.")
     
         GBR.train_model(X,y,options)
@@ -261,7 +268,7 @@ if __name__ == '__main__':
         GBR.save_models(options.outname)
 
     # now test the model (this is to test that the model was saved correctly)
-    GBR.test_models(recofile,options.outname)
+    GBR.test_models(recofile,options)
     
     print("DONE.")
     

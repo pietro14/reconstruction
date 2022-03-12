@@ -4,33 +4,39 @@ ROOT.gROOT.SetBatch(True)
 import numpy as np
 from root_numpy import tree2array,fill_hist,fill_profile
 from gbr_trainer import GBRLikelihoodTrainer, getCanvas, doLegend
-import math, joblib
+import math, joblib, os
 
 # map run - z distance
 #          no source        8.7       8.4        8.1k       5k
 #runs = {4433: 50, 4441: 46, 4448: 36, 4455: 26, 4463: 6}
 #runs = {4441: 46, 4448: 36, 4455: 26}
-runs = {4120: 46,
-        4128: 41,
-        4136: 36,
-        4144: 31,
-        4152: 26,
-        4160: 21,
-        4168: 16,
-        4176: 11,
-        4184: 6.5}
+runs = {5870: 46,
+        5875: 41,
+        5880: 36,
+        5885: 31,
+        5890: 26,
+        5895: 21,
+        5900: 16,
+        5905: 11,
+        5910: 6.5}
 
+def getFriend(inputfile):
+    friendfile = "{dirn}/friends/{base}_Friend.root".format(dirn=os.path.dirname(inputfile),
+                                                    base=os.path.basename(inputfile).split('.root')[0])
+    frf = friendfile if os.path.isfile(friendfile) else None
+    return frf
 
 def response_vsrun(inputfile,params,runN):
     params['selection'] = "({sel}) && run=={run}".format(sel=params['selection'],run=runN)
     print ("New selection SEL = {sel}".format(sel=params['selection']))
+
     GBR = GBRLikelihoodTrainer(params)
-    X,y = GBR.get_dataset(inputfile)
+    X,y = GBR.get_dataset(inputfile,getFriend(inputfile))
     filename = "gbrLikelihood_mse.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
 
-    h = ROOT.TH1F('h','',400,0,2)
+    h = ROOT.TH1F('h','',800,0,2)
     histos = {}
 
     histos['uncorr'] = h.Clone('h_uncorr')
@@ -44,8 +50,10 @@ def response_vsrun(inputfile,params,runN):
     
 def response2D(inputfile,params):
 
+    friendfile = "{dirn}/friends/{base}_Friend.root".format(dirn=os.path.dirname(inputfile),
+                                                            base=os.path.basename(inputfile).split('.root')[0])
     GBR = GBRLikelihoodTrainer(params)
-    X,y = GBR.get_dataset(inputfile)
+    X,y = GBR.get_dataset(inputfile,getFriend(inputfile))
 
     xy_indices = []
     vars = params["inputs"].split("|")
@@ -60,7 +68,7 @@ def response2D(inputfile,params):
     energy_2D = ROOT.TH3D('energy_2D','',10,0,2304,10,0,2304,200,0,2)
     energy_1D = ROOT.TH2D('energy_1D','',20,0,2304/math.sqrt(2.),70,0,2)
     
-    filename = "gbrLikelihood_q0.50.sav"
+    filename = "gbrLikelihood_mse.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
 
@@ -163,7 +171,7 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
     histo.Rebin(rebin)
     work = ROOT.RooWorkspace()
-    work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.7,1.4],sigma[0.05,0.1,0.30],alpha[1,0.1,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
+    work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.5,1.4],sigma[0.05,0.01,0.50],alpha[1,0.05,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
     work.Print()
     
     x = work.var('x')
@@ -196,15 +204,15 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
 def fitAllResponses(inputfile="response_histos.root"):
 
-    limits = {6.5 : (0.3,1.3),
-              11  : (0.3,1.5),
-              16  : (0.3,1.5),
-              21  : (0.3,1.6),
-              26  : (0.3,1.6),
-              31  : (0.3,1.5),
-              36  : (0.3,1.5),
-              41  : (0.3,1.5),
-              46  : (0.3,1.4),
+    limits = {6.5 : (0.3,1.1),
+              11  : (0.4,1.4),
+              16  : (0.4,1.4),
+              21  : (0.4,1.5),
+              26  : (0.5,1.6),
+              31  : (0.6,1.5),
+              36  : (0.6,1.6),
+              41  : (0.5,1.6),
+              46  : (0.6,1.7),
               }
 
     results = {}
@@ -215,13 +223,14 @@ def fitAllResponses(inputfile="response_histos.root"):
         for corr in ["regr","uncorr"]:
             hname = "resp_{corr}_{dist}".format(corr=corr,dist=dist)
             histo = tf.Get(hname)
+            xmin = limits[dist][0]; xmax=limits[dist][1]
             if corr=="uncorr":
                 marker = ROOT.kOpenSquare
                 linecol = ROOT.kRed+2
             else:
                 marker = ROOT.kFullCircle
                 linecol = ROOT.kBlue
-            (frame,mean,sigma,meanerr,sigmaerr)=fitResponseHisto(histo,limits[dist][0],limits[dist][1],8,marker,linecol)
+            (frame,mean,sigma,meanerr,sigmaerr)=fitResponseHisto(histo,xmin,xmax,8,marker,linecol)
             frame.Draw("same")
             results[(corr,dist)] = (mean,sigma,meanerr,sigmaerr)
         for ext in ['pdf','png']:
@@ -229,7 +238,6 @@ def fitAllResponses(inputfile="response_histos.root"):
     return results
 
 def graphVsR(typeInput='histo',histoFile="response_histos.root"):
-
 
     resp_vs_z_uncorr = ROOT.TGraphErrors(len(runs))
     reso_vs_z_uncorr = ROOT.TGraph(len(runs))
@@ -302,7 +310,7 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     titles = ['uncorrected','regression']
     styles = ['pl','pl']
     
-    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.85,1.3)
+    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.6,1.4)
     legend = doLegend(responses,titles,styles,corner="TL")    
     for ext in ['pdf','png']:
         c.SaveAs("response.%s"%ext)
@@ -331,7 +339,7 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
         reso_vs_z_regr_fullrms.Draw("pe")
         legCols=2
         
-    reso_vs_z_uncorr.GetYaxis().SetRangeUser(0.05,0.4)
+    reso_vs_z_uncorr.GetYaxis().SetRangeUser(0.0,0.4)
     legend = doLegend(responses,titles,styles,corner="TL",textSize=0.03,legWidth=0.8,nColumns=legCols)
     for ext in ['pdf','png']:
         c.SaveAs("resolution.%s"%ext)

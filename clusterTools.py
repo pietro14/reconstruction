@@ -112,7 +112,10 @@ class Cluster:
         if hasattr(self,'iteration'):
             return self.iteration
         else: return 0
-        
+
+    def rms(self):
+        return np.std(np.array([z for (x,y,z) in self.hits_fr]))
+            
     def getXmax(self):
         if hasattr(self,'xmax'):
             return self.xmax
@@ -215,6 +218,7 @@ class Cluster:
             rSigma = -999
 
         ret = {'amp': rInt, 'mean': rMean, 'sigma': rSigma, 'chi2': chi2, 'status': status}
+        del f
         return ret
         
     def calcProfiles(self,name='prof',plot=None):
@@ -249,6 +253,7 @@ class Cluster:
         else: latprof = 0
         
         cluth2d = ROOT.TH2D('cluth2d','',int(length)+2,0,int(length)+2, int(width)+2,0,int(width)+2)
+        cluth2d.SetDirectory(0)
         for h in rot_hits:
             x,y,z=h[0],h[1],h[2]
             if longprof: longprof.Fill(x-rxmin,z)
@@ -261,6 +266,7 @@ class Cluster:
         fitResults = {}
         for ip,p in enumerate(profiles):
             if p:
+                #print ("profile entries = ",p.GetEntries())
                 p.GetXaxis().SetTitle('X_{%s} (mm)' % titles[ip])
                 p.GetYaxis().SetTitle('Number of photons per slice')
                 self.applyProfileStyle(p)
@@ -282,12 +288,20 @@ class Cluster:
         # inclination wrt the vertical
         self.shapes['theta'] = self.theta
         
-        self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
-        self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
-        self.shapes['xmin'] = np.min(np.array(self.hits_fr[:,0]))
-        self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,1]))
-        self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,0]))
-        self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,1]))
+        if self.integral()<10:
+              self.shapes['xmean'] = 0
+              self.shapes['ymean'] = 0
+              self.shapes['xmin'] = 0
+              self.shapes['ymin'] = 0
+              self.shapes['xmax'] = 0
+              self.shapes['ymax'] = 0
+        else:
+              self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+              self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+              self.shapes['xmin'] = np.min(np.array(self.hits_fr[:,0]))
+              self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,1]))
+              self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,0]))
+              self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,1]))
         for direction in titles:
             self.shapes['{direction}gaussamp'.format(direction=direction[0])] = (fitResults[direction])['amp']
             self.shapes['{direction}gaussmean'.format(direction=direction[0])] = (fitResults[direction])['mean']
@@ -298,6 +312,8 @@ class Cluster:
         # get the peaks inside the profile
         for direction in ['lat','long']:
             self.clusterShapes(direction,plot)
+
+        del cluth2d, latprof, longprof
         
     def getProfile(self,name='long'):
         if len(self.profiles)==0:

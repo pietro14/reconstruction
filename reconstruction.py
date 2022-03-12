@@ -48,6 +48,11 @@ class analysis:
         self.cg = cameraGeometry(geometryParams)
         self.xmax = self.cg.npixx
 
+        eventContentPSet = open('modules_config/reco_eventcontent.txt')
+        self.eventContentParams = eval(eventContentPSet.read())
+        for k,v in self.eventContentParams.items():
+            setattr(self.options,k,v)
+        
         if not os.path.exists(self.pedfile_fullres_name):
             print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
             self.calcPedestal(options,1)
@@ -84,11 +89,11 @@ class analysis:
         # prepare output tree
         self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
         self.outTree = OutputTree(self.outputFile,self.outputTree)
-        self.autotree = AutoFillTreeProducer(self.outTree,self.options.scfullinfo)
+        self.autotree = AutoFillTreeProducer(self.outTree,self.eventContentParams)
 
-        self.outTree.branch("run", "I")
-        self.outTree.branch("event", "I")
-        self.outTree.branch("pedestal_run", "I")
+        self.outTree.branch("run", "I", title="run number")
+        self.outTree.branch("event", "I", title="event number")
+        self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
         if self.options.save_MC_data:
 #            self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
@@ -109,7 +114,6 @@ class analysis:
 
         if self.options.camera_mode:
             self.autotree.createCameraVariables()
-            self.autotree.createClusterVariables('cl')
             self.autotree.createClusterVariables('sc')
             if self.options.cosmic_killer:
                 self.autotree.addCosmicKillerVariables('sc')
@@ -152,15 +156,23 @@ class analysis:
                 m = patt.match(name)
                 run = int(m.group(1))
                 event = int(m.group(2))
-            if event in self.options.excImages: continue
+            justSkip=False
+            if event in self.options.excImages: justSkip=True
             if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
                 
-            if not obj.InheritsFrom('TH2'): continue
-            print("Calc pedestal mean with event: ",name)
+            if not obj.InheritsFrom('TH2'): justSkip=True
+            if event%20 == 0:
+                print("Calc pedestal mean with event: ",name)
+            if justSkip:
+                 obj.Delete()
+                 del obj
+                 continue
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
             arr = hist2array(obj)
+            obj.Delete()
+            del obj
             pedsum = np.add(pedsum,arr)
             numev += 1
         pedmean = pedsum / float(numev)
@@ -176,15 +188,23 @@ class analysis:
                 m = patt.match(name)
                 run = int(m.group(1))
                 event = int(m.group(2))
-            if event in self.options.excImages: continue
+            justSkip=False
+            if event in self.options.excImages: justSkip=True
             if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
 
-            if not obj.InheritsFrom('TH2'): continue
-            print("Calc pedestal rms with event: ",name)
+            if not obj.InheritsFrom('TH2'): justSkip=True
+            if event%20 == 0:
+                print("Calc pedestal rms with event: ",name)
+            if justSkip:
+                 obj.Delete()
+                 del obj
+                 continue
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
             arr = hist2array(obj)
+            obj.Delete()
+            del obj       
             pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
             numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
@@ -227,6 +247,8 @@ class analysis:
 
             name=key.GetName()
             obj=key.ReadObj()
+            if obj.InheritsFrom('TH2'):
+                obj.SetDirectory(0)
             
             if self.options.tag=="MC":
                 if name=="event_info":
@@ -240,17 +262,19 @@ class analysis:
                 run = int(m.group(1))
                 event = int(m.group(2))
 
-            if event<evrange[1] or event>evrange[2]: continue
-
-            # Routine to skip some images if needed
-            if event in self.options.excImages: continue
-
-            if self.options.debug_mode == 1 and event != self.options.ev: continue
-
+            justSkip = False
+            if event<evrange[1] or event>evrange[2]: justSkip=True
+            if event in self.options.excImages: justSkip=True
+            if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
+            if justSkip:
+                obj.Delete()
+                del obj
+                continue
+            
             if obj.InheritsFrom('TH2'):
                 print("Processing Run: ",run,"- Event ",event,"...")
                 
-                testspark=100*self.cg.npixx*self.cg.npixx+9000000
+                testspark=100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
                 if obj.Integral()>testspark:
                           print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
                           continue
@@ -282,7 +306,10 @@ class analysis:
                 if obj.InheritsFrom('TH2'):
      
                     pic_fullres = obj.Clone(obj.GetName()+'_fr')
+                    pic_fullres.SetDirectory(0)
                     img_fr = hist2array(pic_fullres).T
+                    pic_fullres.Delete()
+                    del pic_fullres
 
                     # Upper Threshold full image
                     img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
@@ -315,6 +342,7 @@ class analysis:
                     snakes = snprod.run()
                     self.autotree.fillCameraVariables(img_fr_zs)
                     self.autotree.fillClusterVariables(snakes,'sc')
+                    del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
                     
             if self.options.pmt_mode:
                 if obj.InheritsFrom('TGraph'):
@@ -339,6 +367,9 @@ class analysis:
             if self.options.camera_mode:
                 if obj.InheritsFrom('TH2'):
                     self.outTree.fill()
+                    
+            obj.Delete()
+            del obj
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
@@ -415,8 +446,8 @@ if __name__ == '__main__':
         print("Pedestals done. Exiting.")
         if options.donotremove == False:
             sw.swift_rm_root_file(options.tmpname)
-        sys.exit(0)     
-    
+        sys.exit(0)
+
     ana = analysis(options)
     nev = ana.getNEvents()
     print("This run has ",nev," events.")
@@ -469,12 +500,12 @@ if __name__ == '__main__':
         ana.reconstruct(evrange)
         ana.endJob()
 
-    #### FOR SOME REASON THIS DOESN'T WORK IN BATCH.
+
     # now add the git commit hash to track the version in the ROOT file
-    # tf = ROOT.TFile.Open(options.outFile,'update')
-    # githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
-    # githash.Write()
-    # tf.Close()
+    tf = ROOT.TFile.Open(options.outFile,'update')
+    githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
+    githash.Write()
+    tf.Close()
     
     if options.donotremove == False:
         sw.swift_rm_root_file(options.tmpname)
