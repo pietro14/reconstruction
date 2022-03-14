@@ -32,7 +32,10 @@ def swift_download_root_file(url,run,tmp=None):
     import ROOT
     import os
     from urllib.request import urlretrieve
-    USER = os.environ['USER']
+    try:
+        USER = os.environ['USER']
+    except:
+        USER = os.environ['JUPYTERHUB_USER']
     tmpdir = tmp if tmp else '/tmp/'
     if tmpdir == '/tmp/':
          os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
@@ -75,7 +78,10 @@ def swift_rm_root_file(tmpname):
 
 def checkfiletmp(run,tmp=None):
     import os.path
-    USER = os.environ['USER']
+    try:
+        USER = os.environ['USER']
+    except:
+        USER = os.environ['JUPYTERHUB_USER']
     tmpdir = tmp if tmp else '/tmp/'
     
     if tmpdir=='/tmp/':
