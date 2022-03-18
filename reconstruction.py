@@ -76,9 +76,9 @@ class analysis:
     # the following is needed for multithreading
     def __call__(self,evrange=(-1,-1,-1)):
         if evrange[0]==-1:
-            outfname = self.options.outFile
+            outfname = '{outdir}/{base}'.format(base=self.options.outFile,outdir=options.outdir)
         else:
-            outfname = '{base}_chunk{ij}.root'.format(base=self.options.outFile.split('.')[0],ij=evrange[0])
+            outfname = '{outdir}/{base}_chunk{ij}.root'.format(base=self.options.outFile.split('.')[0],ij=evrange[0],outdir=options.outdir)
         self.beginJob(outfname)
         self.reconstruct(evrange)
         self.endJob()
@@ -274,7 +274,7 @@ class analysis:
             if obj.InheritsFrom('TH2'):
                 print("Processing Run: ",run,"- Event ",event,"...")
                 
-                testspark=100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
+                testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
                 if obj.Integral()>testspark:
                           print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
                           continue
@@ -386,6 +386,7 @@ if __name__ == '__main__':
     parser.add_option('-t',  '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
+    parser.add_option('-d', '--outdir', dest='outdir', default='./', type='string', help='Directory where to save the output file')
     
     (options, args) = parser.parse_args()
     
@@ -423,7 +424,12 @@ if __name__ == '__main__':
     
     #inputf = inputFile(options.run, options.dir, options.daq)
 
-    USER = os.environ['USER']
+    try:
+        USER = os.environ['USER']
+        flag_env = 0
+    except:
+        flag_env = 1
+        USER = os.environ['JUPYTERHUB_USER']
     #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
     tmpdir = '/tmp/'
@@ -486,14 +492,20 @@ if __name__ == '__main__':
             ## add the chunks before terminating the job if timeout is reached
             print("Now hadding the chunks...")
             base = options.outFile.split('.')[0]
-            os.system('{rootsys}/bin/hadd -k -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
-            os.system('rm {base}_chunk*.root'.format(base=base))
+            if flag_env == 0:
+                os.system('{rootsys}/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base, outdir=options.outdir))
+            else:
+                os.system('usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
+            os.system('rm {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
             terminate_pool_2(pool)
         
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
-        os.system('{rootsys}/bin/hadd -k -f {base}.root {base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base))
-        os.system('rm {base}_chunk*.root'.format(base=base))
+        if flag_env == 0:
+            os.system('{rootsys}/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base, outdir=options.outdir))
+        else:
+            os.system('usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
+        os.system('rm {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
     else:
         ana.beginJob(options.outFile)
         evrange=(-1,firstEvent,lastEvent)

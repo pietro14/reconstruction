@@ -39,6 +39,7 @@ if __name__ == "__main__":
     parser.add_option('--mh'  '--max-hours',dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('--nev' '--event-chunks',dest='eventChunks', default=[], nargs=2,  type='int', help='T C: Total number of events to process and events per job')
     parser.add_option('--cfg' '--config-file',dest='configFile', default="configFile_LNF.txt",  type='string', help='the config file to be run')
+    parser.add_option('-t',   '--tmp',dest='tmpdir', default="/tmp/",  type='string', help='the input directory')
     (options, args) = parser.parse_args()
 
     if len(args)<2:
@@ -107,7 +108,7 @@ if __name__ == "__main__":
     # so when not in cygno-custom, force the usage to /tmp
     #tmpdir_opt = '' if  options.queue=='cygno-custom' else ' --tmp /tmp/'
     # IT SEEMS THAT /mnt/ssdcache is not mounted even in cygno-custom
-    tmpdir_opt = ' --tmp /tmp/'
+    #tmpdir_opt = ' --tmp /tmp/'
     maxtime_opt = '' if options.maxHours < 0 else '--max-hours {hr}'.format(hr=options.maxHours)
     commands = []
     for run in runs:
@@ -116,11 +117,11 @@ if __name__ == "__main__":
             print ("Preparing jobs for run {r}. The task subdivides a total of {nT} events in chunks of {nJ} events per job.".format(r=run,nT=totEv,nJ=evPerJob))
             for ij,firstEvent in enumerate(range(0,totEv,evPerJob)):
                 print ("Will submit job #{ij}, processing event range: [{fev}-{lev}]".format(ij=ij,fev=firstEvent,lev=min(firstEvent+evPerJob,totEv)))
-                cmd = 'python3.8 reconstruction.py {cfg} -r {r} -o reco_job{ijob} --first-event {fev} --max-entries {me} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt,fev=firstEvent,me=evPerJob,ijob=ij,cfg=options.configFile)
+                cmd = 'python3.8 reconstruction.py {cfg} -r {r} -o reco_job{ijob} --first-event {fev} --max-entries {me} -j {nt} -t {tmpopt}  {maxtimeopt} -d {outdiropt}'.format(r=run,nt=nThreads,tmpopt=options.tmpdir,maxtimeopt=maxtime_opt,fev=firstEvent,me=evPerJob,ijob=ij,cfg=options.configFile,outdiropt=options.outdir)
                 sub_cmd = prepare_jobpack(jobdir,logdir,abswpath,cmd,ij)
                 commands.append(sub_cmd)
         else:
-            cmd = 'python3.8 reconstruction.py {cfg} -r {r} -j {nt} {tmpopt} {maxtimeopt}'.format(r=run,nt=nThreads,tmpopt=tmpdir_opt,maxtimeopt=maxtime_opt,cfg=options.configFile)
+            cmd = 'python3.8 reconstruction.py {cfg} -r {r} -j {nt} -t {tmpopt} {maxtimeopt} -d {outdiropt}'.format(r=run,nt=nThreads,tmpopt=options.tmpdir,maxtimeopt=maxtime_opt,cfg=options.configFile,outdiropt=options.outdir)
             prepare_jobpack(jobdir,logdir,abswpath,cmd)
             sub_cmd = prepare_jobpack(jobdir,logdir,abswpath,cmd)
             commands.append(sub_cmd)
