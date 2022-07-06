@@ -3,7 +3,6 @@ import subprocess
 
 import os,sys,optparse
 import numpy as np
-from root_numpy import hist2array
 import ROOT,math
 import swiftlib as sw
 from cameraChannel import cameraTools, cameraGeometry
@@ -80,7 +79,7 @@ class utils:
         pedrf_fr = ROOT.TFile.Open(pedfile)
         pedmap_fr = pedrf_fr.Get('pedmap').Clone()
         pedmap_fr.SetDirectory(0)
-        pedarr_fr = hist2array(pedmap_fr).T
+        pedarr_fr = np.array(pedmap_fr).T
         noisearr_fr = ctools.noisearray(pedmap_fr).T
         pedrf_fr.Close()
      
@@ -119,7 +118,7 @@ class utils:
             obj=e.ReadObj()
             if not obj.InheritsFrom('TH2'): continue
             print("Calc pixel sums with event: ",name)
-            arr = hist2array(obj)
+            arr = np.array(obj)
             
             # Upper Threshold full image
             #img_cimax = np.where(arr < 300, arr, 0)
@@ -177,7 +176,7 @@ class utils:
             extrap = 'lemon'
         vignettemap_meas = vignettemap.Clone('normmap_'+det)
         vignettemap_meas.SetDirectory(0)
-        arr = hist2array(vignettemap)
+        arr = np.array(vignettemap)
         tf_in.Close()
 
         nbinsx = arr.shape[0]

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import uproot
 
 def swift_root_file(tag, run):
     sel = rootlocation(tag,run)    
@@ -68,7 +69,7 @@ def rootlocation(tag,run):
 
 def swift_read_root_file(tmpname):
     import ROOT
-    f  = ROOT.TFile.Open(tmpname);
+    f  = uproot.open(tmpname);
     return f
 
 def swift_rm_root_file(tmpname):

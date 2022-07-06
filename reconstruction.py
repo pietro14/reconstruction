@@ -8,7 +8,7 @@ import numpy as np
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
-from root_numpy import hist2array
+import uproot
 from cameraChannel import cameraTools, cameraGeometry
 
 
@@ -61,12 +61,9 @@ class analysis:
            # first the one for clustering with rebin
            ctools = cameraTools(self.cg)
            # then the full resolution one
-           pedrf_fr = ROOT.TFile.Open(self.pedfile_fullres_name)
-           self.pedmap_fr = pedrf_fr.Get('pedmap').Clone()
-           self.pedmap_fr.SetDirectory(0)
-           self.pedarr_fr = hist2array(self.pedmap_fr).T
-           self.noisearr_fr = ctools.noisearray(self.pedmap_fr).T
-           pedrf_fr.Close()
+           pedrf_fr = uproot.open(self.pedfile_fullres_name)
+           self.pedarr_fr   = pedrf_fr['pedmap'].values().T
+           self.noisearr_fr = pedrf_fr['pedmap'].errors().T
            if options.vignetteCorr:
                self.vignmap = ctools.loadVignettingMap()
            else:
@@ -126,8 +123,7 @@ class analysis:
         
     def getNEvents(self):
         tf = sw.swift_read_root_file(self.tmpname)
-        pics = [k.GetName() for k in tf.GetListOfKeys() if 'pic' in k.GetName()]
-        tf.Close()
+        pics = [k for k in tf.keys() if 'pic' in k]
         return len(pics)
 
     def calcPedestal(self,options,alternativeRebin=-1):
@@ -170,7 +166,7 @@ class analysis:
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
-            arr = hist2array(obj)
+            arr = np.arrray(obj)
             obj.Delete()
             del obj
             pedsum = np.add(pedsum,arr)
@@ -202,7 +198,7 @@ class analysis:
             if rebin>1:
                 obj.RebinX(rebin);
                 obj.RebinY(rebin); 
-            arr = hist2array(obj)
+            arr = np.array(obj)
             obj.Delete()
             del obj       
             pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
@@ -243,41 +239,30 @@ class analysis:
         ctools = cameraTools(self.cg)
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
-        for iobj,key in enumerate(tf.GetListOfKeys()) :
+        for iobj,key in enumerate(tf.keys()):
 
-            name=key.GetName()
-            obj=key.ReadObj()
-            if obj.InheritsFrom('TH2'):
-                obj.SetDirectory(0)
-            
-            if self.options.tag=="MC":
-                if name=="event_info":
-                    continue
-                if name=="param_dir":
-                    continue
-            
+            name=key
             if 'pic' in name:
                 patt = re.compile('\S+run(\d+)_ev(\d+)')
                 m = patt.match(name)
                 run = int(m.group(1))
                 event = int(m.group(2))
+                obj = tf[key].values()
 
             justSkip = False
             if event<evrange[1] or event>evrange[2]: justSkip=True
             if event in self.options.excImages: justSkip=True
             if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
             if justSkip:
-                obj.Delete()
-                del obj
                 continue
             
-            if obj.InheritsFrom('TH2'):
+            if 'pic' in name:
                 print("Processing Run: ",run,"- Event ",event,"...")
                 
                 testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
-                if obj.Integral()>testspark:
-                          print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
-                          continue
+                if np.sum(obj)>testspark:
+                    print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
+                    continue
                             
                 self.outTree.fillBranch("run",run)
                 self.outTree.fillBranch("event",event)
@@ -285,7 +270,6 @@ class analysis:
                 if self.options.save_MC_data:
                     mc_tree = tf.Get('event_info/info_tree')
                     mc_tree.GetEntry(event)
-#                    self.outTree.fillBranch("MC_track_len",mc_tree.MC_track_len)
                     self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
                     self.outTree.fillBranch("particle_type",mc_tree.particle_type)
                     self.outTree.fillBranch("energy",mc_tree.energy_ini)
@@ -303,13 +287,9 @@ class analysis:
                     self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
 
             if self.options.camera_mode:
-                if obj.InheritsFrom('TH2'):
+                if 'pic' in name:
      
-                    pic_fullres = obj.Clone(obj.GetName()+'_fr')
-                    pic_fullres.SetDirectory(0)
-                    img_fr = hist2array(pic_fullres).T
-                    pic_fullres.Delete()
-                    del pic_fullres
+                    img_fr = obj.T
 
                     # Upper Threshold full image
                     img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
@@ -343,32 +323,32 @@ class analysis:
                     self.autotree.fillCameraVariables(img_fr_zs)
                     self.autotree.fillClusterVariables(snakes,'sc')
                     del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
+
+            # to be ported to uproot
+            # if self.options.pmt_mode:
+            #     if obj.InheritsFrom('TGraph'):
+            #         # PMT waveform reconstruction
+            #         from waveform import PeakFinder,PeaksProducer
+            #         wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
+            #         # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
+            #         pkprod_inputs = {'waveform': wform}
+            #         pkprod_params = {'threshold': options.threshold, # min threshold for a signal (baseline is -20 mV)
+            #                          'minPeakDistance': options.minPeakDistance, # number of samples (1 sample = 1ns )
+            #                          'prominence': options.prominence, # noise after resampling very small
+            #                          'width': options.width, # minimal width of the signal
+            #                          'resample': options.resample,  # to sample waveform at 1 GHz only
+            #                          'rangex': (self.options.time_range[0],self.options.time_range[1]),
+            #                          'plotpy': options.pmt_plotpy
+            #         }
+            #         pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
                     
-            if self.options.pmt_mode:
-                if obj.InheritsFrom('TGraph'):
-                    # PMT waveform reconstruction
-                    from waveform import PeakFinder,PeaksProducer
-                    wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
-                    # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
-                    pkprod_inputs = {'waveform': wform}
-                    pkprod_params = {'threshold': options.threshold, # min threshold for a signal (baseline is -20 mV)
-                                     'minPeakDistance': options.minPeakDistance, # number of samples (1 sample = 1ns )
-                                     'prominence': options.prominence, # noise after resampling very small
-                                     'width': options.width, # minimal width of the signal
-                                     'resample': options.resample,  # to sample waveform at 1 GHz only
-                                     'rangex': (self.options.time_range[0],self.options.time_range[1]),
-                                     'plotpy': options.pmt_plotpy
-                    }
-                    pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
-                    
-                    peaksfinder = pkprod.run()
-                    self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
+            #         peaksfinder = pkprod.run()
+            #         self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
 
             if self.options.camera_mode:
-                if obj.InheritsFrom('TH2'):
+                if 'pic' in name:
                     self.outTree.fill()
                     
-            obj.Delete()
             del obj
 
         ROOT.gErrorIgnoreLevel = savErrorLevel

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import ROOT
 ROOT.gROOT.SetBatch(True)
+import uproot
 import numpy as np
-from root_numpy import hist2array
 import math
 import debug_code.tools_lib as tl
 
@@ -61,7 +61,7 @@ class cameraTools:
         
     # this returns x,y,z before the zero suppression
     def getImage(self,th2):
-        return hist2array(th2)
+        return np.array(th2)
 
     def noisearray(self,th2):
         noisearr = np.zeros( (th2.GetNbinsX(),th2.GetNbinsY()) )
@@ -91,13 +91,12 @@ class cameraTools:
             return self.vignetteMap[det]
         elif det == 'lime' or 'Mango_full':
             if not self.vignetteMap[det].any():
-                tf = ROOT.TFile.Open(self.geometry.vignette)
+                tf = uproot.open(self.geometry.vignette)
                 namehmap = 'normmap_'+self.geometry.name
                 if det == 'Mango_full':
                        namehmap = 'normmap_lime'		#in vignette_runs... there is no mango_full, so lime is used
-                hmap = tf.Get(namehmap)
-                vignetteMapRebinned = hist2array(hmap)
-                tf.Close()
+                vignetteMapRebinned = tf[namehmap].values()
+                print("py ndim = ",vignetteMapRebinned.ndim)
                 rebinx = int(self.geometry.npixx/vignetteMapRebinned.shape[0])
                 rebiny = int(self.geometry.npixx/vignetteMapRebinned.shape[1])
                 macroPixel = np.zeros((rebinx,rebiny))
