@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 import uproot
+import midas.file_reader
+import cygno as cy
+import os
 
 def swift_root_file(tag, run):
     sel = rootlocation(tag,run)    
-    
     BASE_URL = "https://s3.cloud.infn.it/v1/AUTH_2ebf769785574195bde2ff418deac08a/"
     if 'MC' in tag:
         bucket = 'cygnus' if tag=='MC-old' else 'cygno-sim'
@@ -11,11 +13,11 @@ def swift_root_file(tag, run):
         bucket = 'cygnus' if run<4505 else 'cygno-data'
     elif tag=='DataMango':
         bucket = 'cygnus' if run<3242 else 'cygno-data'
-
     BASE_URL = BASE_URL + bucket + '/'
     file_root = (sel+'/histograms_Run%05d.root' % run)
     return BASE_URL+file_root
 
+    
 def reporthook(blocknum, blocksize, totalsize):
     import sys
     readsofar = blocknum * blocksize
@@ -31,7 +33,6 @@ def reporthook(blocknum, blocksize, totalsize):
 
 def swift_download_root_file(url,run,tmp=None):
     import ROOT
-    import os
     from urllib.request import urlretrieve
     try:
         USER = os.environ['USER']
@@ -68,7 +69,6 @@ def rootlocation(tag,run):
     return sel
 
 def swift_read_root_file(tmpname):
-    import ROOT
     f  = uproot.open(tmpname);
     return f
 
@@ -77,7 +77,7 @@ def swift_rm_root_file(tmpname):
     os.remove(tmpname)
     print("tmp file removed")
 
-def checkfiletmp(run,tmp=None):
+def checkfiletmp(run,tier,tmp=None):
     import os.path
     try:
         USER = os.environ['USER']
@@ -87,11 +87,21 @@ def checkfiletmp(run,tmp=None):
     
     if tmpdir=='/tmp/':
          os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-         return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
+         if tier=='root':
+             return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
+         else:
+             return os.path.isfile("%s/%s/run%05d.mid.gz" % (tmpdir,USER,run))
     else:
-         return os.path.isfile("%s/histograms_Run%05d.root" % (tmpdir,run))
+        if tier=='root':
+            return os.path.isfile("%s/histograms_Run%05d.root" % (tmpdir,run))
+        else:
+            return os.path.isfile("%s/run%05d.mid.gz" % (tmpdir,run))
 
-
+def swift_download_midas_file(run,tmpdir,tag='LNGS'):
+    print("download or open midas file for run ",int(run))
+    mfile = cy.open_mid(int(run), path=tmpdir, cloud=True, tag=tag, verbose=True)
+    return mfile
+    
 def root_TH2_name(root_file):
     pic = []
     wfm = []
