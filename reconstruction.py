@@ -10,12 +10,13 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 import uproot
 from cameraChannel import cameraTools, cameraGeometry
-
+import midas.file_reader
 
 from snakes import SnakesProducer
 from output import OutputTree
 from treeVars import AutoFillTreeProducer
 import swiftlib as sw
+import cygno as cy
 
 # this kills also the still running subprocesses.
 # use with a safe MAX TIMEOUT duration, since it will kill everything
@@ -121,10 +122,19 @@ class analysis:
         self.outTree.write()
         self.outputFile.Close()
         
-    def getNEvents(self):
-        tf = sw.swift_read_root_file(self.tmpname)
-        pics = [k for k in tf.keys() if 'pic' in k]
-        return len(pics)
+    def getNEvents(self,options):
+        if options.rawdata_tier == 'root':
+            tf = sw.swift_read_root_file(self.tmpname)
+            pics = [k for k in tf.keys() if 'pic' in k]
+            return len(pics)
+        else:
+            mf = self.tmpname
+            evs =0
+            for mevent in mf:
+                if mevent.header.is_midas_internal_event():
+                    continue
+                evs += 1
+            return evs
 
     def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
@@ -139,70 +149,73 @@ class analysis:
 
         pedsum = np.zeros((nx,ny))
         
-        tf = sw.swift_read_root_file(self.tmpname)
-        #tf = ROOT.TFile.Open(self.rfile)
+        if options.rawdata_tier == 'root':
+            tf = sw.swift_read_root_file(self.tmpname)
+            keys = tf.keys()
+            mf = [0] # dummy array to make a common loop with MIDAS case
+        else:
+            mf = self.tmpname
 
         # first calculate the mean 
         numev = 0
-        for i,e in enumerate(tf.GetListOfKeys()):
-            name=e.GetName()
-            obj=e.ReadObj()
-            if 'pic' in name:
-                patt = re.compile('\S+run(\d+)_ev(\d+)')
-                m = patt.match(name)
-                run = int(m.group(1))
-                event = int(m.group(2))
-            justSkip=False
-            if event in self.options.excImages: justSkip=True
-            if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
-                
-            if not obj.InheritsFrom('TH2'): justSkip=True
-            if event%20 == 0:
-                print("Calc pedestal mean with event: ",name)
-            if justSkip:
-                 obj.Delete()
-                 del obj
-                 continue
-            if rebin>1:
-                obj.RebinX(rebin);
-                obj.RebinY(rebin); 
-            arr = np.arrray(obj)
-            obj.Delete()
-            del obj
-            pedsum = np.add(pedsum,arr)
-            numev += 1
+        mf.jump_to_start()
+        for mevent in mf:
+            if  options.rawdata_tier == 'midas':
+                if mevent.header.is_midas_internal_event():
+                    continue
+                else:
+                    keys = mevent.banks.keys()
+            for iobj,key in enumerate(keys):
+                name=key
+                if 'CAM' in name:
+                    if options.rawdata_tier == 'root':
+                        arr = tf[key].values()
+                    else:
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                    justSkip=False
+                    if numev in self.options.excImages: justSkip=True
+                    if maxImages>-1 and event>min(len(keys),maxImages): break
+                        
+                    if numev%20 == 0:
+                        print("Calc pedestal mean with event: ",numev)
+                    if justSkip:
+                         continue
+                    if rebin>1:
+                        ctools.arrrebin(arr,rebin)
+                    pedsum = np.add(pedsum,arr)
+                    numev += 1
         pedmean = pedsum / float(numev)
 
         # now compute the rms (two separate loops is faster than one, yes)
         numev=0
         pedsqdiff = np.zeros((nx,ny))
-        for i,e in enumerate(tf.GetListOfKeys()):
-            name=e.GetName()
-            obj=e.ReadObj()
-            if 'pic' in name:
-                patt = re.compile('\S+run(\d+)_ev(\d+)')
-                m = patt.match(name)
-                run = int(m.group(1))
-                event = int(m.group(2))
-            justSkip=False
-            if event in self.options.excImages: justSkip=True
-            if maxImages>-1 and event>min(len(tf.GetListOfKeys()),maxImages): break
-
-            if not obj.InheritsFrom('TH2'): justSkip=True
-            if event%20 == 0:
-                print("Calc pedestal rms with event: ",name)
-            if justSkip:
-                 obj.Delete()
-                 del obj
-                 continue
-            if rebin>1:
-                obj.RebinX(rebin);
-                obj.RebinY(rebin); 
-            arr = np.array(obj)
-            obj.Delete()
-            del obj       
-            pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
-            numev += 1
+        numev = 0
+        mf.jump_to_start()
+        for mevent in mf:
+            if  options.rawdata_tier == 'midas':
+                if mevent.header.is_midas_internal_event():
+                    continue
+                else:
+                    keys = mevent.banks.keys()
+            for iobj,key in enumerate(keys):
+                name=key
+                if 'CAM' in name:
+                    if options.rawdata_tier == 'root':
+                        arr = tf[key].values()
+                    else:
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])     
+                    justSkip=False
+                    if numev in self.options.excImages: justSkip=True
+                    if maxImages>-1 and event>min(len(keys),maxImages): break
+         
+                    if numev%20 == 0:
+                        print("Calc pedestal rms with event: ",numev)
+                    if justSkip:
+                         continue
+                    if rebin>1:
+                        ctools.arrrebin(arr,rebin)
+                    pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
+                    numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
 
         # now save in a persistent ROOT object
@@ -211,7 +224,8 @@ class analysis:
                 pedmap.SetBinContent(ix+1,iy+1,pedmean[ix,iy]);
                 pedmap.SetBinError(ix+1,iy+1,pedrms[ix,iy]);
                 pedmapS.SetBinContent(ix+1,iy+1,pedrms[ix,iy]);
-        tf.Close()
+        if options.rawdata_tier == 'root':
+            tf.Close()
 
         pedfile.cd()
         pedmap.Write()
@@ -235,122 +249,152 @@ class analysis:
         ROOT.gStyle.SetPalette(ROOT.kRainBow)
         savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
-        tf = sw.swift_read_root_file(self.tmpname)
         ctools = cameraTools(self.cg)
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
-        # loop over events (pictures)
-        for iobj,key in enumerate(tf.keys()):
 
-            name=key
-            if 'pic' in name:
-                patt = re.compile('\S+run(\d+)_ev(\d+)')
-                m = patt.match(name)
-                run = int(m.group(1))
-                event = int(m.group(2))
-                obj = tf[key].values()
+        if options.rawdata_tier == 'root':
+            tf = sw.swift_read_root_file(self.tmpname)
+            keys = tf.keys()
+            mf = [0] # dummy array to make a common loop with MIDAS case
+        else:
+            mf = self.tmpname
 
-            justSkip = False
-            if event<evrange[1] or event>evrange[2]: justSkip=True
-            if event in self.options.excImages: justSkip=True
-            if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
-            if justSkip:
-                continue
-            
-            if 'pic' in name:
-                print("Processing Run: ",run,"- Event ",event,"...")
-                
-                testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
-                if np.sum(obj)>testspark:
-                    print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
+        numev = 0
+        mf.jump_to_start()
+        for mevent in mf:
+            if  options.rawdata_tier == 'midas':
+                if mevent.header.is_midas_internal_event():
                     continue
-                            
-                self.outTree.fillBranch("run",run)
-                self.outTree.fillBranch("event",event)
-                self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
-                if self.options.save_MC_data:
-                    mc_tree = tf.Get('event_info/info_tree')
-                    mc_tree.GetEntry(event)
-                    self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
-                    self.outTree.fillBranch("particle_type",mc_tree.particle_type)
-                    self.outTree.fillBranch("energy",mc_tree.energy_ini)
-                    self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
-                    self.outTree.fillBranch("drift",mc_tree.drift)
-                    self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
-                    self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
-                    self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
-                    self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
-                    self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
-                    self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
-                    self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
-                    self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
-                    self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
-                    self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
-
-            if self.options.camera_mode:
-                if 'pic' in name:
-     
-                    img_fr = obj.T
-
-                    # Upper Threshold full image
-                    img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
+                else:
+                    keys = mevent.banks.keys()
                     
-                    # zs on full image + saturation correction on full image
-                    if self.options.saturation_corr:
-                        #print("you are in saturation correction mode")
-                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                        img_fr_satcor = ctools.satur_corr(img_fr_sub) 
-                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                        img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
-                        img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
-                        
-                    # skip saturation and set satcor =img_fr_sub 
+            for iobj,key in enumerate(keys):
+                name=key
+                camera = False
+                if options.rawdata_tier == 'root':
+                    if 'pic' in name:
+                        patt = re.compile('\S+run(\d+)_ev(\d+)')
+                        m = patt.match(name)
+                        run = int(m.group(1))
+                        event = int(m.group(2))
+                        obj = tf[key].values()
+                        camera=True
                     else:
-                        #print("you are in poor mode")
-                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                        img_fr_satcor = img_fr_sub  
-                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                        img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
-                        img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
-                    
-                    # Cluster reconstruction on 2D picture
-                    algo = 'DBSCAN'
-                    if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
-                    snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
-                    plotpy = self.options.jobs < 2 # for some reason on macOS this crashes in multicore
-                    snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
-                    snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
-                    snakes = snprod.run()
-                    self.autotree.fillCameraVariables(img_fr_zs)
-                    self.autotree.fillClusterVariables(snakes,'sc')
-                    del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
+                        camera=False
+                elif options.rawdata_tier == 'midas':
+                    run = int(self.options.run)
+                    if 'CAM' in name:
+                        event = numev
+                        obj,_,_ = cy.daq_cam2array(mevent.banks[key])
+                        camera=True
+                        numev += 1
+                    else:
+                        camera=False
+                        event = numev
 
-            # to be ported to uproot
-            # if self.options.pmt_mode:
-            #     if obj.InheritsFrom('TGraph'):
-            #         # PMT waveform reconstruction
-            #         from waveform import PeakFinder,PeaksProducer
-            #         wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
-            #         # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
-            #         pkprod_inputs = {'waveform': wform}
-            #         pkprod_params = {'threshold': options.threshold, # min threshold for a signal (baseline is -20 mV)
-            #                          'minPeakDistance': options.minPeakDistance, # number of samples (1 sample = 1ns )
-            #                          'prominence': options.prominence, # noise after resampling very small
-            #                          'width': options.width, # minimal width of the signal
-            #                          'resample': options.resample,  # to sample waveform at 1 GHz only
-            #                          'rangex': (self.options.time_range[0],self.options.time_range[1]),
-            #                          'plotpy': options.pmt_plotpy
-            #         }
-            #         pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
+                justSkip = False
+                if event<evrange[1] or event>evrange[2]: justSkip=True
+                if event in self.options.excImages: justSkip=True
+                if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
+                if justSkip:
+                    continue
+                
+                if camera==True:
+                    print("Processing Run: ",run,"- Event ",event,"...")
                     
-            #         peaksfinder = pkprod.run()
-            #         self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
-
-            if self.options.camera_mode:
-                if 'pic' in name:
-                    self.outTree.fill()
+                    testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
+                    if np.sum(obj)>testspark:
+                        print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
+                        continue
+                                
+                    self.outTree.fillBranch("run",run)
+                    self.outTree.fillBranch("event",event)
+                    self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
+                    if self.options.save_MC_data:
+                        mc_tree = tf.Get('event_info/info_tree')
+                        mc_tree.GetEntry(event)
+                        self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
+                        self.outTree.fillBranch("particle_type",mc_tree.particle_type)
+                        self.outTree.fillBranch("energy",mc_tree.energy_ini)
+                        self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
+                        self.outTree.fillBranch("drift",mc_tree.drift)
+                        self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
+                        self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
+                        self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
+                        self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
+                        self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
+                        self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
+                        self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
+                        self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
+                        self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
+                        self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
+         
+                if self.options.camera_mode:
+                    if camera==True:
+             
+                        img_fr = obj.T
+         
+                        # Upper Threshold full image
+                        img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
+                        
+                        # zs on full image + saturation correction on full image
+                        if self.options.saturation_corr:
+                            #print("you are in saturation correction mode")
+                            img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                            img_fr_satcor = ctools.satur_corr(img_fr_sub) 
+                            img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                            img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
+                            img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
+                            
+                        # skip saturation and set satcor =img_fr_sub 
+                        else:
+                            #print("you are in poor mode")
+                            img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                            img_fr_satcor = img_fr_sub  
+                            img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                            img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
+                            img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
+                        
+                        # Cluster reconstruction on 2D picture
+                        algo = 'DBSCAN'
+                        if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
+                        snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
+                        plotpy = self.options.jobs < 2 # for some reason on macOS this crashes in multicore
+                        snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
+                        snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
+                        snakes = snprod.run()
+                        self.autotree.fillCameraVariables(img_fr_zs)
+                        self.autotree.fillClusterVariables(snakes,'sc')
+                        del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
+         
+                    # to be ported to uproot
+                    # if self.options.pmt_mode:
+                    #     if obj.InheritsFrom('TGraph'):
+                    #         # PMT waveform reconstruction
+                    #         from waveform import PeakFinder,PeaksProducer
+                    #         wform = tf.Get('wfm_'+'_'.join(name.split('_')[1:]))
+                    #         # sampling was 5 GHz (5/ns). Rebin by 5 (1/ns)
+                    #         pkprod_inputs = {'waveform': wform}
+                    #         pkprod_params = {'threshold': options.threshold, # min threshold for a signal (baseline is -20 mV)
+                    #                          'minPeakDistance': options.minPeakDistance, # number of samples (1 sample = 1ns )
+                    #                          'prominence': options.prominence, # noise after resampling very small
+                    #                          'width': options.width, # minimal width of the signal
+                    #                          'resample': options.resample,  # to sample waveform at 1 GHz only
+                    #                          'rangex': (self.options.time_range[0],self.options.time_range[1]),
+                    #                          'plotpy': options.pmt_plotpy
+                    #         }
+                    #         pkprod = PeaksProducer(pkprod_inputs,pkprod_params,self.options)
+                            
+                    #         peaksfinder = pkprod.run()
+                    #         self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
+         
+                    if self.options.camera_mode:
+                        if camera==True:
+                            self.outTree.fill()
+                            
+                    if camera==True:
+                        del obj
                     
-            del obj
-
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
                 
@@ -419,14 +463,25 @@ if __name__ == '__main__':
         os.system('mkdir -p {tmpdir}/'.format(tmpdir=tmpdir))
     else:
         os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-        tmpdir = '{tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER)
-    if sw.checkfiletmp(int(options.run),tmpdir):
-        options.tmpname = "%s/histograms_Run%05d.root" % (tmpdir,int(options.run))
-        print(options.tmpname)
+        tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER)
+    if sw.checkfiletmp(int(options.run),options.rawdata_tier,tmpdir):
+        if options.rawdata_tier=='root':
+            prefix = 'histograms_Run'
+            postfix = 'root'
+        else:
+            prefix = 'run'
+            postfix = 'mid.gz'
+        options.tmpname = "%s/%s%05d.%s" % (tmpdir,prefix,int(options.run),postfix)
     else:
-        print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-        options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),tmpdir)
-    
+        if options.rawdata_tier == 'root':
+            print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
+            options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),tmpdir)
+        else:
+            print ('Downloading MIDAS.gz file for run ' + options.run)
+    # in case of MIDAS, download function checks the existence and in case it is absent, dowloads it. If present, opens it
+    if options.rawdata_tier == 'midas':
+        options.tmpname = sw.swift_download_midas_file(int(options.run),tmpdir,options.tag)
+    print ("here file is: ",options.tmpname)
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
@@ -435,7 +490,7 @@ if __name__ == '__main__':
         sys.exit(0)
 
     ana = analysis(options)
-    nev = ana.getNEvents()
+    nev = ana.getNEvents(options)
     print("This run has ",nev," events.")
     print("Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
