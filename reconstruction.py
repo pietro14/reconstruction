@@ -172,6 +172,7 @@ class analysis:
                         arr = tf[key].values()
                     else:
                         arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                        arr = np.rot90(arr)
                     justSkip=False
                     if numev in self.options.excImages: justSkip=True
                     if maxImages>-1 and event>min(len(keys),maxImages): break
@@ -203,7 +204,8 @@ class analysis:
                     if options.rawdata_tier == 'root':
                         arr = tf[key].values()
                     else:
-                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])     
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                        arr = np.rot90(arr)
                     justSkip=False
                     if numev in self.options.excImages: justSkip=True
                     if maxImages>-1 and event>min(len(keys),maxImages): break
@@ -286,6 +288,7 @@ class analysis:
                     if 'CAM' in name:
                         event = numev
                         obj,_,_ = cy.daq_cam2array(mevent.banks[key])
+                        obj = np.rot90(obj,k=-1)
                         camera=True
                         numev += 1
                     else:

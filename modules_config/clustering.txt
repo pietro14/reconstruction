@@ -6,10 +6,10 @@
 'dbscan_minsamples'  : 5, # this is for 2D #
 
 ## directional clustering
-'dir_radius'         : 7.5,
+'dir_radius'         : 11.5,
 'dir_min_accuracy'   : 0.8, # minimum accuracy of the RANSAC to save one point of the cluster for the directional search
 'dir_minsamples'     : 20, ## N.B. this is always 2D, and it may differ from dbscan_minsamples (that can be Npix * intensity for 3D)
-'dir_thickness'      : 3.5,
+'dir_thickness'      : 6.5,
 'time_threshold'     : 300, # seconds
 'max_attempts'       : 9,
 'isolation_radius'   : 5,

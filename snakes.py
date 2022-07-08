@@ -251,14 +251,8 @@ class SnakesFactory:
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
                     
                 plt.imshow(colorpix,cmap='gray',origin='lower' )
-                #for ext in ['png','pdf']:
-                for ext in ['png']:
+                for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
-                #with open('{pdir}/{name}_{esp}_{tip}.pkl'.format(pdir=outname,name=self.name,esp='0th',ext=ext,tip=self.options.tip), "wb") as fp:
-                    #pickle.dump(fig, fp, protocol=4)
-                #plt.gcf().clear()
-                #plt.close('all')
-                
 
                 plt.gcf().clear()
                 plt.close('all')
