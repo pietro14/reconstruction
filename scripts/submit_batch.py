@@ -38,7 +38,7 @@ if __name__ == "__main__":
     parser.add_option('-q',   '--queue',    dest='queue',    type="string", default='cygno-custom', help='queue to be used for the jobs');
     parser.add_option('--mh'  '--max-hours',dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('--nev' '--event-chunks',dest='eventChunks', default=[], nargs=2,  type='int', help='T C: Total number of events to process and events per job')
-    parser.add_option('--cfg' '--config-file',dest='configFile', default="configFile_LNF.txt",  type='string', help='the config file to be run')
+    parser.add_option('--cfg' '--config-file',dest='configFile', default="configFile_LNGS.txt",  type='string', help='the config file to be run')
     parser.add_option('-t',   '--tmp',dest='tmpdir', default="/tmp/",  type='string', help='the input directory')
     (options, args) = parser.parse_args()
 

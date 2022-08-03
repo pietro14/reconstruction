@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.9
 from multiprocessing import Pool,set_start_method,TimeoutError
 from subprocess import Popen, PIPE
 import signal
