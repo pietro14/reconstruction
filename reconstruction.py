@@ -59,7 +59,7 @@ class analysis:
         if evrange[0]==-1:
             outfname = '{outdir}/{base}'.format(base=self.options.outFile,outdir=options.outdir)
         else:
-            outfname = '{outdir}/{base}_chunk{ij}.root'.format(base=self.options.outFile.split('.')[0],ij=evrange[0],outdir=options.outdir)
+            outfname = '{outdir}/{base}_chunk{ij}.root'.format(base=self.options.outFile.split('.')[0],ij=evrange[0],outdir=self.options.outdir)
         self.beginJob(outfname)
         self.reconstruct(evrange)
         self.endJob()
@@ -249,7 +249,7 @@ class analysis:
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         self.outputFile.cd()
         
-        if options.rawdata_tier == 'root':
+        if self.options.rawdata_tier == 'root':
             tf = sw.swift_read_root_file(self.tmpname)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
@@ -261,7 +261,7 @@ class analysis:
         event=-1
         mf.jump_to_start()
         for mevent in mf:
-            if  options.rawdata_tier == 'midas':
+            if self.options.rawdata_tier == 'midas':
                 if mevent.header.is_midas_internal_event():
                     continue
                 else:
@@ -271,7 +271,7 @@ class analysis:
             for iobj,key in enumerate(keys):
                 name=key
                 camera = False
-                if options.rawdata_tier == 'root':
+                if self.options.rawdata_tier == 'root':
                     if 'pic' in name:
                         patt = re.compile('\S+run(\d+)_ev(\d+)')
                         m = patt.match(name)
@@ -281,7 +281,7 @@ class analysis:
                         camera=True
                     else:
                         camera=False
-                elif options.rawdata_tier == 'midas':
+                elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
                     if 'CAM' in name:
                         obj,_,_ = cy.daq_cam2array(mevent.banks[key])
@@ -511,6 +511,7 @@ if __name__ == '__main__':
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
     lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
     print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
+    base = options.outFile.split('.')[0]
     if nThreads>1:
         print ("RUNNING USING ",nThreads," THREADS.")
         nj = int(nev/nThreads) if options.maxEntries==-1 else max(int((lastEvent-firstEvent)/nThreads),1)
@@ -522,7 +523,6 @@ if __name__ == '__main__':
                 # retrieve the result. This is crucial, because result() does not exit until the process is completed.
                 future.result()
         print("Now hadding the chunks...")
-        base = options.outFile.split('.')[0]
         if flag_env == 0:
             os.system('hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         else:
