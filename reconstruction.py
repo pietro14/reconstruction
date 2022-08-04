@@ -1,6 +1,6 @@
-from multiprocessing import Pool,set_start_method,TimeoutError
+from concurrent import futures
 from subprocess import Popen, PIPE
-import signal
+import signal,time
 
 import os,math,sys,random,re
 import numpy as np
@@ -16,22 +16,6 @@ from output import OutputTree
 from treeVars import AutoFillTreeProducer
 import swiftlib as sw
 import cygno as cy
-
-# this kills also the still running subprocesses.
-# use with a safe MAX TIMEOUT duration, since it will kill everything
-def terminate_pool_2(pool):
-    print ("Some subprocess timed out. Killing it brutally.")
-    os.system('killall -9 python3.8')
-
-# this still stucks
-def terminate_pool(pool):
-    print ("Some subprocess timed out. Killing it brutally.")
-    for p in pool._pool:
-        print ("KILLING PID ",p.pid)
-        os.kill(p.pid, 9)
-    pool.close()
-    pool.terminate()
-    pool.join()
 
 import utilities
 utilities = utilities.utils()
@@ -92,7 +76,7 @@ class analysis:
         self.outTree.branch("event", "I", title="event number")
         self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
         if self.options.save_MC_data:
-#            self.outTree.branch("MC_track_len","F")
+#           self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
             self.outTree.branch("particle_type","I")
             self.outTree.branch("energy","F")
@@ -119,7 +103,9 @@ class analysis:
 
     def endJob(self):
         self.outTree.write()
-        self.outputFile.Close()
+        # ok this is a hack: for some reason when running in multicore the tree is written randomly in some of the open chunk files
+        # so leave it open, it doesn't harm the final hadd
+        # self.outputFile.Close()
         
     def getNEvents(self,options):
         if options.rawdata_tier == 'root':
@@ -127,12 +113,18 @@ class analysis:
             pics = [k for k in tf.keys() if 'pic' in k]
             return len(pics)
         else:
-            mf = self.tmpname
+            run,tmpdir,tag = self.tmpname
+            mf = sw.swift_download_midas_file(run,tmpdir,tag)
             evs =0
             for mevent in mf:
                 if mevent.header.is_midas_internal_event():
                     continue
-                evs += 1
+                else:
+                    keys = mevent.banks.keys()
+                for iobj,key in enumerate(keys):
+                    name=key
+                    if 'CAM' in name:
+                        evs += 1
             return evs
 
     def calcPedestal(self,options,alternativeRebin=-1):
@@ -153,7 +145,9 @@ class analysis:
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
         else:
-            mf = self.tmpname
+            run,tmpdir,tag = self.tmpname
+            mf = sw.swift_download_midas_file(run,tmpdir,tag)
+            #mf = self.tmpname
 
         # first calculate the mean 
         numev = 0
@@ -249,18 +243,21 @@ class analysis:
         ROOT.gStyle.SetOptStat(0)
         ROOT.gStyle.SetPalette(ROOT.kRainBow)
         savErrorLevel = ROOT.gErrorIgnoreLevel; ROOT.gErrorIgnoreLevel = ROOT.kWarning
-
+        
         ctools = cameraTools(self.cg)
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
-
+        self.outputFile.cd()
+        
         if options.rawdata_tier == 'root':
             tf = sw.swift_read_root_file(self.tmpname)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
         else:
-            mf = self.tmpname
+            run,tmpdir,tag = self.tmpname
+            mf = sw.swift_download_midas_file(run,tmpdir,tag)
 
-        numev = 0
+        numev = -1
+        event=-1
         mf.jump_to_start()
         for mevent in mf:
             if  options.rawdata_tier == 'midas':
@@ -269,6 +266,7 @@ class analysis:
                 else:
                     keys = mevent.banks.keys()
                     
+
             for iobj,key in enumerate(keys):
                 name=key
                 camera = False
@@ -285,17 +283,17 @@ class analysis:
                 elif options.rawdata_tier == 'midas':
                     run = int(self.options.run)
                     if 'CAM' in name:
-                        event = numev
                         obj,_,_ = cy.daq_cam2array(mevent.banks[key])
                         obj = np.rot90(obj,k=-1)
                         camera=True
                         numev += 1
                     else:
                         camera=False
-                        event = numev
+                    event=numev
 
                 justSkip = False
-                if event<evrange[1] or event>evrange[2]: justSkip=True
+                if event<evrange[1]: justSkip=True
+                if event>evrange[2]: return # avoids seeking up to EOF which with MIDAS is slow
                 if event in self.options.excImages: justSkip=True
                 if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
                 if justSkip:
@@ -396,6 +394,9 @@ class analysis:
                             
                     if camera==True:
                         del obj
+                        
+
+
                     
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
@@ -482,7 +483,9 @@ if __name__ == '__main__':
             print ('Downloading MIDAS.gz file for run ' + options.run)
     # in case of MIDAS, download function checks the existence and in case it is absent, dowloads it. If present, opens it
     if options.rawdata_tier == 'midas':
-        options.tmpname = sw.swift_download_midas_file(int(options.run),tmpdir,options.tag)
+        ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
+        #options.tmpname = sw.swift_download_midas_file(int(options.run),tmpdir,options.tag)
+        options.tmpname = [int(options.run),tmpdir,options.tag]
     print ("here file is: ",options.tmpname)
     if options.justPedestal:
         ana = analysis(options)
@@ -504,6 +507,7 @@ if __name__ == '__main__':
     else:
         nThreads = options.jobs
 
+    t1 = time.perf_counter()
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
     lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
     print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
@@ -511,44 +515,22 @@ if __name__ == '__main__':
         print ("RUNNING USING ",nThreads," THREADS.")
         nj = int(nev/nThreads) if options.maxEntries==-1 else max(int((lastEvent-firstEvent)/nThreads),1)
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(firstEvent,lastEvent,nj))]
-        print(chunks)
-        pool = Pool(nThreads)
-        ret = list(pool.apply_async(ana,args=(c, )) for c in chunks)
-        try:
-            if options.maxHours>0:
-                maxTime = options.maxHours * 3600
-            else:
-                # 64-bit integer, converted from nanoseconds to seconds, and subtracting 0.1 just to be in bounds.
-                maxTime = 2 ** 63 / 1e9 - 0.1
-            print([r.get(timeout=maxTime) for r in ret])
-            pool.close()
-            pool.terminate()
-            pool.join()
-        except TimeoutError:
-            print("Maximum time of {ns} seconds reached. Terminating processes brutally!".format(ns=maxTime))
-            ## add the chunks before terminating the job if timeout is reached
-            print("Now hadding the chunks...")
-            base = options.outFile.split('.')[0]
-            if flag_env == 0:
-                os.system('{rootsys}/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base, outdir=options.outdir))
-            else:
-                os.system('usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
-            os.system('rm {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
-            terminate_pool_2(pool)
-        
+        print("Chunks = ",chunks)
+        with futures.ThreadPoolExecutor(nThreads) as executor:
+            executor.map(ana,chunks)
+            executor.shutdown(wait=True, cancel_futures=False)
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         if flag_env == 0:
-            os.system('{rootsys}/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(rootsys=os.environ['ROOTSYS'],base=base, outdir=options.outdir))
+            os.system('hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         else:
             os.system('usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         os.system('rm {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
     else:
-        ana.beginJob(options.outFile)
         evrange=(-1,firstEvent,lastEvent)
-        ana.reconstruct(evrange)
-        ana.endJob()
-
+        ana(evrange)
+    t2 = time.perf_counter()
+    print(f'Reconstruction Code Took: {t2 - t1} seconds')
 
     # now add the git commit hash to track the version in the ROOT file
     tf = ROOT.TFile.Open(options.outFile,'update')
