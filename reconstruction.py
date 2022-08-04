@@ -59,14 +59,17 @@ class analysis:
         if evrange[0]==-1:
             outfname = '{outdir}/{base}'.format(base=self.options.outFile,outdir=options.outdir)
         else:
-            outfname = '{outdir}/{base}_chunk{ij}.root'.format(base=self.options.outFile.split('.')[0],ij=evrange[0],outdir=options.outdir)
+            outfname = '{outdir}/{base}_chunk{ij}.root'.format(base=self.options.outFile.split('.')[0],ij=evrange[0],outdir=self.options.outdir)
         self.beginJob(outfname)
         self.reconstruct(evrange)
         self.endJob()
         
     def beginJob(self,outfname):
         # prepare output file
+        ROOT.EnableThreadSafety()
         self.outputFile = ROOT.TFile.Open(outfname, "RECREATE")
+        print("Opening out file: ",outfname," self.outputFile = ",self.outputFile)
+        ROOT.gDirectory.cd()
         # prepare output tree
         self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
         self.outTree = OutputTree(self.outputFile,self.outputTree)
@@ -103,9 +106,7 @@ class analysis:
 
     def endJob(self):
         self.outTree.write()
-        # ok this is a hack: for some reason when running in multicore the tree is written randomly in some of the open chunk files
-        # so leave it open, it doesn't harm the final hadd
-        # self.outputFile.Close()
+        self.outputFile.Close()
         
     def getNEvents(self,options):
         if options.rawdata_tier == 'root':
@@ -248,7 +249,7 @@ class analysis:
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         self.outputFile.cd()
         
-        if options.rawdata_tier == 'root':
+        if self.options.rawdata_tier == 'root':
             tf = sw.swift_read_root_file(self.tmpname)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
@@ -260,7 +261,7 @@ class analysis:
         event=-1
         mf.jump_to_start()
         for mevent in mf:
-            if  options.rawdata_tier == 'midas':
+            if self.options.rawdata_tier == 'midas':
                 if mevent.header.is_midas_internal_event():
                     continue
                 else:
@@ -270,7 +271,7 @@ class analysis:
             for iobj,key in enumerate(keys):
                 name=key
                 camera = False
-                if options.rawdata_tier == 'root':
+                if self.options.rawdata_tier == 'root':
                     if 'pic' in name:
                         patt = re.compile('\S+run(\d+)_ev(\d+)')
                         m = patt.match(name)
@@ -280,7 +281,7 @@ class analysis:
                         camera=True
                     else:
                         camera=False
-                elif options.rawdata_tier == 'midas':
+                elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
                     if 'CAM' in name:
                         obj,_,_ = cy.daq_cam2array(mevent.banks[key])
@@ -484,7 +485,6 @@ if __name__ == '__main__':
     # in case of MIDAS, download function checks the existence and in case it is absent, dowloads it. If present, opens it
     if options.rawdata_tier == 'midas':
         ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
-        #options.tmpname = sw.swift_download_midas_file(int(options.run),tmpdir,options.tag)
         options.tmpname = [int(options.run),tmpdir,options.tag]
     print ("here file is: ",options.tmpname)
     if options.justPedestal:
@@ -511,29 +511,18 @@ if __name__ == '__main__':
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
     lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
     print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
+    base = options.outFile.split('.')[0]
     if nThreads>1:
         print ("RUNNING USING ",nThreads," THREADS.")
         nj = int(nev/nThreads) if options.maxEntries==-1 else max(int((lastEvent-firstEvent)/nThreads),1)
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(firstEvent,lastEvent,nj))]
         print("Chunks = ",chunks)
-        with futures.ThreadPoolExecutor(nThreads) as executor:
-            executor.map(ana,chunks)
-            py_version = sys.version_info
-            if ( py_version.major == 3 ) and ( py_version.minor < 9 ):
-                import queue
-                executor.shutdown( wait = True )
-                while True:
-                    # cancel all waiting tasks
-                    try:
-                        work_item = executor._work_queue.get_nowait()
-                    except queue.Empty:
-                        break
-                    if work_item is not None:
-                        work_item.future.cancel()
-            else:
-                executor.shutdown(wait=True, cancel_futures=False)
+        with futures.ProcessPoolExecutor(nThreads) as executor:
+            futures_list = [executor.submit(ana,c) for c in chunks]
+            for future in futures.as_completed(futures_list):
+                # retrieve the result. This is crucial, because result() does not exit until the process is completed.
+                future.result()
         print("Now hadding the chunks...")
-        base = options.outFile.split('.')[0]
         if flag_env == 0:
             os.system('hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         else:
@@ -546,7 +535,7 @@ if __name__ == '__main__':
     print(f'Reconstruction Code Took: {t2 - t1} seconds')
 
     # now add the git commit hash to track the version in the ROOT file
-    tf = ROOT.TFile.Open(options.outFile,'update')
+    tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
     githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
     githash.Write()
     tf.Close()
