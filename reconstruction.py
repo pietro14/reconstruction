@@ -518,7 +518,19 @@ if __name__ == '__main__':
         print("Chunks = ",chunks)
         with futures.ThreadPoolExecutor(nThreads) as executor:
             executor.map(ana,chunks)
-            executor.shutdown(wait=True, cancel_futures=False)
+            py_version = sys.version_info
+            if ( py_version.major == 3 ) and ( py_version.minor < 9 ):
+                executor.shutdown( wait = True )
+                while True:
+                    # cancel all waiting tasks
+                    try:
+                        work_item = executor._work_queue.get_nowait()
+                    except queue.Empty:
+                        break
+                    if work_item is not None:
+                        work_item.future.cancel()
+            else:
+                executor.shutdown(wait=True, cancel_futures=False)
         print("Now hadding the chunks...")
         base = options.outFile.split('.')[0]
         if flag_env == 0:
