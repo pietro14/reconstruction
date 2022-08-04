@@ -520,6 +520,7 @@ if __name__ == '__main__':
             executor.map(ana,chunks)
             py_version = sys.version_info
             if ( py_version.major == 3 ) and ( py_version.minor < 9 ):
+                import queue
                 executor.shutdown( wait = True )
                 while True:
                     # cancel all waiting tasks
