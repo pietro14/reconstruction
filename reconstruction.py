@@ -133,7 +133,7 @@ class analysis:
         nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
-        pedfilename = 'pedestals/pedmap_run%s_rebin%d.root' % (options.run,rebin)
+        pedfilename = 'pedestals/pedmap_run%s_rebin%d.root' % (options.pedrun,rebin)
         
         pedfile = ROOT.TFile.Open(pedfilename,'recreate')
         pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax)
@@ -146,8 +146,8 @@ class analysis:
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
         else:
-            run,tmpdir,tag = self.tmpname
-            mf = sw.swift_download_midas_file(run,tmpdir,tag)
+            sigrun,tmpdir,tag = self.tmpname
+            mf = sw.swift_download_midas_file(options.pedrun,tmpdir,tag)
             #mf = self.tmpname
 
         # first calculate the mean 
@@ -436,22 +436,8 @@ if __name__ == '__main__':
     patt = re.compile('\S+_(\S+).txt')
     m = patt.match(args[0])
     detector = m.group(1)
-    if not hasattr(options,"pedrun"):
-        pedname= 'pedruns_%s.txt' % (detector)
-        pf = open("pedestals/"+pedname,"r")
-        peddic = eval(pf.read())
-        options.pedrun = -1
-        for runrange,ped in peddic.items():
-            if int(runrange[0])<=run<=int(runrange[1]):
-                options.pedrun = int(ped)
-                print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
-                break
-        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/",pedname," Check the dictionary inside it!")
-            
-    setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+    utilities.setPedestalRun(options,detector)
     
-    #inputf = inputFile(options.run, options.dir, options.daq)
-
     try:
         USER = os.environ['USER']
         flag_env = 0
@@ -486,7 +472,6 @@ if __name__ == '__main__':
     if options.rawdata_tier == 'midas':
         ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
         options.tmpname = [int(options.run),tmpdir,options.tag]
-    print ("here file is: ",options.tmpname)
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")

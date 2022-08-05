@@ -1,5 +1,0 @@
-{
-# format: (first_run, last_run), ped_run,
-(1385,1386) : 1385, # just a test
-(1963,1973) : 1963, # bkg data, >=2 PMT, 28-06-2022
-}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import subprocess
 
-import os,sys,optparse
+import os,sys,optparse,csv
 import numpy as np
 import ROOT,math
 import swiftlib as sw
@@ -234,7 +234,23 @@ class utils:
         vign1d.Write()
         tf_out.Close()
         
-        
+    def setPedestalRun(self,options,detector):
+        if not hasattr(options,"pedrun"):
+            runlog='runlog_%s.csv' % (detector)
+            with open("pedestals/%s"%runlog,"r") as csvfile:
+                csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+                # This skips the first row (header) of the CSV file.
+                next(csvreader)
+                for row in reversed(list(csvreader)):
+                    runkey,runtype,comment = row[:3]
+                    nevents = int(row[-1]) if row[-1]!="NULL" else 0
+                    if int(runkey)<=int(options.run) and runtype.strip()=="S000:PED:BKG" and nevents>=100:
+                        options.pedrun = int(runkey)
+                        print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
+                        break
+            assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(run,runlog))
+        setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+
 
 class bcolors:
     HEADER = '\033[95m'
