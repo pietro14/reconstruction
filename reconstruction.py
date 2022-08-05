@@ -2,7 +2,7 @@ from concurrent import futures
 from subprocess import Popen, PIPE
 import signal,time
 
-import os,math,sys,random,re
+import os,math,sys,random,re,csv
 import numpy as np
 
 import ROOT
@@ -133,7 +133,7 @@ class analysis:
         nx=ny=self.xmax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
-        pedfilename = 'pedestals/pedmap_run%s_rebin%d.root' % (options.run,rebin)
+        pedfilename = 'pedestals/pedmap_run%s_rebin%d.root' % (options.pedrun,rebin)
         
         pedfile = ROOT.TFile.Open(pedfilename,'recreate')
         pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax)
@@ -146,8 +146,8 @@ class analysis:
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
         else:
-            run,tmpdir,tag = self.tmpname
-            mf = sw.swift_download_midas_file(run,tmpdir,tag)
+            sigrun,tmpdir,tag = self.tmpname
+            mf = sw.swift_download_midas_file(options.pedrun,tmpdir,tag)
             #mf = self.tmpname
 
         # first calculate the mean 
@@ -437,17 +437,19 @@ if __name__ == '__main__':
     m = patt.match(args[0])
     detector = m.group(1)
     if not hasattr(options,"pedrun"):
-        pedname= 'pedruns_%s.txt' % (detector)
-        pf = open("pedestals/"+pedname,"r")
-        peddic = eval(pf.read())
-        options.pedrun = -1
-        for runrange,ped in peddic.items():
-            if int(runrange[0])<=run<=int(runrange[1]):
-                options.pedrun = int(ped)
-                print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
-                break
-        assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/",pedname," Check the dictionary inside it!")
-            
+        runlog='runlog_%s.txt' % (detector)
+        with open("pedestals/runlog_%s.txt"%detector,"r") as csvfile:
+            csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+            # This skips the first row (header) of the CSV file.
+            next(csvreader)
+            for row in reversed(list(csvreader)):
+                runkey,runtype,comment = row[:3]
+                nevents = int(row[-1]) if row[-1]!="NULL" else 0
+                if int(runkey)<=run and runtype.strip()=="S000:PED:BKG" and nevents>=100:
+                    options.pedrun = int(runkey)
+                    print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
+                    break
+        assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(run,runlog))
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
     #inputf = inputFile(options.run, options.dir, options.daq)
