@@ -2,7 +2,7 @@ from concurrent import futures
 from subprocess import Popen, PIPE
 import signal,time
 
-import os,math,sys,random,re,csv
+import os,math,sys,random,re
 import numpy as np
 
 import ROOT
@@ -436,24 +436,8 @@ if __name__ == '__main__':
     patt = re.compile('\S+_(\S+).txt')
     m = patt.match(args[0])
     detector = m.group(1)
-    if not hasattr(options,"pedrun"):
-        runlog='runlog_%s.txt' % (detector)
-        with open("pedestals/runlog_%s.txt"%detector,"r") as csvfile:
-            csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-            # This skips the first row (header) of the CSV file.
-            next(csvreader)
-            for row in reversed(list(csvreader)):
-                runkey,runtype,comment = row[:3]
-                nevents = int(row[-1]) if row[-1]!="NULL" else 0
-                if int(runkey)<=run and runtype.strip()=="S000:PED:BKG" and nevents>=100:
-                    options.pedrun = int(runkey)
-                    print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
-                    break
-        assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(run,runlog))
-    setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+    utilities.setPedestalRun(options,detector)
     
-    #inputf = inputFile(options.run, options.dir, options.daq)
-
     try:
         USER = os.environ['USER']
         flag_env = 0
@@ -488,7 +472,6 @@ if __name__ == '__main__':
     if options.rawdata_tier == 'midas':
         ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
         options.tmpname = [int(options.run),tmpdir,options.tag]
-    print ("here file is: ",options.tmpname)
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
