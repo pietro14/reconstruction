@@ -237,7 +237,7 @@ class utils:
     def setPedestalRun(self,options,detector):
         if not hasattr(options,"pedrun"):
             runlog='runlog_%s.csv' % (detector)
-            with open("pedestals/runlog_%s.txt"%detector,"r") as csvfile:
+            with open("pedestals/%s"%runlog,"r") as csvfile:
                 csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
                 # This skips the first row (header) of the CSV file.
                 next(csvreader)
