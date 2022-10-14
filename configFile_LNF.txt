@@ -1,4 +1,7 @@
 {
+# DATA FORMAT
+'rawdata_tier' : 'root',
+
 # DETECTOR
 'geometry'  : 'lime',
 
@@ -37,7 +40,7 @@
 'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
 
 'excImages'             : [], #list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy (not true anymore)
-'min_neighbors_average' : 0.75,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
+'min_neighbors_average' : 1.1,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
 
 'scfullinfo'            : False,			   # If True some the supercluster pixels info will be saved
