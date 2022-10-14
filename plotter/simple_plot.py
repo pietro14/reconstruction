@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.9
 import os, math, optparse, ROOT
 from array import array
-from root_numpy import hist2array
 import numpy as np
 
 from tools.finalDNN import finalDNN
@@ -20,7 +19,7 @@ NX = {'lime':  2304,
       'lemon': 2048 }
 
 fe_integral_rescale = 1 if CCR else 1
-cosm_rate_calib = [1.0,0.02] if CCR else [1,0.02]     # central value, stat error
+cosm_rate_calib = [1.0,0.02] if CCR else [4,0.02]     # central value, stat error
 
 ### INTERCALIBRATION CONSTANTS CALCULATED WITH COSMICS ###
 # this comes from fitting the raw energy density in the CR. The uncertainty is negligible.
@@ -31,7 +30,7 @@ cosm_rate_calib = [1.0,0.02] if CCR else [1,0.02]     # central value, stat erro
 #                     'ambe' : 1 }
 ### inter-calib with cosmics soon after AmBe
 cosm_energycalib = {'fe'   : 1, # not enough cosmics (split parts of the sensor)
-                    'cosm' : 20.0/19.5,
+                    'cosm' : 1,
                     'ambe' : 1 }
 ### no inter-calib
 #cosm_energycalib = {'fe'   : 1,
@@ -96,31 +95,31 @@ def saturationFactorNLO(density):
 # attach to a dict to make it persistent
 vignetteCorrMap = { 'lime' : np.zeros((int(NX['lime']/16),int(NX['lime']/16))) }
 
-
-def vignettingCorrection(x,y,length,detector='lime'):
-    ## since in these ntuples we have only xmean,ymean, not the slices,
-    ## we don't apply to the cosmics, which are long, and typically cross the center.
-    if length>5:
-        return 1
-    corr = 0
-    if detector == 'lemon':
-        corr = 1
-    elif detector == 'lime':
-        if not vignetteCorrMap[detector].any():
-            print("get vignetting map...")
-            tf = ROOT.TFile.Open('../data/vignette_run03806.root')
-            hmap = tf.Get('normmap')
-            vignetteCorrMap[detector] = hist2array(hmap)
-        rebinx = NX[GEOMETRY]/vignetteCorrMap[detector].shape[0]
-        rebiny = NX[GEOMETRY]/vignetteCorrMap[detector].shape[1]
-        #print ("rebin = ",rebinx," ",rebiny)
-        #print ("x = {x}, y={y}, bx={bx}, by={by}".format(x=x,y=y,bx=int(x/rebinx),by=int(y/rebiny)))
-        corr = 1./(vignetteCorrMap[detector])[int(x/rebinx),int(y/rebiny)]
-        #print ("x = {x}, y={y}, corr = {corr}".format(x=x,y=y,corr=corr))
-    else:
-        print ('WARNING! Detector ',detector,' not foreseen. Return correction 1')
-        corr = 1
-    return corr
+# NEED MIGRATION OF HIST2ARRAY of root_numpy no more supported
+# def vignettingCorrection(x,y,length,detector='lime'):
+#     ## since in these ntuples we have only xmean,ymean, not the slices,
+#     ## we don't apply to the cosmics, which are long, and typically cross the center.
+#     if length>5:
+#         return 1
+#     corr = 0
+#     if detector == 'lemon':
+#         corr = 1
+#     elif detector == 'lime':
+#         if not vignetteCorrMap[detector].any():
+#             print("get vignetting map...")
+#             tf = ROOT.TFile.Open('../data/vignette_run03806.root')
+#             hmap = tf.Get('normmap')
+#             vignetteCorrMap[detector] = hist2array(hmap)
+#         rebinx = NX[GEOMETRY]/vignetteCorrMap[detector].shape[0]
+#         rebiny = NX[GEOMETRY]/vignetteCorrMap[detector].shape[1]
+#         #print ("rebin = ",rebinx," ",rebiny)
+#         #print ("x = {x}, y={y}, bx={bx}, by={by}".format(x=x,y=y,bx=int(x/rebinx),by=int(y/rebiny)))
+#         corr = 1./(vignetteCorrMap[detector])[int(x/rebinx),int(y/rebiny)]
+#         #print ("x = {x}, y={y}, corr = {corr}".format(x=x,y=y,corr=corr))
+#     else:
+#         print ('WARNING! Detector ',detector,' not foreseen. Return correction 1')
+#         corr = 1
+#     return corr
 
 
 def is60keVBkg(length,density):
@@ -349,10 +348,10 @@ def fillSpectra():
 
     ret = {}
     #data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/v2/xrays'
-    data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/v2/titaniumTransparency_03Nov21'
-    tf_ambe  = ROOT.TFile('{d}/reco_runTi.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/reco_runBkg.root'.format(d=data_dir))
-    tf_fe55 = ROOT.TFile('{d}/reco_runFe55.root'.format(d=data_dir))
+    data_dir = '/Users/emanuele/data/cygnus/analysis/lngs/summer22/'
+    tf_ambe  = ROOT.TFile('{d}/reco_allbkg.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/reco_bkg_lnf.root'.format(d=data_dir))
+    tf_fe55 = ROOT.TFile('{d}/reco_bkg_lnf.root'.format(d=data_dir))
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
 
@@ -466,8 +465,10 @@ def fillSpectra():
     ## now fill the histograms 
     selected = 0
     for runtype in ['fe','ambe','cosm']:
+        print("Running over runtype = ",runtype,":\n")
         for ie,event in enumerate(tfiles[runtype].Events):
-
+            if runtype == 'fe' and ie > 1:
+                break
             ## eventually, use the PMT TOT threshold to reject the cosmics
             #if getattr(event,'pmt_tot')>250:
             #    continue
@@ -530,6 +531,7 @@ def fillSpectra():
                 lstatus =  event.sc_lstatus[isc]
                 gstatus = [tstatus,lstatus]
                 latrms = event.sc_latrms[isc]
+                rms = event.sc_rms[isc]
                 mindist = 2000 #event.sc_mindist[isc] if runtype!='fe' else 2000 ## because I haven't rerun FE with V3
 
                 distFromCenter = math.hypot((xmean-NX[GEOMETRY]/2),(ymean-NX[GEOMETRY]/2))*pixw
@@ -539,8 +541,8 @@ def fillSpectra():
                 ##########################
                 # if not limeQuietRegion(xmean,ymean):
                 #     continue
-                # if not LimeEfficientRegion(xmean,ymean):
-                #     continue
+                if not LimeEfficientRegion(xmean,ymean):
+                    continue
                 #if not noiseSuppression(nhits,size,latrms,mindist):
                 #    continue
 
@@ -604,7 +606,8 @@ def fillSpectra():
                         # remove long/slim cosmics
                         #if integral<1e3 or length > 1000. or width/length<0.5:
                         #if integral<1e3 or length > 200.: # up to Ba (Ba<200 and Tb<300)
-                        if integral<1e3 or length > 100. or slimness<0.8: # Titanium (transparency) + Fe residual
+                        #if integral<1e3 or length > 100. or slimness<0.8: # Titanium (transparency) + Fe residual
+                        if rms<7 or integral<5e2:
                             continue
                         # remove the bad cluster shapes cosmics
                         #if not clusterShapeQuality(gamp,gsigma,gchi2,gstatus):
@@ -864,10 +867,6 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     padBottom.Draw()
 
     padTop.cd()
-    ymax = max(histo_bkg.GetMaximum(),histo_sig.GetMaximum())
-    if histo_sig2:
-        ymax = max(histo_sig2.GetMaximum(),ymax)
-    histo_sig.SetMaximum(1.4*ymax)
     #histo_sig.SetMinimum(0)
     histo_sig.GetXaxis().SetLabelSize(0.05)
     histo_sig.GetXaxis().SetLabelFont(42)
@@ -913,9 +912,19 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     ## rescale the Fe bkg by the scale factor in the pure cosmics CR
     histo_bkg.Scale(cosm_rate_calib[0])
     histo_bkg_errs.Scale(cosm_rate_calib[0])
+           
+    rescale_area = float(histo_sig.Integral())/float(histo_bkg.Integral())
+    print ("rescale = ",rescale_area)
+    histo_bkg.Scale(rescale_area)
+    histo_bkg_errs.Scale(rescale_area)
+
+    ymax = max(histo_bkg.GetMaximum(),histo_sig.GetMaximum())
+    if histo_sig2:
+        ymax = max(histo_sig2.GetMaximum(),ymax)
+    histo_sig.SetMaximum(1.4*ymax)
     
     histos = [histo_sig,histo_bkg] + ([histo_sig2] if histo_sig2 else [])
-    labels = ['Ti (4.5 keV) + Fe (5.9 keV)','%.2f #times no source' % cosm_rate_calib[0]] + ([ '%.2f #times ^{55}Fe' % fe_integral_rescale] if histo_sig2 else [])
+    labels = ['LNGS no source','%.2f#times LNF no source' % rescale_area] + ([ '%.2f #times ^{55}Fe' % fe_integral_rescale] if histo_sig2 else [])
     styles = ['pe','f'] + (['f'] if histo_sig2 else [])
     
     legend = doLegend(histos,labels,styles,corner="TR")
@@ -951,7 +960,7 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         padBottom.SetLogy(1)
 
     ratios.append(ratio)
-    labelsR.append('[Ti (4.5 keV) + Fe (5.9 keV)]  - no source')
+    labelsR.append('LNGS - %.2f#times LNF' % rescale_area)
     stylesR.append('pe')
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure
@@ -1123,8 +1132,8 @@ def drawSpectra(histos,plotdir,entries,normEntries=False):
             if histos[('fe',var)]:
                 histos[('fe',var)].SetFillColorAlpha(ROOT.kViolet-4,0.5)
                 #histos[('fe',var)].SetFillStyle(3354)
-            drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
-            #drawOne(histos[('ambe',var)],histos[('cosm',var)],histo_sig2=None,plotdir=plotdir,normEntries=normEntries)
+            #drawOne(histos[('ambe',var)],histos[('cosm',var)],histos[('fe',var)],plotdir,normEntries)
+            drawOne(histos[('ambe',var)],histos[('cosm',var)],histo_sig2=None,plotdir=plotdir,normEntries=normEntries)
         elif histos[('fe',var)].InheritsFrom('TGraph'):
             drawOneGraph(histos[('ambe',var)],var,plotdir)
             
