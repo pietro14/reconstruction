@@ -142,7 +142,10 @@ class analysis:
         pedsum = np.zeros((nx,ny))
         
         if options.rawdata_tier == 'root':
-            tf = sw.swift_read_root_file(self.tmpname)
+            print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.pedrun)))
+            tmpdir = '{tmpdir}/{user}/'.format(tmpdir=options.tmpdir,user=os.environ['USER'])
+            pedfilename = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.pedrun)),int(options.pedrun),tmpdir)
+            tf = sw.swift_read_root_file(pedfilename)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
         else:
@@ -152,66 +155,105 @@ class analysis:
 
         # first calculate the mean 
         numev = 0
-        mf.jump_to_start()
-        for mevent in mf:
-            if  options.rawdata_tier == 'midas':
+        if  options.rawdata_tier == 'midas':
+            mf.jump_to_start()
+            for mevent in mf:
                 if mevent.header.is_midas_internal_event():
                     continue
                 else:
                     keys = mevent.banks.keys()
-            for iobj,key in enumerate(keys):
-                name=key
-                if 'CAM' in name:
-                    if options.rawdata_tier == 'root':
-                        arr = tf[key].values()
-                    else:
-                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                        arr = np.rot90(arr)
-                    justSkip=False
-                    if numev in self.options.excImages: justSkip=True
-                    if maxImages>-1 and event>min(len(keys),maxImages): break
-                        
-                    if numev%20 == 0:
-                        print("Calc pedestal mean with event: ",numev)
-                    if justSkip:
-                         continue
-                    if rebin>1:
-                        ctools.arrrebin(arr,rebin)
-                    pedsum = np.add(pedsum,arr)
-                    numev += 1
+                for iobj,key in enumerate(keys):
+                    name=key
+                    if 'CAM' in name:
+                        if options.rawdata_tier == 'root':
+                            arr = tf[key].values()
+                        else:
+                            arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                            arr = np.rot90(arr)
+                        justSkip=False
+                        if numev in self.options.excImages: justSkip=True
+                        if maxImages>-1 and event>min(len(keys),maxImages): break
+                            
+                        if numev%20 == 0:
+                            print("Calc pedestal mean with event: ",numev)
+                        if justSkip:
+                             continue
+                        if rebin>1:
+                            ctools.arrrebin(arr,rebin)
+                        pedsum = np.add(pedsum,arr)
+                        numev += 1
+        else:
+            for i,name in enumerate(keys):
+                if 'pic' in name:
+                    patt = re.compile('\S+run(\d+)_ev(\d+)')
+                    m = patt.match(name)
+                    run = int(m.group(1))
+                    event = int(m.group(2))
+                justSkip=False
+                if event in self.options.excImages: justSkip=True
+                if maxImages>-1 and event>min(len(keys),maxImages): break
+                    
+                if 'pic' not in name: justSkip=True
+                if event%20 == 0:
+                    print("Calc pedestal mean with event: ",name)
+                if justSkip:
+                     continue
+                arr = tf[name].values()
+                pedsum = np.add(pedsum,arr)
+                numev += 1
         pedmean = pedsum / float(numev)
 
         # now compute the rms (two separate loops is faster than one, yes)
         numev=0
         pedsqdiff = np.zeros((nx,ny))
         numev = 0
-        mf.jump_to_start()
-        for mevent in mf:
-            if  options.rawdata_tier == 'midas':
-                if mevent.header.is_midas_internal_event():
-                    continue
-                else:
-                    keys = mevent.banks.keys()
-            for iobj,key in enumerate(keys):
-                name=key
-                if 'CAM' in name:
-                    if options.rawdata_tier == 'root':
-                        arr = tf[key].values()
+        if  options.rawdata_tier == 'midas':
+            mf.jump_to_start()
+            for mevent in mf:
+                if  options.rawdata_tier == 'midas':
+                    if mevent.header.is_midas_internal_event():
+                        continue
                     else:
-                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                        arr = np.rot90(arr)
-                    justSkip=False
-                    if numev in self.options.excImages: justSkip=True
-                    if maxImages>-1 and event>min(len(keys),maxImages): break
-         
-                    if numev%20 == 0:
-                        print("Calc pedestal rms with event: ",numev)
-                    if justSkip:
-                         continue
-                    if rebin>1:
-                        ctools.arrrebin(arr,rebin)
-                    pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
-                    numev += 1
+                        keys = mevent.banks.keys()
+                for iobj,key in enumerate(keys):
+                    name=key
+                    if 'CAM' in name:
+                        if options.rawdata_tier == 'root':
+                            arr = tf[key].values()
+                        else:
+                            arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                            arr = np.rot90(arr)
+                        justSkip=False
+                        if numev in self.options.excImages: justSkip=True
+                        if maxImages>-1 and event>min(len(keys),maxImages): break
+             
+                        if numev%20 == 0:
+                            print("Calc pedestal rms with event: ",numev)
+                        if justSkip:
+                             continue
+                        if rebin>1:
+                            ctools.arrrebin(arr,rebin)
+                        pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
+                        numev += 1
+        else:
+            for i,name in enumerate(keys):
+                if 'pic' in name:
+                    patt = re.compile('\S+run(\d+)_ev(\d+)')
+                    m = patt.match(name)
+                    run = int(m.group(1))
+                    event = int(m.group(2))
+                justSkip=False
+                if event in self.options.excImages: justSkip=True
+                if maxImages>-1 and event>min(len(keys),maxImages): break
+     
+                if 'pic' not in name: justSkip=True
+                if event%20 == 0:
+                    print("Calc pedestal rms with event: ",name)
+                if justSkip:
+                     continue
+                arr = tf[name].values()
+                pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
+                numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
 
         # now save in a persistent ROOT object
@@ -220,8 +262,6 @@ class analysis:
                 pedmap.SetBinContent(ix+1,iy+1,pedmean[ix,iy]);
                 pedmap.SetBinError(ix+1,iy+1,pedrms[ix,iy]);
                 pedmapS.SetBinContent(ix+1,iy+1,pedrms[ix,iy]);
-        if options.rawdata_tier == 'root':
-            tf.Close()
 
         pedfile.cd()
         pedmap.Write()
@@ -259,7 +299,7 @@ class analysis:
 
         numev = -1
         event=-1
-        mf.jump_to_start()
+        if  options.rawdata_tier == 'midas': mf.jump_to_start()
         for mevent in mf:
             if self.options.rawdata_tier == 'midas':
                 if mevent.header.is_midas_internal_event():
@@ -447,13 +487,8 @@ if __name__ == '__main__':
     #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
     tmpdir = '/tmp/'
-    # override the default, if given by option
-    if options.tmpdir:
-        tmpdir = options.tmpdir
-        os.system('mkdir -p {tmpdir}/'.format(tmpdir=tmpdir))
-    else:
-        os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-        tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER)
+    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+    tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER)
     if sw.checkfiletmp(int(options.run),options.rawdata_tier,tmpdir):
         if options.rawdata_tier=='root':
             prefix = 'histograms_Run'
