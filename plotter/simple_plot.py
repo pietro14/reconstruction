@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.9
 import os, math, optparse, ROOT
 from array import array
+#from root_numpy import hist2array
 import numpy as np
 
 from tools.finalDNN import finalDNN
@@ -348,10 +349,10 @@ def fillSpectra():
 
     ret = {}
     #data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/v2/xrays'
-    data_dir = '/Users/emanuele/data/cygnus/analysis/lngs/summer22/'
-    tf_ambe  = ROOT.TFile('{d}/reco_allbkg.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/reco_bkg_lnf.root'.format(d=data_dir))
-    tf_fe55 = ROOT.TFile('{d}/reco_bkg_lnf.root'.format(d=data_dir))
+    data_dir = '/Users/emanuele/data/cygnus/RECO/'
+    tf_ambe  = ROOT.TFile('{d}/reco_runs1964to1973.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/reco_run05791_3D.root'.format(d=data_dir))
+    tf_fe55 = ROOT.TFile('{d}/reco_run05791_3D.root'.format(d=data_dir))
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
 
@@ -460,7 +461,7 @@ def fillSpectra():
     ret.update(ret2)
 
     ## DNN setup
-    finalDNN3class = finalDNN()
+    #finalDNN3class = finalDNN()
     
     ## now fill the histograms 
     selected = 0
@@ -592,7 +593,7 @@ def fillSpectra():
                 #    continue
 
                 # compute the final DNN
-                dnn_output = finalDNN3class.analyze(event,isc)
+                #dnn_output = finalDNN3class.analyze(event,isc)
 
                 if not Preselection:
                     
@@ -607,7 +608,8 @@ def fillSpectra():
                         #if integral<1e3 or length > 1000. or width/length<0.5:
                         #if integral<1e3 or length > 200.: # up to Ba (Ba<200 and Tb<300)
                         #if integral<1e3 or length > 100. or slimness<0.8: # Titanium (transparency) + Fe residual
-                        if rms<7 or integral<5e2:
+                        #if rms<7 or integral<5e2:
+                        if integral<1e3:
                             continue
                         # remove the bad cluster shapes cosmics
                         #if not clusterShapeQuality(gamp,gsigma,gchi2,gstatus):
@@ -685,19 +687,19 @@ def fillSpectra():
                 ret[(runtype,'calenergyvslength_zoom')].Fill(pixw*length,calibEnergy)
 
                 # compute the final DNN after the full selection
-                dnn_output = finalDNN3class.analyze(event,isc)
-                maxdnn = -1
-                dnnclass = -1
-                nodes = ['nr','er','other']
-                for n,node in enumerate(nodes):
-                    dnn = dnn_output['DNN_pred_{node}'.format(node=node)]
-                    #ret[(runtype,'dnn_{node}'.format(node=node))].Fill(dnn)
-                    if dnn>maxdnn:
-                        maxdnn = dnn
-                        dnnclass = n
-                ret[(runtype,'dnn_{node}'.format(node=nodes[dnnclass]))].Fill(dnn_output['DNN_pred_{node}'.format(node=nodes[dnnclass])])
-                ret[(runtype,'dnn_max')].Fill(maxdnn)
-                ret[(runtype,'dnn_class')].Fill(dnnclass)
+                # dnn_output = finalDNN3class.analyze(event,isc)
+                # maxdnn = -1
+                # dnnclass = -1
+                # nodes = ['nr','er','other']
+                # for n,node in enumerate(nodes):
+                #     dnn = dnn_output['DNN_pred_{node}'.format(node=node)]
+                #     #ret[(runtype,'dnn_{node}'.format(node=node))].Fill(dnn)
+                #     if dnn>maxdnn:
+                #         maxdnn = dnn
+                #         dnnclass = n
+                # ret[(runtype,'dnn_{node}'.format(node=nodes[dnnclass]))].Fill(dnn_output['DNN_pred_{node}'.format(node=nodes[dnnclass])])
+                # ret[(runtype,'dnn_max')].Fill(maxdnn)
+                # ret[(runtype,'dnn_class')].Fill(dnnclass)
 
 
                 if length>110 and slimness<0.7:
@@ -866,6 +868,15 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     padBottom.SetBorderSize(0);
     padBottom.Draw()
 
+    ## rescale the Fe bkg by the scale factor in the pure cosmics CR
+    RATIO = histo_sig.Integral()/histo_bkg.Integral()
+    histo_bkg_errs = histo_bkg.Clone("histo_bkg_errs")
+    histo_bkg.Scale(RATIO)
+    histo_bkg_errs.Scale(RATIO)
+    histo_bkg_errs.SetFillColorAlpha(ROOT.kAzure+4,0.9)
+    #histo_bkg.Scale(cosm_rate_calib[0])
+    #histo_bkg_errs.Scale(cosm_rate_calib[0])
+
     padTop.cd()
     #histo_sig.SetMinimum(0)
     histo_sig.GetXaxis().SetLabelSize(0.05)
@@ -879,11 +890,9 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         histo_sig.GetYaxis().SetTitle('clusters{norm}(normalized to AmBe)'.format(norm=binNorm))
     else:
         histo_sig.GetYaxis().SetTitle('clusters (a.u.)')
-    histo_sig.Draw("pe")
-    histo_bkg.Draw("hist same")
-    histo_bkg_errs = histo_bkg.Clone("histo_bkg_errs")
-    histo_bkg_errs.SetFillColorAlpha(ROOT.kGreen+1,0.4)
+    histo_bkg.Draw("hist")
     histo_bkg_errs.Draw("E2 same")
+    histo_sig.Draw("pe same")
 
     
     if histo_sig2:
@@ -909,6 +918,9 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
     #     lat1.DrawLatex(0.55, 0.50, "#sigma = {s:.2f} #pm {es:.2f} keV".format(s=sigma,es=mSigma))
     ###############################
 
+
+    histos = [histo_sig,histo_bkg] + ([histo_sig2] if histo_sig2 else [])
+    labels = ['bkg (LNGS)','%.2f #times bkg (LNF)' % (RATIO * 50/200)] + ([ '%.2f #times ^{55}Fe' % fe_integral_rescale] if histo_sig2 else [])
     ## rescale the Fe bkg by the scale factor in the pure cosmics CR
     histo_bkg.Scale(cosm_rate_calib[0])
     histo_bkg_errs.Scale(cosm_rate_calib[0])
@@ -960,7 +972,8 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
         padBottom.SetLogy(1)
 
     ratios.append(ratio)
-    labelsR.append('LNGS - %.2f#times LNF' % rescale_area)
+    labelsR.append('bkg (LNGS)-%.2f #times bkg (LNF)'% (RATIO * 50/200))
+
     stylesR.append('pe')
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure
@@ -1127,7 +1140,7 @@ def drawSpectra(histos,plotdir,entries,normEntries=False):
         elif histos[('ambe',var)].InheritsFrom('TH1'):
             histos[('ambe',var)].SetMarkerStyle(ROOT.kFullDotLarge)
             histos[('ambe',var)].SetLineColor(ROOT.kBlack)
-            histos[('cosm',var)].SetFillColorAlpha(ROOT.kGreen-5,0.3)
+            histos[('cosm',var)].SetFillColorAlpha(ROOT.kAzure+7,1)
             #histos[('cosm',var)].SetFillStyle(3345)
             if histos[('fe',var)]:
                 histos[('fe',var)].SetFillColorAlpha(ROOT.kViolet-4,0.5)

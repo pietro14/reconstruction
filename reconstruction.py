@@ -487,13 +487,8 @@ if __name__ == '__main__':
     #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
     tmpdir = '/tmp/'
-    # override the default, if given by option
-    if options.tmpdir:
-        tmpdir = options.tmpdir
-        os.system('mkdir -p {tmpdir}/'.format(tmpdir=tmpdir))
-    else:
-        os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-        tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER)
+    os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
+    tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER)
     if sw.checkfiletmp(int(options.run),options.rawdata_tier,tmpdir):
         if options.rawdata_tier=='root':
             prefix = 'histograms_Run'
