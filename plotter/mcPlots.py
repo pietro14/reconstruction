@@ -264,6 +264,7 @@ def doScaleBkgNormData(pspec,pmap,mca,list = []):
     bkgs = ["background"] + list
     for p,h in pmap.items():
         if p in bkgs: h.Scale(sf)
+    pspec.setLog("ScaleBkg", [ "Background processes scaled by %g" % sf ] )
     return sf
 
 
