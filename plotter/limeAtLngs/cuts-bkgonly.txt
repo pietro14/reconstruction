@@ -1,4 +1,5 @@
-alwaystrue : 1
-runrange : run<2300 || run>5000
-acceptance   : sc_integral > 5e2
+clusters : sc_integral > 0
+runrange : (run>=1700 && run<=2300) || run>5000
+minenergy   : sc_integral > 5e2
 center : R(sc_xmean,sc_ymean)<800
+cosmicsveto : sc_width/sc_length>0.3 || abs(sc_theta)>40

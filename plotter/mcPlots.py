@@ -264,6 +264,7 @@ def doScaleBkgNormData(pspec,pmap,mca,list = []):
     bkgs = ["background"] + list
     for p,h in pmap.items():
         if p in bkgs: h.Scale(sf)
+    pspec.setLog("ScaleBkg", [ "Background processes scaled by %g" % sf ] )
     return sf
 
 
@@ -1106,7 +1107,7 @@ class PlotMaker:
                                         plot.GetZaxis().SetRangeUser(pspec.getOption('ZMin',1.0), pspec.getOption('ZMax',1.0))
                                     plot.SetMarkerStyle(mca.getProcessOption(p,'MarkerStyle',1,noThrow=True))
                                     plot.SetMarkerColor(mca.getProcessOption(p,'FillColor',ROOT.kBlack,noThrow=True))
-                                    plot.Draw(pspec.getOption("PlotMode","COLZ TEXT45"))
+                                    plot.Draw(pspec.getOption("PlotMode","COLZ"))
                                     c1.Print("%s/%s_%s.%s" % (fdir, outputName, p, ext))
                                 if "data" in pmap and "TGraph" in pmap["data"].ClassName():
                                     pmap["data"].SetMarkerStyle(mca.getProcessOption('data','MarkerStyle',1))
@@ -1116,7 +1117,7 @@ class PlotMaker:
                                         plot = pmap[p]
                                         c1.SetRightMargin(0.20)
                                         plot.SetContour(100)
-                                        plot.Draw(pspec.getOption("PlotMode","COLZ TEXT45"))
+                                        plot.Draw(pspec.getOption("PlotMode","COLZ"))
                                         pmap["data"].Draw("P SAME")
                                         c1.Print("%s/%s_data_%s.%s" % (fdir, outputName, p, ext))
                             else:

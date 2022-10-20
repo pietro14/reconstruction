@@ -433,7 +433,6 @@ class TreeToYield:
     def _getYield(self,tree,cut,fsplit=None,cutNeedsPreprocessing=True):
         cut = self._getCut(cut) if cutNeedsPreprocessing else cut
         if self._weight or (self._weightStringAll != "1"):
-#            print cut
             ROOT.gROOT.cd()
             if ROOT.gROOT.FindObject("dummy") != None: ROOT.gROOT.FindObject("dummy").Delete()
             histo = ROOT.TH1D("dummy","dummy",1,0.0,1.0); histo.Sumw2()
@@ -446,6 +445,7 @@ class TreeToYield:
                 cut  = scalarToVector(cut)
             (firstEntry, maxEntries) = self._rangeToProcess(fsplit)
             npass = tree.Draw("1",self.adaptExpr(cut,cut=True),"goff", maxEntries, firstEntry);
+            print ("   npass = ", npass)
             return [ npass, sqrt(npass), npass ]
     def _stylePlot(self,plot,spec):
         return stylePlot(plot,spec,self.getOption)
@@ -639,7 +639,7 @@ def _copyPlotStyle(self,plotfrom,plotto):
         plotto.GetZaxis().SetNdivisions(plotfrom.GetZaxis().GetNdivisions())
 
 def addTreeToYieldOptions(parser):
-    parser.add_option("-l", "--lumi",           dest="lumi",   type="float", default="137", help="Luminosity (in 1/fb)");
+    parser.add_option("-l", "--lumi",           dest="lumi",   type="float", default="1", help="Luminosity (in 1/fb)");
     parser.add_option("-u", "--unweight",       dest="weight",       action="store_false", default=True, help="Don't use weights (in MC events), note weights are still used if a fake rate file is given");
     parser.add_option("--uf", "--unweight-forced",  dest="forceunweight", action="store_true", default=False, help="Do not use weight even if a fake rate file is given.");
     parser.add_option("-W", "--weightString",   dest="weightString", type="string", default="1", help="Use weight (in MC events)");

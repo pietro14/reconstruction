@@ -212,13 +212,9 @@ class MCAnalysis:
                     if not os.path.exists(countersfile):
                         print ("Warning: counters.txt file not present. Assuming no skim and taking the process normalization from file for component %s" % cnames)
                         ## get the counts from the histograms instead of pickle file (smart, but extra load for ROOT from EOS it seems)
-                        ROOT.gEnv.SetValue("TFile.AsyncReading", 1);
-                        tmp_rootfile = ROOT.TFile.Open(rootfile+"?readaheadsz=65535")
-                        tmp_tree     = tmp_rootfile.Get('Events')
+                        total_w += sum(tty.getEntries() for tty in self._allData[pname])
                         is_w = 0
-                        total_w += tmp_tree.GetEntries()
                         scale = "(%s)" % field[2]
-                        tmp_rootfile.Close()
                     else:
                         countersobj  = open(countersfile, "r")
                         counters = eval(countersobj.read())
@@ -243,7 +239,8 @@ class MCAnalysis:
                     tty.setScaleFactor(field[2])
                 else:
                     print("Poorly formatted line: ", field)
-                    raise RuntimeError                    
+                    raise RuntimeError
+                
                 # Adjust free-float and fixed from command line
                 for p0 in options.processesToFloat:
                     for p in p0.split(","):
@@ -273,9 +270,14 @@ class MCAnalysis:
                     myvariations[0].name = "norm_"+tty.getOption('PegNormToProcess')
                     print("Overwrite the norm systematic for %s to make it correlated with %s" % (pname, tty.getOption('PegNormToProcess')))
                 if pname not in self._rank: self._rank[pname] = len(self._rank)
-            if to_norm: 
-                for tty in ttys: tty.setScaleFactor("%s*%g" % (scale, 1000.0/total_w))
+            if to_norm:
+                for tty in ttys: tty.setScaleFactor("%s" % scale)
             for tty in ttys: tty.makeTTYVariations()
+        data_entries = sum(tty.getEntries() for tty in self._allData['data'])
+        for p in self.listProcesses():
+            if p != 'data':
+                p_entries = sum(tty.getEntries() for tty in self._allData[p])
+                self.scaleUpProcess(p,data_entries/p_entries)
         #if len(self._signals) == 0: raise RuntimeError, "No signals!"
         #if len(self._backgrounds) == 0: raise RuntimeError, "No backgrounds!"
     def listProcesses(self,allProcs=False):
