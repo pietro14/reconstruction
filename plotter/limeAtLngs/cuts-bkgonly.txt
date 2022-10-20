@@ -1,5 +1,5 @@
 clusters : sc_integral > 0
-run range : (run>=1700 && run<=2300) || run>5000
-min energy   : sc_integral > 5e2
+runrange : (run>=1700 && run<=2300) || run>5000
+minenergy   : sc_integral > 5e2
 center : R(sc_xmean,sc_ymean)<800
-cosmics veto : sc_width/sc_length>0.3 || abs(sc_theta)>40
+cosmicsveto : sc_width/sc_length>0.3 || abs(sc_theta)>40
