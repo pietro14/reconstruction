@@ -243,7 +243,8 @@ class MCAnalysis:
                     tty.setScaleFactor(field[2])
                 else:
                     print("Poorly formatted line: ", field)
-                    raise RuntimeError                    
+                    raise RuntimeError
+                
                 # Adjust free-float and fixed from command line
                 for p0 in options.processesToFloat:
                     for p in p0.split(","):
@@ -273,9 +274,14 @@ class MCAnalysis:
                     myvariations[0].name = "norm_"+tty.getOption('PegNormToProcess')
                     print("Overwrite the norm systematic for %s to make it correlated with %s" % (pname, tty.getOption('PegNormToProcess')))
                 if pname not in self._rank: self._rank[pname] = len(self._rank)
-            if to_norm: 
-                for tty in ttys: tty.setScaleFactor("%s*%g" % (scale, 1000.0/total_w))
+            if to_norm:
+                for tty in ttys: tty.setScaleFactor("%s" % scale)
             for tty in ttys: tty.makeTTYVariations()
+        data_entries = sum(tty.getEntries() for tty in self._allData['data'])
+        for p in self.listProcesses():
+            if p != 'data':
+                p_entries = sum(tty.getEntries() for tty in self._allData[p])
+                self.scaleUpProcess(p,data_entries/p_entries)
         #if len(self._signals) == 0: raise RuntimeError, "No signals!"
         #if len(self._backgrounds) == 0: raise RuntimeError, "No backgrounds!"
     def listProcesses(self,allProcs=False):
