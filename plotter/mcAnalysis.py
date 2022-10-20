@@ -212,13 +212,9 @@ class MCAnalysis:
                     if not os.path.exists(countersfile):
                         print ("Warning: counters.txt file not present. Assuming no skim and taking the process normalization from file for component %s" % cnames)
                         ## get the counts from the histograms instead of pickle file (smart, but extra load for ROOT from EOS it seems)
-                        ROOT.gEnv.SetValue("TFile.AsyncReading", 1);
-                        tmp_rootfile = ROOT.TFile.Open(rootfile+"?readaheadsz=65535")
-                        tmp_tree     = tmp_rootfile.Get('Events')
+                        total_w += sum(tty.getEntries() for tty in self._allData[pname])
                         is_w = 0
-                        total_w += tmp_tree.GetEntries()
                         scale = "(%s)" % field[2]
-                        tmp_rootfile.Close()
                     else:
                         countersobj  = open(countersfile, "r")
                         counters = eval(countersobj.read())
