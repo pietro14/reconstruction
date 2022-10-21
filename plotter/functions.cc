@@ -34,6 +34,30 @@ float R(float x, float y, float width=2304) {
   return hypot(x-halfwidth,y-halfwidth);
 }
 
+double marinDistance(double x_min, double x_max, double y_min, double y_max, double x_mean, double y_mean) {
+  double m = (y_min-y_max)/(1e-9+x_min-x_max);
+  double q = y_min - m*x_min;
+  return fabs(y_mean - m*x_mean)/sqrt(1+pow(m,2));
+}
+
+double marinTheta(double x_min, double x_max, double y_min, double y_max, double x_mean, double y_mean) {
+  return marinDistance(x_min, x_max, y_min, y_max, x_mean, y_mean) < marinDistance(x_max, x_min, y_min, y_max, x_mean, y_mean) ? fabs(std::atan((y_min-y_max)/(x_min-x_max+1e-10))) : fabs(std::atan((y_min-y_max)/(x_max-x_min+1e-10)));
+}
+
+double cosmics(double l,double c) {
+  // l must be in [mm]
+  return c<l ? 1.568 - 1.033 * asin(c/l) : -1;
+}
+
+int marinBand(double length, double x_min, double x_max, double y_min, double y_max, double x_mean, double y_mean) {
+  double cmin=90, cmax=100; // mm
+  double l = 0.152 * length; // mm
+  double ymax = l<cmin ? TMath::Pi()/2. : cosmics(l,cmin);
+  double ymin = l<cmax ? -1             : cosmics(l,cmax);
+  double y = marinTheta(x_min,x_max,y_min,y_max,x_mean,y_mean);
+  return int(l>cmin && y>ymin && y<ymax);
+}
+
 float deltaR2(float eta1, float phi1, float eta2, float phi2) {
     float deta = std::abs(eta1-eta2);
     float dphi = deltaPhi(phi1,phi2);
