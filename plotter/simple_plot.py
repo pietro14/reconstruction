@@ -4,7 +4,7 @@ from array import array
 #from root_numpy import hist2array
 import numpy as np
 
-from tools.finalDNN import finalDNN
+#from tools.finalDNN import finalDNN
 
 ROOT.gStyle.SetOptStat(111111)
 ROOT.gROOT.SetBatch(True)
@@ -351,7 +351,7 @@ def fillSpectra():
     #data_dir = '/Users/emanuele/Work/data/cygnus/RECO/lime2021/v2/xrays'
     data_dir = '/Users/emanuele/data/cygnus/RECO/'
     tf_ambe  = ROOT.TFile('{d}/reco_runs1964to1973.root'.format(d=data_dir))
-    tf_cosmics = ROOT.TFile('{d}/reco_run05791_3D.root'.format(d=data_dir))
+    tf_cosmics = ROOT.TFile('{d}/reco_runs5862to5866.root'.format(d=data_dir))
     tf_fe55 = ROOT.TFile('{d}/reco_run05791_3D.root'.format(d=data_dir))
 
     tfiles = {'fe':tf_fe55,'ambe':tf_ambe,'cosm':tf_cosmics}
@@ -609,7 +609,8 @@ def fillSpectra():
                         #if integral<1e3 or length > 200.: # up to Ba (Ba<200 and Tb<300)
                         #if integral<1e3 or length > 100. or slimness<0.8: # Titanium (transparency) + Fe residual
                         #if rms<7 or integral<5e2:
-                        if integral<1e3:
+                        if integral<1e2:
+                        #if rms<7:
                             continue
                         # remove the bad cluster shapes cosmics
                         #if not clusterShapeQuality(gamp,gsigma,gchi2,gstatus):
@@ -973,7 +974,6 @@ def drawOne(histo_sig,histo_bkg,histo_sig2=None,plotdir='./',normEntries=False):
 
     ratios.append(ratio)
     labelsR.append('bkg (LNGS)-%.2f #times bkg (LNF)'% (RATIO * 50/200))
-
     stylesR.append('pe')
 
     ## bad hack... Just fit the distribution for the calib integral if selecting the 60 keV structure

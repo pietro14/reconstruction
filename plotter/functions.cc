@@ -30,7 +30,8 @@ float if3(bool cond, float iftrue, float iffalse) {
 }
 
 float R(float x, float y) {
-  return hypot(x,y);
+  float halfwidth=2304/2.;
+  return hypot(x-halfwidth,y-halfwidth);
 }
 
 float deltaR2(float eta1, float phi1, float eta2, float phi2) {

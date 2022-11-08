@@ -439,7 +439,9 @@ class TreeToYield:
             histo = ROOT.TH1D("dummy","dummy",1,0.0,1.0); histo.Sumw2()
             (firstEntry, maxEntries) = self._rangeToProcess(fsplit)
             nev = tree.Draw("0.5>>dummy", cut, "goff", maxEntries, firstEntry)
+            print ("cut = ",cut)
             self.negativeCheck(histo)
+            print ("nev = ",nev," bc = ",histo.GetBinContent(1))
             return [ histo.GetBinContent(1), histo.GetBinError(1), nev ]
         else: 
             if self._options.doS2V:
@@ -639,7 +641,7 @@ def _copyPlotStyle(self,plotfrom,plotto):
         plotto.GetZaxis().SetNdivisions(plotfrom.GetZaxis().GetNdivisions())
 
 def addTreeToYieldOptions(parser):
-    parser.add_option("-l", "--lumi",           dest="lumi",   type="float", default="137", help="Luminosity (in 1/fb)");
+    parser.add_option("-l", "--lumi",           dest="lumi",   type="float", default="1", help="Luminosity (in 1/fb)");
     parser.add_option("-u", "--unweight",       dest="weight",       action="store_false", default=True, help="Don't use weights (in MC events), note weights are still used if a fake rate file is given");
     parser.add_option("--uf", "--unweight-forced",  dest="forceunweight", action="store_true", default=False, help="Do not use weight even if a fake rate file is given.");
     parser.add_option("-W", "--weightString",   dest="weightString", type="string", default="1", help="Use weight (in MC events)");

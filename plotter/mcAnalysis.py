@@ -217,6 +217,7 @@ class MCAnalysis:
                         tmp_tree     = tmp_rootfile.Get('Events')
                         is_w = 0
                         total_w += tmp_tree.GetEntries()
+                        print ("total w = ",total_w)
                         scale = "(%s)" % field[2]
                         tmp_rootfile.Close()
                     else:
@@ -243,7 +244,7 @@ class MCAnalysis:
                     tty.setScaleFactor(field[2])
                 else:
                     print("Poorly formatted line: ", field)
-                    raise RuntimeError                    
+                    raise RuntimeError
                 # Adjust free-float and fixed from command line
                 for p0 in options.processesToFloat:
                     for p in p0.split(","):
@@ -274,7 +275,7 @@ class MCAnalysis:
                     print("Overwrite the norm systematic for %s to make it correlated with %s" % (pname, tty.getOption('PegNormToProcess')))
                 if pname not in self._rank: self._rank[pname] = len(self._rank)
             if to_norm: 
-                for tty in ttys: tty.setScaleFactor("%s*%g" % (scale, 1000.0/total_w))
+                for tty in ttys: tty.setScaleFactor("%s*%g" % (scale, 1.0/total_w))
             for tty in ttys: tty.makeTTYVariations()
         #if len(self._signals) == 0: raise RuntimeError, "No signals!"
         #if len(self._backgrounds) == 0: raise RuntimeError, "No backgrounds!"
