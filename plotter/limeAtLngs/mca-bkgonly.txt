@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 LNF    : reco_runs5862to5866 : 1 ; FillColor=ROOT.kBlue+1, FillStyle=3004, Label="LNF" 
+=======
+LNF    : reco_runs5862to5866 : 290./140. ; FillColor=ROOT.kBlue+1, FillStyle=3004, Label="LNF"
+>>>>>>> origin/summer22
 
-fakes+  : reco_allbkg : 53003./5717 * (run==1700||run==1711||run==1722||run==1733||run==1744||run==1749||run==1755||run==1766||run==1777||run==1788||run==1798||run==1809||run==1820||run==1831||run==1842||run==1853||run==1864||run==1875||run==1886||run==1897||run==1908||run==1919||run==1930||run==1941||run==1952||run==1963||run==1974||run==1985||run==1996||run==2007||run==2013||run==2014||run==2015||run==2026||run==2037||run==2048||run==2050||run==2061||run==2072||run==2083||run==2094||run==2105||run==2116||run==2127||run==2138||run==2149||run==2160||run==2171||run==2182||run==2193||run==2204||run==2215||run==2226||run==2237||run==2248||run==2259||run==2270||run==2281||run==2292) ; FillColor=ROOT.kRed+1, Label="Fakes"
+fakes+ : reco_pedestals : 1 ; FillColor=ROOT.kRed+1, Label="Fakes"
 
-data  : reco_allbkg : run!=1700&&run!=1711&&run!=1722&&run!=1733&&run!=1744&&run!=1749&&run!=1755&&run!=1766&&run!=1777&&run!=1788&&run!=1798&&run!=1809&&run!=1820&&run!=1831&&run!=1842&&run!=1853&&run!=1864&&run!=1875&&run!=1886&&run!=1897&&run!=1908&&run!=1919&&run!=1930&&run!=1941&&run!=1952&&run!=1963&&run!=1974&&run!=1985&&run!=1996&&run!=2007&&run!=2013&&run!=2014&&run!=2015&&run!=2026&&run!=2037&&run!=2048&&run!=2050&&run!=2061&&run!=2072&&run!=2083&&run!=2094&&run!=2105&&run!=2116&&run!=2127&&run!=2138&&run!=2149&&run!=2160&&run!=2171&&run!=2182&&run!=2193&&run!=2204&&run!=2215&&run!=2226&&run!=2237&&run!=2248&&run!=2259&&run!=2270&&run!=2281&&run!=2292 ; FillColor=ROOT.kRed+1, Label="LNGS"
+data   : reco_bkgruns_noped : 1 ; FillColor=ROOT.kRed+1, Label="LNGS"

@@ -433,7 +433,6 @@ class TreeToYield:
     def _getYield(self,tree,cut,fsplit=None,cutNeedsPreprocessing=True):
         cut = self._getCut(cut) if cutNeedsPreprocessing else cut
         if self._weight or (self._weightStringAll != "1"):
-#            print cut
             ROOT.gROOT.cd()
             if ROOT.gROOT.FindObject("dummy") != None: ROOT.gROOT.FindObject("dummy").Delete()
             histo = ROOT.TH1D("dummy","dummy",1,0.0,1.0); histo.Sumw2()
@@ -448,6 +447,7 @@ class TreeToYield:
                 cut  = scalarToVector(cut)
             (firstEntry, maxEntries) = self._rangeToProcess(fsplit)
             npass = tree.Draw("1",self.adaptExpr(cut,cut=True),"goff", maxEntries, firstEntry);
+            print ("   npass = ", npass)
             return [ npass, sqrt(npass), npass ]
     def _stylePlot(self,plot,spec):
         return stylePlot(plot,spec,self.getOption)

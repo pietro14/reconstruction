@@ -1,4 +1,5 @@
-alwaystrue : 1
+clusters : sc_integral > 0
 runrange : (run>=1700 && run<=2300) || run>5000
-acceptance   : sc_integral > 5e2
+minenergy   : sc_integral > 5e2
 center : R(sc_xmean,sc_ymean)<800
+cosmicsveto : marinBand(sc_length,sc_xmin,sc_xmax,sc_ymin,sc_ymax,sc_xmean,sc_ymean)==0
