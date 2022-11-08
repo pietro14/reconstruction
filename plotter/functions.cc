@@ -55,7 +55,7 @@ double cosmics(double l,double c) {
 }
 
 int marinBand(double length, double x_min, double x_max, double y_min, double y_max, double x_mean, double y_mean) {
-  double cmin=90, cmax=100; // mm
+  double cmin=85, cmax=100; // mm
   double l = 0.152 * length; // mm
   double ymax = l<cmin ? TMath::Pi()/2. : cosmics(l,cmin);
   double ymin = l<cmax ? -1             : cosmics(l,cmax);
