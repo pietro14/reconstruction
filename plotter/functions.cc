@@ -29,11 +29,6 @@ float if3(bool cond, float iftrue, float iffalse) {
     return cond ? iftrue : iffalse;
 }
 
-<<<<<<< HEAD
-float R(float x, float y) {
-  float halfwidth=2304/2.;
-  return hypot(x-halfwidth,y-halfwidth);
-=======
 float R(float x, float y, float width=2304) {
   float halfwidth=width/2.;
   return hypot(x-halfwidth,y-halfwidth);
@@ -61,7 +56,6 @@ int marinBand(double length, double x_min, double x_max, double y_min, double y_
   double ymin = l<cmax ? -1             : cosmics(l,cmax);
   double y = marinTheta(x_min,x_max,y_min,y_max,x_mean,y_mean);
   return int(l>cmin && y>ymin && y<ymax);
->>>>>>> origin/summer22
 }
 
 float deltaR2(float eta1, float phi1, float eta2, float phi2) {
