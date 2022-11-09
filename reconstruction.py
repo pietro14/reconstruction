@@ -172,7 +172,7 @@ class analysis:
                             arr = np.rot90(arr)
                         justSkip=False
                         if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and event>min(len(keys),maxImages): break
+                        if maxImages>-1 and numev>min(len(keys),maxImages): break
                             
                         if numev%20 == 0:
                             print("Calc pedestal mean with event: ",numev)
@@ -225,7 +225,7 @@ class analysis:
                             arr = np.rot90(arr)
                         justSkip=False
                         if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and event>min(len(keys),maxImages): break
+                        if maxImages>-1 and numev>min(len(keys),maxImages): break
              
                         if numev%20 == 0:
                             print("Calc pedestal rms with event: ",numev)
