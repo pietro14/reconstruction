@@ -244,7 +244,7 @@ class utils:
                 for row in reversed(list(csvreader)):
                     runkey,runtype,comment = row[:3]
                     nevents = int(row[-1]) if row[-1]!="NULL" else 0
-                    if int(runkey)<=int(options.run) and runtype.strip()=="S000:PED:BKG" and nevents>=100:
+                    if int(runkey)<=int(options.run) and (runtype.strip()=="S000:PED:BKG" or runtype.strip()=="S000:PED:Fe55") and nevents>=100:
                         options.pedrun = int(runkey)
                         print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
                         break
