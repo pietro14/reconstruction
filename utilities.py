@@ -243,12 +243,12 @@ class utils:
                 next(csvreader)
                 for row in reversed(list(csvreader)):
                     runkey,runtype,comment = row[:3]
-                    nevents = int(row[-1]) if row[-1]!="NULL" else 0
-                    if int(runkey)<=int(options.run) and (runtype.strip()=="S000:PED:BKG" or runtype.strip()=="S000:PED:Fe55") and nevents>=100:
+                    nevents = int(row[-1]) if str(row[-1])!="NULL" else 0
+                    if int(runkey)<=int(options.run) and (runtype.lstrip().startswith("S000:PED:")) and nevents>=100:
                         options.pedrun = int(runkey)
                         print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
                         break
-            assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(run,runlog))
+            assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(options.run,runlog))
         setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
 
 
@@ -276,3 +276,5 @@ if __name__ == "__main__":
     if options.make == 'vignette1d':
         ut = utils()
         ut.getVignette1D('vignette_run04117.root')
+
+        
