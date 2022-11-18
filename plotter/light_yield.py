@@ -2,43 +2,56 @@
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
-import sys
+import os,sys,csv
 
-def getLYGraph(runs,color,rebin=1):
-    ret = ROOT.TGraphErrors(len(runs))
+def getLYGraph(runs,color):
+    ret = ROOT.TGraphErrors()
     ret.SetTitle("")
     r = 0
-    for run,dist in runs.iteritems():
-        fname = 'reco_run%s.root' % run
-        print "Using file ",fname
+    print(runs)
+    for run,time in runs.items():
+        fname = '/Users/emanuele/data/cygnus/RECO/lngs_Nov22/reco_run%05d_3D.root' % run
+        if not os.path.isfile(fname):
+            print ("run ",run," not present, skip...")
+            continue
+        date = time.replace('"','').split(" ")[1]
+        tim = time.replace('"','').split(" ")[2]
+        year,month,day=date.split("-")
+        hour,minute,sec=tim.split(":")
+        print ("run = ",run,"time = ",time)
+        tdate = ROOT.TDatime(int(year),int(month),int(day),int(hour),int(minute),int(sec))
+        
         f = ROOT.TFile.Open(fname)
         tree = f.Get('Events')
-        print "Has ",tree.GetEntries()," entries."
 
         if ROOT.gROOT.FindObject("ly") != None: ROOT.gROOT.FindObject("ly").Delete()
-        histo = ROOT.TH1F("ly","ly",20,0,1000); histo.Sumw2()
+        histo = ROOT.TH1F("ly","ly",25,2e3,1e4); histo.Sumw2()
         
-        tree.Draw("track_integral/track_length>>ly",cut)
+        tree.Draw("sc_integral>>ly",cut)
 
-        mean = histo.GetMean()*rebin
-        rms = histo.GetRMS()*rebin
+        mean = histo.GetMean()
+        meanerr = histo.GetMeanError()
         nev = histo.GetEntries()
 
-        print "run %s: ly = %d +/- %d" % (run,mean,rms)
-        print "from %d tracks" % nev
-        print "distance = %d cm" %dist
-        
-        ret.SetPoint(r,dist,mean)
-        ret.SetPointError(r,0,rms)
+        ret.SetPoint(r,tdate.Convert(),mean)
+        ret.SetPointError(r,0,meanerr)
         r += 1
         f.Close()
 
     ret.SetMarkerStyle(ROOT.kOpenCircle)
     ret.SetMarkerColor(color)
-    ret.SetMarkerSize(3)
+    ret.SetMarkerSize(0.5)
     ret.SetLineColor(color)
-    ret.GetXaxis().SetTitle("Distance (cm)") 
-    ret.GetYaxis().SetTitle("Light yield (Photons/mm)") 
+    ret.GetXaxis().SetTitleFont(42)
+    ret.GetXaxis().SetLabelFont(42)
+    ret.GetXaxis().SetLabelSize(0.03)
+    ret.GetYaxis().SetTitleFont(42)
+    ret.GetYaxis().SetLabelFont(42)
+    ret.GetXaxis().SetTimeDisplay(1);
+    ret.GetXaxis().SetTimeFormat("%H:%M");
+    ret.GetXaxis().SetTitle("time") 
+    ret.GetYaxis().SetTitle("Light yield (counts)") 
+    
     
     return ret
 
@@ -55,29 +68,31 @@ if __name__ == '__main__':
     ROOT.gStyle.SetTextSize(0.08);
     ROOT.gStyle.SetStatFont(132);
 
-    cut = 'nTrack<4'
+    cut = 'sc_rms>6 && sc_width/sc_length>0.8 && sc_integral<1e4 && TMath::Hypot(sc_xmean-2304./2.,sc_ymean-2304./2.)<900 && sc_integral>2e3'
 
-    btf_runs = {"058" : -7.0,
-                "065" :  0.0,
-                "075" :  8.0}
-    cosmics_runs = {"121" : -7.0,
-                    "123" : 8.0}
+    runs_night = {}
+    with open('runs_day.txt',"r") as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        next(csvreader)
+        for row in list(csvreader):
+            runs_night[int(row[0])] = row[1]
+    #print(("dic = ",runs_night))
     
-    btf_result = getLYGraph(btf_runs,ROOT.kAzure-6)
-    cosmics_result = getLYGraph(cosmics_runs,ROOT.kRed+1,4)
+    night_result = getLYGraph(runs_night,ROOT.kAzure-6)
+    # cosmics_result = getLYGraph(cosmics_runs,ROOT.kRed+1,4)
 
     c = ROOT.TCanvas('c','light yield',600,600)
-    c.SetBottomMargin(0.3); c.SetLeftMargin(0.2); c.SetRightMargin(0.2); 
-    btf_result.Draw("AP")
-    btf_result.GetYaxis().SetRangeUser(0,400)
-    cosmics_result.Draw("P")
+    c.SetBottomMargin(0.2); c.SetLeftMargin(0.2); c.SetRightMargin(0.1); 
+    night_result.Draw("AP")
+    # btf_result.GetYaxis().SetRangeUser(0,400)
+    # cosmics_result.Draw("P")
 
-    leg = ROOT.TLegend(0.55,0.65,0.76,0.82);
-    leg.AddEntry(btf_result,"BTF 2017")
-    leg.AddEntry(cosmics_result,"cosmics 2018")
-    leg.Draw()
+    # leg = ROOT.TLegend(0.55,0.65,0.76,0.82);
+    # leg.AddEntry(btf_result,"BTF 2017")
+    # leg.AddEntry(cosmics_result,"cosmics 2018")
+    # leg.Draw()
     
-    for ext in ['pdf','png']:
+    for ext in ['pdf','png','root']:
         c.SaveAs("light_yield.%s" % ext)
     
     
