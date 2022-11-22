@@ -11,20 +11,19 @@ if __name__ == "__main__":
 
     inputRunlog = args[0]
     outputRunlog = open(options.output,'w')
-     
+
     with open(inputRunlog,"r") as csvfile:
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
         # This skips the first row (header) of the CSV file.
         if not options.includeHeader:
             next(csvreader)
         for row in list(csvreader):
-            cleanrow = [f.replace('"','') for f in row]
             if options.includeHeader and row[0]=="run_number":
-                outputRunlog.write(' , '.join(row[:-3])+'\n')
+                outputRunlog.write(' , '.join(row[:-6])+'\n')
             else:
                 run=int(row[0])
-                if run<options.runMin or run>options.runMax or 'NULL' in row[-1]: continue
-                outputRunlog.write(' , '.join(row[:-3])+'\n')
+                if run<options.runMin or run>options.runMax or any('NULL' in field for field in row[:-7]): continue
+                outputRunlog.write(' , '.join(row[:-6])+'\n')
 
     outputRunlog.close()
     print("Filtered runlog in ",options.output)
