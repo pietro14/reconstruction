@@ -124,7 +124,7 @@ class analysis:
                     keys = mevent.banks.keys()
                 for iobj,key in enumerate(keys):
                     name=key
-                    if 'CAM' in name:
+                    if name.startswith('CAM'):
                         evs += 1
             return evs
 
@@ -164,7 +164,7 @@ class analysis:
                     keys = mevent.banks.keys()
                 for iobj,key in enumerate(keys):
                     name=key
-                    if 'CAM' in name:
+                    if name.startswith('CAM'):
                         if options.rawdata_tier == 'root':
                             arr = tf[key].values()
                         else:
@@ -217,7 +217,7 @@ class analysis:
                         keys = mevent.banks.keys()
                 for iobj,key in enumerate(keys):
                     name=key
-                    if 'CAM' in name:
+                    if name.startswith('CAM'):
                         if options.rawdata_tier == 'root':
                             arr = tf[key].values()
                         else:
@@ -323,7 +323,7 @@ class analysis:
                         camera=False
                 elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
-                    if 'CAM' in name:
+                    if name.startswith('CAM'):
                         obj,_,_ = cy.daq_cam2array(mevent.banks[key])
                         obj = np.rot90(obj,k=-1)
                         camera=True
