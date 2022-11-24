@@ -172,7 +172,7 @@ class analysis:
                             arr = np.rot90(arr)
                         justSkip=False
                         if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and event>min(len(keys),maxImages): break
+                        if maxImages>-1 and numev>min(len(keys),maxImages): break
                             
                         if numev%20 == 0:
                             print("Calc pedestal mean with event: ",numev)
@@ -225,7 +225,7 @@ class analysis:
                             arr = np.rot90(arr)
                         justSkip=False
                         if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and event>min(len(keys),maxImages): break
+                        if maxImages>-1 and numev>min(len(keys),maxImages): break
              
                         if numev%20 == 0:
                             print("Calc pedestal rms with event: ",numev)
@@ -488,7 +488,7 @@ if __name__ == '__main__':
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
     tmpdir = '/tmp/'
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-    tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER)
+    tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER) if not options.tmpdir else options.tmpdir+"/"
     if sw.checkfiletmp(int(options.run),options.rawdata_tier,tmpdir):
         if options.rawdata_tier=='root':
             prefix = 'histograms_Run'
