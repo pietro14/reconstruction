@@ -26,7 +26,6 @@ def prepare_jobpack(jobdir,logdir,workdir,cmd,maxresub,resub=False,ijob=0):
             resub_log_file_name = log_file_name.replace('.log','_resub{ir}.log'.format(ir=ir))
             ir+=1
         log_file_name = resub_log_file_name
-        print ("log file = ",log_file_name)
         if ir>maxresub:
             maxresub=ir
     tmp_file = open(job_file_name, 'w')
@@ -81,7 +80,6 @@ if __name__ == "__main__":
             if minr>maxr:
                 raise RuntimeError ("Warning: first run > end run: {rr}. Aborting.".format(rr=runr))
             runs = list(range(minr,maxr+1))
-            print("Will run reconstruction on run range ",runs)
         else:
             raise RuntimeError ("not a good formatted run range string: {rr}. Aborting.".format(rr=runr))
     print ("SUBMITTING JOBS ON RUN RANGE = ",runs)
