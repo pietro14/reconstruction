@@ -16,17 +16,19 @@ RECOSTRING
 
 import os, sys, re, csv, subprocess
 
-def prepare_jobpack(jobdir,logdir,workdir,cmd,resub=False,ijob=0):
-    MAXRESUB = -1
+def prepare_jobpack(jobdir,logdir,workdir,cmd,maxresub,resub=False,ijob=0):
     job_file_name = jobdir+'/job{ij}_run{r}.sh'.format(ij=ijob,r=run)
     log_file_name = logdir+'/job{ij}_run{r}.log'.format(ij=ijob,r=run)
     if resub:
         ir=0
         resub_log_file_name = log_file_name.replace('.log','_resub{ir}.log'.format(ir=ir))
         while os.path.isfile(resub_log_file_name):
+            resub_log_file_name = log_file_name.replace('.log','_resub{ir}.log'.format(ir=ir))
             ir+=1
         log_file_name = resub_log_file_name
-        if ir>MAXRESUB: MAXRESUB=ir
+        print ("log file = ",log_file_name)
+        if ir>maxresub:
+            maxresub=ir
     tmp_file = open(job_file_name, 'w')
     tmp_filecont = jobstring
 
@@ -35,7 +37,7 @@ def prepare_jobpack(jobdir,logdir,workdir,cmd,resub=False,ijob=0):
     tmp_file.write(tmp_filecont)
     tmp_file.close()
     sub_cmd = 'qsub -q {queue} -l {ssd}ncpus={nt},mem={ram}mb -d {dpath} -e localhost:{logf} -o localhost:{logf} -j oe {jobf}'.format(dpath=workdir,logf=log_file_name,jobf=job_file_name,nt=nThreads,ram=RAM,ssd=ssdcache_opt,queue=options.queue)
-    return sub_cmd,MAXRESUB
+    return sub_cmd,maxresub
 
 if __name__ == "__main__":
     
@@ -122,6 +124,7 @@ if __name__ == "__main__":
     #tmpdir_opt = ' --tmp /tmp/'
     maxtime_opt = '' if options.maxHours < 0 else '--max-hours {hr}'.format(hr=options.maxHours)
     commands = []
+    maxresub=-1
     for run in runs:
         if options.runlog:
             existing_runs=[]
@@ -142,12 +145,11 @@ if __name__ == "__main__":
             for ij,firstEvent in enumerate(range(0,totEv,evPerJob)):
                 print ("Will submit job #{ij}, processing event range: [{fev}-{lev}]".format(ij=ij,fev=firstEvent,lev=min(firstEvent+evPerJob,totEv)))
                 cmd = 'python3.8 reconstruction.py {cfg} -r {r} -o reco_job{ijob} --first-event {fev} --max-entries {me} -j {nt} -t {tmpopt}  {maxtimeopt} -d {outdiropt}'.format(r=run,nt=nThreads,tmpopt=options.tmpdir,maxtimeopt=maxtime_opt,fev=firstEvent,me=evPerJob,ijob=ij,cfg=options.configFile,outdiropt=options.outdir)
-                sub_cmd,maxresub = prepare_jobpack(jobdir,logdir,abswpath,cmd,options.resubmit,ij)
+                sub_cmd,maxresub = prepare_jobpack(jobdir,logdir,abswpath,cmd,maxresub,options.resubmit,ij)
                 commands.append(sub_cmd)
         else:
             cmd = 'python3.8 reconstruction.py {cfg} -r {r} -j {nt} -t {tmpopt} {maxtimeopt} -d {outdiropt}'.format(r=run,nt=nThreads,tmpopt=options.tmpdir,maxtimeopt=maxtime_opt,cfg=options.configFile,outdiropt=options.outdir)
-            #prepare_jobpack(jobdir,logdir,abswpath,cmd)
-            sub_cmd,maxresub = prepare_jobpack(jobdir,logdir,abswpath,cmd,options.resubmit)
+            sub_cmd,maxresub = prepare_jobpack(jobdir,logdir,abswpath,cmd,maxresub,options.resubmit)
             commands.append(sub_cmd)
 
     maxq=999999
