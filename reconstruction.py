@@ -124,7 +124,7 @@ class analysis:
                     keys = mevent.banks.keys()
                 for iobj,key in enumerate(keys):
                     name=key
-                    if 'CAM' in name:
+                    if name.startswith('CAM'):
                         evs += 1
             return evs
 
@@ -164,7 +164,7 @@ class analysis:
                     keys = mevent.banks.keys()
                 for iobj,key in enumerate(keys):
                     name=key
-                    if 'CAM' in name:
+                    if name.startswith('CAM'):
                         if options.rawdata_tier == 'root':
                             arr = tf[key].values()
                         else:
@@ -172,7 +172,7 @@ class analysis:
                             arr = np.rot90(arr)
                         justSkip=False
                         if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and event>min(len(keys),maxImages): break
+                        if maxImages>-1 and numev>min(len(keys),maxImages): break
                             
                         if numev%20 == 0:
                             print("Calc pedestal mean with event: ",numev)
@@ -217,7 +217,7 @@ class analysis:
                         keys = mevent.banks.keys()
                 for iobj,key in enumerate(keys):
                     name=key
-                    if 'CAM' in name:
+                    if name.startswith('CAM'):
                         if options.rawdata_tier == 'root':
                             arr = tf[key].values()
                         else:
@@ -225,7 +225,7 @@ class analysis:
                             arr = np.rot90(arr)
                         justSkip=False
                         if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and event>min(len(keys),maxImages): break
+                        if maxImages>-1 and numev>min(len(keys),maxImages): break
              
                         if numev%20 == 0:
                             print("Calc pedestal rms with event: ",numev)
@@ -323,7 +323,7 @@ class analysis:
                         camera=False
                 elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
-                    if 'CAM' in name:
+                    if name.startswith('CAM'):
                         obj,_,_ = cy.daq_cam2array(mevent.banks[key])
                         obj = np.rot90(obj,k=-1)
                         camera=True
@@ -488,7 +488,7 @@ if __name__ == '__main__':
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
     tmpdir = '/tmp/'
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-    tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER)
+    tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER) if not options.tmpdir else options.tmpdir+"/"
     if sw.checkfiletmp(int(options.run),options.rawdata_tier,tmpdir):
         if options.rawdata_tier=='root':
             prefix = 'histograms_Run'
