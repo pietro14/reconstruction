@@ -1,18 +1,5 @@
 import os, glob, sys, re, csv, subprocess
 
-# this trick of a bash file to be sourced is a trick, because we need to use the old python3.6 to use the cygno_libs
-jobstring = '''#!/bin/bash
-ulimit -c 0 -S
-ulimit -c 0 -H
-set -e
-echo "Setting python to older 3.6 to use the cygno_libs"
-alias python=python3.6
-unset PYTHONPATH
-cd FILESDIR
-echo moved to FILESDIR
-echo Starting to upload...
-'''
-
 if __name__ == "__main__":
     
     from optparse import OptionParser
@@ -27,25 +14,21 @@ if __name__ == "__main__":
     allfiles = os.listdir(outdir)
     files = [f for f in allfiles if re.match('reco_run\d+_3D.root',f)]
 
-    shfname = "reco2cloud_tmp.sh"
-    shellfile = open(shfname, 'w')
-    header = jobstring
-    header = header.replace("FILESDIR",str(outdir))
-    shellfile.write(header)
+    cmd = "cd {odir}; {cyput}; cd -" # the cd is needed, the cygno lib only checks the file name, the abspath confuses it
+    cmds = []
     for f in files:
-        shellfile.write('cygno_repo put {bucket} {thefile} -t RECO/{tag} -v\n'.format(bucket=options.bucket,thefile=f,tag=options.tag))
-    shellfile.write("echo DONE upload.")
-    shellfile.close()
+        cmds.append(cmd.format(odir=outdir,cyput='cygno_repo put {bucket} {thefile} -t RECO/{tag} -v'.format(bucket=options.bucket,thefile=f,tag=options.tag)))
 
-    print ("Ready to upload %d ROOT files to cloud in bucket '%s' and tag '%s'" % (len(files),options.bucket,options.tag))
+    cmds = sorted(cmds)
     if options.dryRun:
-        print ("Written shell file ",shfname)
+        for c in cmds:
+            print(c)
         print ("To upload for real, remove --dry-run option")
     else:
-        os.system("bash %s" % shfname)
-        #os.system("rm %s" % shfname)
+        for c in cmds:
+            os.system(c)
+    print ("Ready to upload %d ROOT files to cloud in bucket '%s' and tag '%s'" % (len(files),options.bucket,options.tag))
 
-    print ("DONE")
     
         
 
