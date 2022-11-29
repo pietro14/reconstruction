@@ -142,9 +142,10 @@ class analysis:
         pedsum = np.zeros((nx,ny))
         
         if options.rawdata_tier == 'root':
-            print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.pedrun)))
-            tmpdir = '{tmpdir}/{user}/'.format(tmpdir=options.tmpdir,user=os.environ['USER'])
-            pedfilename = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.pedrun)),int(options.pedrun),tmpdir)
+            tmpdir = '{tmpdir}'.format(tmpdir=options.tmpdir if options.tmpdir else "/tmp/")
+            if not sw.checkfiletmp(int(options.run),'root',tmpdir):
+                print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.pedrun)))
+                pedfilename = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.pedrun)),int(options.pedrun),tmpdir)
             tf = sw.swift_read_root_file(pedfilename)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
