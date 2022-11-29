@@ -143,7 +143,7 @@ class analysis:
         
         if options.rawdata_tier == 'root':
             tmpdir = '{tmpdir}'.format(tmpdir=options.tmpdir if options.tmpdir else "/tmp/")
-            if not sw.checkfiletmp(int(options.run),'root',tmpdir):
+            if not sw.checkfiletmp(int(options.pedrun),'root',tmpdir):
                 print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.pedrun)))
                 pedfilename = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.pedrun)),int(options.pedrun),tmpdir)
             tf = sw.swift_read_root_file(pedfilename)
