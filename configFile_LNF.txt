@@ -6,13 +6,13 @@
 'geometry'  : 'lime',
 
 # DEBUG plots
-'debug_mode'            : 0,
-'ev'                    : 70,
+'debug_mode'            : 1,
+'ev'                    : 25,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
 
-'flag_full_image'       : 0,
+'flag_full_image'       : 1,
 'flag_rebin_image'      : 1,
 'flag_edges_image'      : 1,
 'flag_polycluster'      : 1,
@@ -31,7 +31,8 @@
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
 'rebin'                 : 4,
-'nsigma'                : 1.2,
+'nsigma'                : 1.3,
+'min_neighbors_average' : 1.3,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'cimax'                 : 5000,                    # Upper threshold (keep very high not to kill large signals)
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
@@ -40,7 +41,6 @@
 'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
 
 'excImages'             : [], #list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy (not true anymore)
-'min_neighbors_average' : 1.1,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
 
 'scfullinfo'            : False,			   # If True some the supercluster pixels info will be saved
