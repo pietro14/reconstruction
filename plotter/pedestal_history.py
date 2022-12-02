@@ -1,6 +1,6 @@
 import ROOT
 ROOT.gROOT.SetBatch(True)
-import os,sys,csv
+import os,sys,csv,re
 
 
 def getGraph(name,title,runs):
@@ -10,12 +10,12 @@ def getGraph(name,title,runs):
     r = 0
     print(runs)
     for run,time in runs.items():
-        fname = "../pedestals/pedmap_run%04d_rebin1.root" % run
+        fname = "../pedestals/pedmap_run%d_rebin1.root" % run
         if not os.path.isfile(fname):
             print ("run ",run," not present, skip...")
             continue
-        date = time.replace('"','').split(" ")[1]
-        tim = time.replace('"','').split(" ")[2]
+        date = time.replace('"','').split(" ")[0]
+        tim = time.replace('"','').split(" ")[1]
         year,month,day=date.split("-")
         hour,minute,sec=tim.split(":")
         print ("run = ",run,"time = ",time)
@@ -43,7 +43,7 @@ def getGraph(name,title,runs):
     ret.GetYaxis().SetTitleFont(42)
     ret.GetYaxis().SetLabelFont(42)
     ret.GetXaxis().SetTimeDisplay(1);
-    ret.GetXaxis().SetTimeFormat("%H:%M");
+    ret.GetXaxis().SetTimeFormat("%d\/%m");
     ret.GetXaxis().SetTitle("time") 
     ret.GetYaxis().SetTitle(title) 
 
@@ -63,11 +63,16 @@ if __name__ == '__main__':
     ROOT.gStyle.SetStatFont(132);
 
     runs = {}
-    with open('../pedestals/runlog_LNGS_DecPedestals.csv',"r") as csvfile:
+    with open('../pedestals/runlog_LNGS_SummerPedestals_1.csv',"r") as csvfile:
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
         next(csvreader)
         for row in list(csvreader):
-            runs[int(row[0])] = row[7]
+            date=None
+            for ifield in range(len(row)):
+                if re.match(r"\d+\-\d+\-\d+.*",row[ifield].lstrip()):
+                    date=row[ifield].lstrip()
+                    break
+            runs[int(row[0])] = date
 
     variables = {'pedrms':    "pedestal RMS",
                  'pedmean':   "pedestal mean"}
