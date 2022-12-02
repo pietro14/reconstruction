@@ -102,7 +102,7 @@ if __name__ == "__main__":
     # typically for LIME images (~4MP) MEM ~1GB/core
     if options.nthreads:
         nThreads = int(options.nthreads)
-        RAM = nThreads * 1000
+        RAM = min(max(nThreads * 1200, 4000),9000)
     else:
         if options.queue=='cygno':
             nThreads = 7

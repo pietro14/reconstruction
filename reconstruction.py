@@ -174,6 +174,7 @@ class analysis:
                         justSkip=False
                         if numev in self.options.excImages: justSkip=True
                         if maxImages>-1 and numev>min(len(keys),maxImages): break
+                        if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
                             
                         if numev%20 == 0:
                             print("Calc pedestal mean with event: ",numev)
@@ -193,12 +194,13 @@ class analysis:
                 justSkip=False
                 if event in self.options.excImages: justSkip=True
                 if maxImages>-1 and event>min(len(keys),maxImages): break
+                if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
                     
                 if 'pic' not in name: justSkip=True
                 if event%20 == 0:
                     print("Calc pedestal mean with event: ",name)
                 if justSkip:
-                     continue
+                    continue
                 arr = tf[name].values()
                 pedsum = np.add(pedsum,arr)
                 numev += 1
@@ -227,6 +229,7 @@ class analysis:
                         justSkip=False
                         if numev in self.options.excImages: justSkip=True
                         if maxImages>-1 and numev>min(len(keys),maxImages): break
+                        if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
              
                         if numev%20 == 0:
                             print("Calc pedestal rms with event: ",numev)
@@ -246,6 +249,7 @@ class analysis:
                 justSkip=False
                 if event in self.options.excImages: justSkip=True
                 if maxImages>-1 and event>min(len(keys),maxImages): break
+                if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
      
                 if 'pic' not in name: justSkip=True
                 if event%20 == 0:
@@ -294,6 +298,7 @@ class analysis:
             tf = sw.swift_read_root_file(self.tmpname)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
+            import gc
         else:
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
@@ -308,10 +313,10 @@ class analysis:
                 else:
                     keys = mevent.banks.keys()
                     
-
             for iobj,key in enumerate(keys):
                 name=key
                 camera = False
+
                 if self.options.rawdata_tier == 'root':
                     if 'pic' in name:
                         patt = re.compile('\S+run(\d+)_ev(\d+)')
@@ -333,12 +338,15 @@ class analysis:
                         camera=False
                     event=numev
 
+                # print("    peak memory: {} MB".format(utilities.peak_memory_usage()))
+
                 justSkip = False
                 if event<evrange[1]: justSkip=True
                 if event>evrange[2]: return # avoids seeking up to EOF which with MIDAS is slow
                 if event in self.options.excImages: justSkip=True
                 if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
                 if justSkip:
+                    if obj.any(): del obj
                     continue
                 
                 if camera==True:
@@ -396,7 +404,7 @@ class analysis:
                             img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
                             img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
                             img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
-                        
+
                         # Cluster reconstruction on 2D picture
                         algo = 'DBSCAN'
                         if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
@@ -437,11 +445,9 @@ class analysis:
                     if camera==True:
                         del obj
                         
-
-
+        gc.collect()
                     
         ROOT.gErrorIgnoreLevel = savErrorLevel
-
                 
 if __name__ == '__main__':
     from optparse import OptionParser

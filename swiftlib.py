@@ -69,7 +69,7 @@ def rootlocation(tag,run):
     return sel
 
 def swift_read_root_file(tmpname):
-    f  = uproot.open(tmpname);
+    f  = uproot.open(tmpname,object_cache=None,array_cache=None)
     return f
 
 def swift_rm_root_file(tmpname):

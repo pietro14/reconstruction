@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import subprocess
 
-import os,sys,optparse,csv
+import os,sys,optparse,csv,resource
 import numpy as np
 import ROOT,math
 import swiftlib as sw
@@ -244,12 +244,21 @@ class utils:
                 for row in reversed(list(csvreader)):
                     runkey,runtype,comment = row[:3]
                     nevents = int(row[-1]) if str(row[-1])!="NULL" else 0
-                    if int(runkey)<=int(options.run) and (runtype.lstrip().startswith("S000:PED:")) and nevents>=100:
+                    if int(runkey)<=int(options.run) and (":PED:" in runtype) and nevents>=100:
                         options.pedrun = int(runkey)
                         print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
                         break
             assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(options.run,runlog))
         setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+
+    def peak_memory_usage(self):
+        """Return peak memory usage in MB"""
+        mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        factor_mb = 1 / 1024
+        if sys.platform == "darwin":
+            factor_mb = 1 / (1024 * 1024)
+        return mem * factor_mb
+        
 
 
 class bcolors:
