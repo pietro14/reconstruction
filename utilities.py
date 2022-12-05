@@ -5,7 +5,14 @@ import os,sys,optparse,csv,resource
 import numpy as np
 import ROOT,math,uproot
 import swiftlib as sw
+import matplotlib.pyplot as plt            
 from cameraChannel import cameraTools, cameraGeometry
+
+font = {'family': 'arial',
+        'color':  'black',
+        'weight': 'normal',
+        'size': 24,
+        }
 
 class utils:
     def __init__(self):
@@ -86,6 +93,7 @@ class utils:
         N = cg.npixx
         nx=int(N/rebin); ny=int(N/rebin);
         normmap = ROOT.TH2D('normmap_{det}'.format(det=det),'normmap',nx,0,N,nx,0,N)
+        summap = normmap.Clone('summap_{det}'.format(det=det))
         
         mapsum = np.zeros((nx,nx))
 
@@ -117,7 +125,7 @@ class utils:
             #img_cimax = np.where(arr < 300, arr, 0)
             img_cimax = arr
             img_fr_sub = ctools.pedsub(img_cimax,pedarr_fr)
-            img_fr_zs  = ctools.zsfullres(img_fr_sub,noisearr_fr,nsigma=1)*1e-8
+            img_fr_zs  = ctools.zsfullres(img_fr_sub,noisearr_fr,nsigma=1)
             
             # for lime, remove the borders of the sensor
             if det=='lime':
@@ -148,9 +156,11 @@ class utils:
         for ix in range(nx):
             for iy in range(nx):
                 normmap.SetBinContent(ix+1,iy+1,min(mapnorm[ix,iy],1.));
+                summap.SetBinContent(ix+1,iy+1,mapsum[ix,iy]);
      
         tf_out.cd()
         normmap.Write()
+        summap.Write()
         tf_out.Close()
         print("Written the mean map with rebinning {rb}x{rb} into file {outf}.".format(rb=rebin,outf=outfile))
 
@@ -225,6 +235,17 @@ class utils:
         vignettemap_stretched.Write()        
         vign1d.Write()
         tf_out.Close()
+
+    def plotVignetteMap(self,filein,name='summap_lime'):
+        tf = uproot.open(filein)
+        vignette = np.rot90(tf[name].values())
+        fig = plt.figure(figsize=(12,12))
+        plt.imshow(vignette,cmap='binary',origin='upper',vmin=350,vmax=800 )
+        plt.xlabel('x (pixels)', font, labelpad=20)
+        plt.ylabel('y (pixels)', font, labelpad=20)
+        plt.ylim(250,2000)
+        plt.gca().invert_yaxis()
+        plt.savefig('%s.pdf' % name)
         
     def setPedestalRun(self,options,detector):
         if not hasattr(options,"pedrun"):
@@ -272,10 +293,14 @@ if __name__ == "__main__":
         run = 5890
         pedfile = 'pedestals/pedmap_run5861_rebin1.root'
         ut = utils()
-        ut.calcVignettingMap(run,pedfile,"vignette_run%05d.root" % run,det='lime',rebin=8,maxImages=1000)
+        ut.calcVignettingMap(run,pedfile,"vignette_run%05d.root" % run,det='lime',rebin=8,maxImages=10000)
 
     if options.make == 'vignette1d':
         ut = utils()
         ut.getVignette1D('vignette_run04117.root')
+
+    if options.make == 'plotVignette':
+        ut = utils()
+        ut.plotVignetteMap("vignette_run05890.root","summap_lime")
 
         
