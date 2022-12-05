@@ -2,7 +2,7 @@ from concurrent import futures
 from subprocess import Popen, PIPE
 import signal,time
 
-import os,math,sys,random,re
+import os,math,sys,random,re,gc
 import numpy as np
 
 import ROOT
@@ -298,7 +298,6 @@ class analysis:
             tf = sw.swift_read_root_file(self.tmpname)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
-            import gc
         else:
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
@@ -346,7 +345,6 @@ class analysis:
                 if event in self.options.excImages: justSkip=True
                 if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
                 if justSkip:
-                    if obj.any(): del obj
                     continue
                 
                 if camera==True:
@@ -410,7 +408,7 @@ class analysis:
                         if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
                         snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
                         plotpy = self.options.jobs < 2 # for some reason on macOS this crashes in multicore
-                        snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
+                        snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': True}
                         snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
                         snakes = snprod.run()
                         self.autotree.fillCameraVariables(img_fr_zs)
