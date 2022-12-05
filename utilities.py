@@ -3,7 +3,7 @@ import subprocess
 
 import os,sys,optparse,csv,resource
 import numpy as np
-import ROOT,math
+import ROOT,math,uproot
 import swiftlib as sw
 from cameraChannel import cameraTools, cameraGeometry
 
@@ -76,13 +76,9 @@ class utils:
         #############################
         
         # pedestal map, full reso
-        pedrf_fr = ROOT.TFile.Open(pedfile)
-        pedmap_fr = pedrf_fr.Get('pedmap').Clone()
-        pedmap_fr.SetDirectory(0)
-        pedarr_fr = np.array(pedmap_fr).T
-        noisearr_fr = ctools.noisearray(pedmap_fr).T
-        pedrf_fr.Close()
-     
+        pedrf_fr = uproot.open(pedfile)
+        pedarr_fr = pedrf_fr['pedmap'].values().T
+        noisearr_fr = pedrf_fr['pedmap'].errors().T
         
         outname_base = os.path.basename(outfile).split('.')[0]
         tf_out = ROOT.TFile.Open(outname_base+'.root','recreate')
@@ -94,31 +90,28 @@ class utils:
         mapsum = np.zeros((nx,nx))
 
         USER = os.environ['USER']
-        if sw.checkfiletmp(int(run)):
+        if sw.checkfiletmp(int(run),'root'):
             infile = "/tmp/%s/histograms_Run%05d.root" % (USER,int(run))
         else:
             print ('Downloading file: ' + sw.swift_root_file('Data', int(run)))
             infile = sw.swift_download_root_file(sw.swift_root_file('Data', int(run)),int(run))
            
         tf_in = sw.swift_read_root_file(infile)
-
+        
         framesize = 216 if det=='lime' else 0
 
         #this was a special case with 3 pictures with different orientations
         #files = ["~/Work/data/cygnus/run03930.root","~/Work/data/cygnus/run03931.root","~/Work/data/cygnus/run03932.root"]
         #for f in files:
-        tf_in = ROOT.TFile(infile)
+        #tf_in = ROOT.TFile(infile)
         
         # first calculate the mean 
-        for i,e in enumerate(tf_in.GetListOfKeys()):
+        for i,key in enumerate(tf_in.keys()):
             iev = i if daq != 'midas'  else i/2 # when PMT is present
-        
-            if maxImages>-1 and i<len(tf_in.GetListOfKeys())-maxImages: continue
-            name=e.GetName()
-            obj=e.ReadObj()
-            if not obj.InheritsFrom('TH2'): continue
-            print("Calc pixel sums with event: ",name)
-            arr = np.array(obj)
+            if 'pic' not in key: continue
+            if maxImages>-1 and i<len(tf_in.keys())-maxImages: continue
+            arr = tf_in[key].values()
+            print("Calc pixel sums with event: ",key)
             
             # Upper Threshold full image
             #img_cimax = np.where(arr < 300, arr, 0)
@@ -155,7 +148,6 @@ class utils:
         for ix in range(nx):
             for iy in range(nx):
                 normmap.SetBinContent(ix+1,iy+1,min(mapnorm[ix,iy],1.));
-        tf_in.Close()
      
         tf_out.cd()
         normmap.Write()
@@ -277,8 +269,8 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     if options.make == 'calcVignette':
-        run = 4117
-        pedfile = 'pedestals/pedmap_run4118_rebin1.root'
+        run = 5890
+        pedfile = 'pedestals/pedmap_run5861_rebin1.root'
         ut = utils()
         ut.calcVignettingMap(run,pedfile,"vignette_run%05d.root" % run,det='lime',rebin=8,maxImages=1000)
 
