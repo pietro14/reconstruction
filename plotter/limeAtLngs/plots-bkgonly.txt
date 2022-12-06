@@ -1,3 +1,5 @@
+raw_integral_anyrange:   sc_integral    : 100,5e2,3e5 ; XTitle="I_{SC} (photons)", IncludeOverflows=True
+
 raw_integral_highrange:  sc_integral    : 100,5e3,3e5 ; XTitle="I_{SC} (photons)", IncludeOverflows=False
 
 raw_integral_lowrange:   sc_integral    : 50,5e2,1e4 ; XTitle="I_{SC} (photons)", IncludeOverflows=False

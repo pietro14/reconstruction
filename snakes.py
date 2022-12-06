@@ -244,15 +244,17 @@ class SnakesFactory:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Polynomial clusters found in iteration 0")
-                colorpix = np.zeros([rescale,rescale,3])
+                colorpix = np.ones([rescale,rescale,3]) * [255,255,255]
                 for j in range(0,np.shape(clu)[0]):
 
                     a = np.random.rand(3)
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
                     
-                plt.imshow(colorpix,cmap='gray',origin='lower' )
+                plt.imshow(colorpix,cmap='binary',origin='lower' )
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
+                with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='0th'), "wb") as fp:
+                    pickle.dump(fig, fp, protocol=4)
 
                 plt.gcf().clear()
                 plt.close('all')

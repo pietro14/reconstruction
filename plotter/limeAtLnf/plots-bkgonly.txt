@@ -1,0 +1,35 @@
+raw_integral_anyrange:   sc_integral    : 100,5e2,3e5 ; XTitle="I_{SC} (photons)", IncludeOverflows=True, Logy=True
+
+raw_integral_highrange:  sc_integral    : 100,5e3,3e5 ; XTitle="I_{SC} (photons)", IncludeOverflows=True
+
+raw_integral_lowrange:   sc_integral    : 100,5e2,2e4 ; XTitle="I_{SC} (photons)", IncludeOverflows=False
+
+raw_integral_normrange:  sc_integral    : 100,0,3e3 ; XTitle="I_{SC} (photons)", IncludeOverflows=False
+
+cal_integral_anyrange:   calib_energy(sc_integral)    : 100,0,225 ; XTitle="E_{SC} (keV)", IncludeOverflows=True, Logy=True
+
+cal_integral_highrange:  calib_energy(sc_integral)    : 100,15,225 ; XTitle="I_{SC} (keV)", IncludeOverflows=True
+
+cal_integral_lowrange:   calib_energy(sc_integral)    : 100,0.5,15 ; XTitle="I_{SC} (keV)", IncludeOverflows=False
+
+cal_integral_normrange:  calib_energy(sc_integral)    : 100,0,2 ; XTitle="I_{SC} (keV)", IncludeOverflows=False
+
+density:                 sc_integral/sc_nhits : 50,0,50 ; XTitle="#delta (photons/pixels)", IncludeOverflows=True
+
+rms:    sc_rms : 50,0,20 ; XTitle="rms (photons)", IncludeOverflows=True
+
+length: 0.152 * sc_length : 50,0,350 ; XTitle="length (mm)", IncludeOverflows=True, Logy=True
+
+width:  0.152 * sc_width : 50,0,20 ; XTitle="width (mm)", IncludeOverflows=False
+
+tgausssigma: 0.152 * sc_tgausssigma : 50,0,3 ; XTitle="#sigma_{T}^{Gauss} (mm)", IncludeOverflows=True
+
+slimness: sc_width/sc_length : 50,0,1 ; XTitle="#xi"
+
+gslimness: sc_tgausssigma/sc_lgausssigma : 50,0,2 ; XTitle="#xi_{Gauss}"
+
+nhits: sc_nhits : 100,0,2e4 ; XTitle="n_{p}" , IncludeOverflows=False, Logy=True
+
+EvsL: sc_integral\:0.152*sc_length : 50,0,350,100,5e5,3e5; XTitle="length (mm)", YTitle="I_{SC} (photons)", Logy=True, Logx=True, Logz=True
+
+MvsL: marinTheta(sc_xmin,sc_xmax,sc_ymin,sc_ymax,sc_xmean,sc_ymean)\:0.152*sc_length : 200,0,350,200,0,1.6; XTitle="length (mm)", YTitle="#theta (rad)", Logz=True

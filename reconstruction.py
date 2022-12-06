@@ -2,7 +2,7 @@ from concurrent import futures
 from subprocess import Popen, PIPE
 import signal,time
 
-import os,math,sys,random,re
+import os,math,sys,random,re,gc
 import numpy as np
 
 import ROOT
@@ -298,7 +298,6 @@ class analysis:
             tf = sw.swift_read_root_file(self.tmpname)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
-            import gc
         else:
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
@@ -346,7 +345,6 @@ class analysis:
                 if event in self.options.excImages: justSkip=True
                 if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
                 if justSkip:
-                    if obj.any(): del obj
                     continue
                 
                 if camera==True:
