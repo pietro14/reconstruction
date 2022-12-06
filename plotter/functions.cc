@@ -58,6 +58,11 @@ int marinBand(double length, double x_min, double x_max, double y_min, double y_
   return int(l>cmin && y>ymin && y<ymax);
 }
 
+float calib_energy(double uncalib) {
+  float photon2kev = 0.00075;
+  return photon2kev * uncalib;
+}
+
 float deltaR2(float eta1, float phi1, float eta2, float phi2) {
     float deta = std::abs(eta1-eta2);
     float dphi = deltaPhi(phi1,phi2);
