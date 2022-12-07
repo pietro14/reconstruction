@@ -77,9 +77,9 @@ if __name__ == "__main__":
     energies = {"Fe" : 6,
                 "Cu" : 8,
                 "Rb" : 13,
-                "Mo" : 18,
-                "Ag" : 23.5,
-                "Ba" : 34.4
+                "Mo" : 17,
+                "Ag" : 22,
+                "Ba" : 32
                 }
         
     
@@ -135,7 +135,8 @@ if __name__ == "__main__":
     fout.cd()
     resp.Write()
     c.Write()
-    c.SaveAs("linearity.pdf")
+    for ext in ['pdf','png','root']:
+        c.SaveAs('linearity.{ext}'.format(ext=ext))
     fout.Close()
     
     # energy resolution
@@ -149,4 +150,5 @@ if __name__ == "__main__":
     reso.GetYaxis().SetLimits(0,30)
     reso.GetYaxis().SetRangeUser(0,30)
     reso.GetYaxis().SetTitle("#sigma_{E}/E (%)")        
-    c.SaveAs("resolution.pdf")
+    for ext in ['pdf','png','root']:
+        c.SaveAs('resolution.{ext}'.format(ext=ext))
