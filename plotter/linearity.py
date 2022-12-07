@@ -25,13 +25,13 @@ def fitOne(filein,selection,erange,suffix,energies,nbins):
     work = ROOT.RooWorkspace()
     work.factory("mean1[{av},{mmin},{mmax}]".format(av=av,mmin=0.7*av,mmax=1.3*av))
     #work.factory('Gaussian::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.5,1])'.format(xmin=xmin,xmax=xmax))
-    if suffix in ['Cu','Rb']:
-        work.factory('CBShape::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.5,1.5],alpha[1,0.1,10],n[9,1,20])'.format(xmin=xmin,xmax=xmax))
+    if suffix in ['Cu','Rb','Ag']:
+        work.factory('CBShape::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.5,3],alpha[1,0.1,10],n[9,1,20])'.format(xmin=xmin,xmax=xmax))
     else:
-        work.factory('DoubleCBFast::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.5,1],alpha1[1,0.1,10],n1[5,1,10],alpha2[1,0.1,10],n2[5,1,10])'.format(xmin=xmin,xmax=xmax))
+        work.factory('DoubleCBFast::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.5,1],alpha1[1,0.1,10],n1[5,1,10],alpha2[1,0.05,10],n2[5,1,10])'.format(xmin=xmin,xmax=xmax))
     work.factory("expr::mean2('mean1+delta',mean1,delta[{delta}])".format(delta=deltae))
     #work.factory('Gaussian::cb2(x[{xmin},{xmax}],mean2,sigma[1,0.5,1])'.format(xmin=xmin,xmax=xmax))
-    if suffix in ['Cu','Rb']:
+    if suffix in ['Cu','Rb','Ag']:
         work.factory('CBShape::cb2(x[{xmin},{xmax}],mean2,sigma,alpha,n)'.format(xmin=xmin,xmax=xmax))
     else:
         work.factory('DoubleCBFast::cb2(x[{xmin},{xmax}],mean2,sigma[1,0.5,1],alpha1,n1,alpha2,n2)'.format(xmin=xmin,xmax=xmax))
@@ -48,7 +48,7 @@ def fitOne(filein,selection,erange,suffix,energies,nbins):
 
     print ("ssss = ",spectrum.Integral())
     work.factory('nSig1[{ns}]'.format(ns=0.2*spectrum.Integral()))
-    work.factory("expr::nSig2('nSig1*frac',nSig1,frac[0.2,0,0.5])")
+    work.factory("expr::nSig2('nSig1*frac',nSig1,frac[0.2,0,0.2])")
     work.factory('nBkg[{ns}]'.format(ns=0.5*spectrum.Integral()))
     work.factory("SUM::pdfTot(nSig1*cb1,nSig2*cb2,nBkg*bkg)");
 
@@ -130,14 +130,14 @@ if __name__ == "__main__":
 
     nbins = {"Cu" : 45,
              "Rb" : 45,
-             "Mo" : 75,
-             "Ag" : 100,
-             "Ba" : 100}
+             "Mo" : 60,
+             "Ag" : 60,
+             "Ba" : 60}
         
     respdic = {}
     respdic["Fe"] = [energies['Fe'],0,0.9,0]
 
-    mat = 'Cu'
+    mat = 'Ba'
     fitOne("trees-lnf/reco_multisource.root ",'({base})*({extra})'.format(base=base_sel,extra=extras[mat]),eranges[mat],mat,energies[mat],nbins[mat])
 """    
     for mat,extracut in extras.items():
