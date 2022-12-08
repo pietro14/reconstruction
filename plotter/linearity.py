@@ -28,7 +28,7 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     if suffix in ['XXX']:
         work.factory('CBShape::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.5,3],alpha[1,0.1,10],n[9,1,20])'.format(xmin=xmin,xmax=xmax))
     elif suffix in ['Cu','Fe','Rb','Mo','Ag','Ba']:
-        work.factory('Cruijff::cb1(x[{xmin},{xmax}],mean1,sigmaL[1,0.5,4],sigma[1,0.2,4],alphaL[1,0.1,10],alphaR[1,0.1,10])'.format(xmin=xmin,xmax=xmax))
+        work.factory('Cruijff::cb1(x[{xmin},{xmax}],mean1,sigmaL[1,0.5,4],sigma[1,0.2,4],alphaL[1,0.1,10],alphaR[0,0.1,10])'.format(xmin=xmin,xmax=xmax))
     else:
         work.factory('DoubleCBFast::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.8,10],alpha1[1,0.01,10],n1[5,1,20],alpha2[1,0.01,10],n2[5,1,20])'.format(xmin=xmin,xmax=xmax))
     work.factory("expr::mean2('mean1+delta',mean1,delta[{delta}])".format(delta=deltae))
@@ -44,11 +44,10 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     work.factory("c[0,-100,100]")
     work.factory("d[0,-100,100]")
     work.factory("e[0,-100,100]")
-    #work.factory('Chebychev::bkg(x,{a,b,c,d,e})')
     if suffix in ['Fe']:
         work.factory('Bernstein::bkg(x,{a})')
     else:
-        work.factory('Bernstein::bkg(x,{a,b,c,d})')
+        work.factory('Bernstein::bkg(x,{a,b,c,d,e})')
     
     x = work.var('x')
 
@@ -64,6 +63,13 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
         work.var('sigma').setRange(1,6)
     elif suffix=='Cu':
         work.var('sigma').setRange(0.5,1)
+    if suffix in ['Ag','Ba']:
+        work.var('alphaR').setConstant(ROOT.kTRUE)
+    if suffix in ['Rb']:
+         work.var('alphaR').setVal(1)
+    elif suffix in ['Cu']:
+        work.var('alphaR').setRange(0.1,10)
+        work.var('alphaR').setConstant(ROOT.kFALSE)
         
     work.Print()
     
@@ -86,6 +92,19 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     frame.GetYaxis().SetTitle("superclusters")
     frame.GetXaxis().SetTitle("Energy (keV)")
     frame.GetXaxis().SetTitleOffset(1.2)
+    frame.GetXaxis().SetTitleFont(42)
+    frame.GetXaxis().SetTitleSize(0.05)
+    frame.GetXaxis().SetTitleOffset(1.1)
+    frame.GetXaxis().SetLabelFont(42)
+    frame.GetXaxis().SetLabelSize(0.05)
+    frame.GetXaxis().SetLabelOffset(0.007)
+    frame.GetYaxis().SetTitleFont(42)
+    frame.GetYaxis().SetTitleSize(0.05)
+    frame.GetYaxis().SetTitleOffset(1.3)
+    frame.GetYaxis().SetLabelFont(42)
+    frame.GetYaxis().SetLabelSize(0.05)
+    frame.GetYaxis().SetLabelOffset(0.007)
+    frame.GetXaxis().SetNdivisions(510)
 
     c = getCanvas()
     frame.Draw()
@@ -95,6 +114,7 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     leg.SetFillStyle(0)
     leg.SetLineColor(0)
     leg.SetTextSize(0.02)
+    leg.SetTextFont(42)
     leg.AddEntry("pdata","data with {source}".format(source=suffix),"ep")
     leg.AddEntry("tot","Parametric Total Model","L")
     leg.AddEntry("pcb1","Signal Model 1","L")
@@ -102,7 +122,7 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     leg.AddEntry("pbkg","Background Model","L")
     leg.Draw("Same")
 
-    doTinyCmsPrelim("CYGNO","(LIME)",lumi=0,textSize=0.04,xoffs=-0.05)
+    doTinyCmsPrelim("CYGNO","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
     
     for ext in ['pdf','png','root']:
         c.SaveAs('energy_{suff}.{ext}'.format(ext=ext,suff=suffix))
@@ -145,7 +165,7 @@ if __name__ == "__main__":
                "Rb" : (1,25),
                "Mo" : (8,30),
                "Ag" : (9,40),
-               "Ba" : (10,60)}
+               "Ba" : (11,60)}
 
     nbins = {"Fe" : 120,
              "Cu" : 45,
@@ -172,21 +192,24 @@ if __name__ == "__main__":
     respdic = {}
     respdic["Fe"] = [energies['Fe'][0],0,0.9,0]
 
-    #    mat = 'Cu'
-    #    respdic[mat] = fitOne("trees-lnf/%s" % rfiles[mat],'({base})*({extra})'.format(base=base_sel,extra=extras[mat]),eranges[mat],mrange[mat],mat,energies[mat],nbins[mat])
-
+    #mat = 'Cu'
+    #respdic[mat] = fitOne("trees-lnf/%s" % rfiles[mat],'({base})*({extra})'.format(base=base_sel,extra=extras[mat]),eranges[mat],mrange[mat],mat,energies[mat],nbins[mat])
+    
     for mat in materials:
         respdic[mat] = fitOne("trees-lnf/%s" % rfiles[mat],'({base})*({extra})'.format(base=base_sel,extra=extras[mat]),eranges[mat],mrange[mat],mat,energies[mat],nbins[mat])
 
     calibFe = energies['Fe'][0]/respdic['Fe'][0]
         
     fout = ROOT.TFile.Open("linearity.root","recreate")
-    resp = ROOT.TGraphErrors(len(energies))
+    resp  = ROOT.TGraphErrors(len(energies))
+    resp2 = ROOT.TGraphErrors(len(energies))
     reso = ROOT.TGraphErrors(len(energies))
     i=0
     for mat,etrue in energies.items():
         resp.SetPoint(i,energies[mat][0],respdic[mat][0]*calibFe)
         resp.SetPointError(i,0,respdic[mat][1]*calibFe)
+        resp2.SetPoint(i,energies[mat][1],(respdic[mat][0]+energies[mat][1]-energies[mat][0])*calibFe)
+        resp2.SetPointError(i,0,respdic[mat][1]*calibFe)
         reso.SetPoint(i,energies[mat][0],100*respdic[mat][2]/respdic[mat][0])
         reso.SetPointError(i,0,100*respdic[mat][3]/respdic[mat][0])
         i+=1
@@ -197,12 +220,45 @@ if __name__ == "__main__":
     resp.SetTitle('')
     resp.Draw("AP")
     resp.SetMarkerStyle(ROOT.kFullCircle)
+    resp2.SetMarkerColor(ROOT.kAzure-3)
+    resp2.SetLineColor(ROOT.kAzure-3)
     resp.SetMarkerSize(2)
     resp.GetXaxis().SetLimits(0,50)
     resp.GetXaxis().SetTitle("Expected energy (keV)")
     resp.GetYaxis().SetLimits(0,8e4)
     resp.GetYaxis().SetRangeUser(0,50)
     resp.GetYaxis().SetTitle("Measured energy (keV)")
+    resp.GetXaxis().SetTitleOffset(1.2)
+    resp.GetXaxis().SetTitleFont(42)
+    resp.GetXaxis().SetTitleSize(0.05)
+    resp.GetXaxis().SetTitleOffset(1.1)
+    resp.GetXaxis().SetLabelFont(42)
+    resp.GetXaxis().SetLabelSize(0.05)
+    resp.GetXaxis().SetLabelOffset(0.007)
+    resp.GetYaxis().SetTitleFont(42)
+    resp.GetYaxis().SetTitleSize(0.05)
+    resp.GetYaxis().SetTitleOffset(1.2)
+    resp.GetYaxis().SetLabelFont(42)
+    resp.GetYaxis().SetLabelSize(0.05)
+    resp.GetYaxis().SetLabelOffset(0.007)
+    resp.GetXaxis().SetNdivisions(510)
+
+    
+    resp2.Draw("P")
+    resp2.SetMarkerStyle(ROOT.kFullSquare)
+    resp2.SetMarkerColor(ROOT.kOrange+7)
+    resp2.SetLineColor(ROOT.kOrange+7)
+    resp2.SetMarkerSize(2)
+
+    # Add legend
+    leg = ROOT.TLegend(0.2,0.75,0.4,0.85)
+    leg.SetTextFont(42)
+    leg.SetFillStyle(0)
+    leg.SetLineColor(0)
+    leg.SetTextSize(0.04)
+    leg.AddEntry(resp,"main line","ep")
+    leg.AddEntry(resp2,"2^{nd} line","ep")
+    leg.Draw("Same")
 
     #resp.Fit("pol1")
 
@@ -211,7 +267,7 @@ if __name__ == "__main__":
     line.SetLineStyle(ROOT.kDashed)
     line.Draw()
 
-    doTinyCmsPrelim("CYGNO","(LIME)",lumi=0,textSize=0.04,xoffs=-0.05)
+    doTinyCmsPrelim("CYGNO","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
 
     fout.cd()
     resp.Write()
