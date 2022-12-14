@@ -6,6 +6,12 @@ from mcPlots import doTinyCmsPrelim
 ROOT.gROOT.LoadMacro('./fitter/libCpp/RooDoubleCBFast.cc+')
 ROOT.gROOT.LoadMacro('./fitter/libCpp/RooCruijff.cc+')
 
+def full_error_e(energy,staterr,deltax=3):
+    # from the z-scan, we observe ~10% response change / 5cm for z ~ 21 cm
+    syst_pos_rel = 0.02 * deltax
+    syst_pos = syst_pos_rel * energy
+    return math.hypot(syst_pos,staterr)
+
 def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
 
     var = 'sc_integral*6/8000'
@@ -241,17 +247,23 @@ if __name__ == "__main__":
         respdic[mat] = fitOne("trees-lnf/%s" % rfiles[mat],'({base})*({extra})'.format(base=base_sel,extra=extras[mat]),eranges[mat],mrange[mat],mat,energies[mat],nbins[mat])
 
     calibFe = energies['Fe'][0]/respdic['Fe'][0]
-        
+
+    
     fout = ROOT.TFile.Open("linearity.root","recreate")
     resp  = ROOT.TGraphErrors(len(energies))
     resp2 = ROOT.TGraphErrors(len(energies))
     reso = ROOT.TGraphErrors(len(energies))
     i=0
     for mat,etrue in energies.items():
-        resp.SetPoint(i,energies[mat][0],respdic[mat][0]*calibFe)
-        resp.SetPointError(i,0,respdic[mat][1]*calibFe)
-        resp2.SetPoint(i,energies[mat][1],(respdic[mat][0]+energies[mat][1]-energies[mat][0])*calibFe)
-        resp2.SetPointError(i,0,respdic[mat][1]*calibFe)
+        response1 =  respdic[mat][0]*calibFe
+        response2 = (respdic[mat][0]+energies[mat][1]-energies[mat][0])*calibFe
+        unc1      = full_error_e(response1,respdic[mat][1]*calibFe)
+        unc2      = full_error_e(response2,respdic[mat][1]*calibFe)
+                                 
+        resp.SetPoint(i,energies[mat][0],response1)
+        resp.SetPointError(i,0,unc1)
+        resp2.SetPoint(i,energies[mat][1],response2)
+        resp2.SetPointError(i,0,unc2)
         reso.SetPoint(i,energies[mat][0],100*respdic[mat][2]/respdic[mat][0])
         reso.SetPointError(i,0,100*respdic[mat][3]/respdic[mat][0])
         i+=1
