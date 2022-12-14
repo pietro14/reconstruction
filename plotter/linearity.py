@@ -27,14 +27,14 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     work.factory("mean1[{av},{mmin},{mmax}]".format(av=av,mmin=mrange[0],mmax=mrange[1]))
     if suffix in ['XXX']:
         work.factory('CBShape::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.5,3],alpha[1,0.1,10],n[9,1,20])'.format(xmin=xmin,xmax=xmax))
-    elif suffix in ['Cu','Fe','Rb','Mo','Ag','Ba','Ti']:
+    elif suffix in ['Cu','Fe','Rb','Mo','Ag','Ba','Ti','Ca']:
         work.factory('Cruijff::cb1(x[{xmin},{xmax}],mean1,sigmaL[1,0.5,4],sigma[1,0.2,4],alphaL[1,0.1,10],alphaR[0,0.1,10])'.format(xmin=xmin,xmax=xmax))
     else:
         work.factory('DoubleCBFast::cb1(x[{xmin},{xmax}],mean1,sigma[1,0.8,10],alpha1[1,0.01,10],n1[5,1,20],alpha2[1,0.01,10],n2[5,1,20])'.format(xmin=xmin,xmax=xmax))
     work.factory("expr::mean2('mean1+delta',mean1,delta[{delta}])".format(delta=deltae))
     if suffix in ['XXX']:
         work.factory('CBShape::cb2(x[{xmin},{xmax}],mean2,sigma,alpha,n)'.format(xmin=xmin,xmax=xmax))
-    elif suffix in ['Cu','Fe','Rb','Mo','Ag','Ba','Ti']:
+    elif suffix in ['Cu','Fe','Rb','Mo','Ag','Ba','Ti','Ca']:
         work.factory('Cruijff::cb2(x[{xmin},{xmax}],mean2,sigmaL,sigma,alphaL,alphaR)'.format(xmin=xmin,xmax=xmax))
     else:
         work.factory('DoubleCBFast::cb2(x[{xmin},{xmax}],mean2,sigma,alpha1,n1,alpha2,n2)'.format(xmin=xmin,xmax=xmax))
@@ -173,26 +173,29 @@ if __name__ == "__main__":
 
     base_sel = "(TMath::Hypot(sc_xmean-2304/2,sc_ymean-2304/2)<800)"
 
-    materials = ["Cu","Rb","Mo","Ag","Ba","Fe","Ti"]
-#    materials = ["Ti"]
+    materials = ["Cu","Rb","Mo","Ag","Ba","Fe","Ti","Ca"]
+#    materials = ["Ca"]
 
-    energies = {"Fe" : [5.9,   6.5],
+    energies = {"Ca" : [3.69,  4.01],
+                "Ti" : [4.51,  4.93],
+                "Fe" : [5.9,   6.5],
                 "Cu" : [8.04,  8.91],
                 "Rb" : [13.37, 14.97],
                 "Mo" : [17.44, 19.63],
                 "Ag" : [22.10, 24.99],
                 "Ba" : [32.06, 36.55],
-                "Ti" : [4.5, 4.9],
                 }
         
     
-    extras = {"Fe" : "(0.152*sc_length < 80)  * (sc_rms>7.5)",
+    extras = {"Ca" : "(0.152*sc_length < 80)  * (sc_rms>7.5) * (run!=6153 && run!=6164 && run!=6175 && run!=6186 && run!=6197 && run!=6208 && run!=6221 && run!=6232 && run!=6243 && run!=6254 && run!=6265 && run!=6276 && run!=6287 && run!=6290)",
+              "Fe" : "(0.152*sc_length < 80)  * (sc_rms>7.5)",
               "Cu" : "(0.152*sc_length < 80)  * (sc_rms>7.5) * (run>=5801 && run<=5805)",
               "Rb" : "(0.152*sc_length < 80)  * (sc_rms>6.5) * (run>=5806 && run<=5810)",
               "Mo" : "(0.152*sc_length < 80)  * (sc_rms>6.5) * (run>=5811 && run<=5820)",
               "Ag" : "(0.152*sc_length < 80)  * (sc_rms>6.5) * (run>=5821 && run<=5830)",
               "Ba" : "(0.152*sc_length < 120) * (sc_rms>6.5) * (run>=5831 && run<=5845)",
-              "Ti" : "(0.152*sc_length < 80)  * (sc_rms>7.5) * (run>=6122 && run<=6131)",}
+              "Ti" : "(0.152*sc_length < 80)  * (sc_rms>7.5) * (run>=6122 && run<=6131)",
+              }
 
 
     eranges = {"Fe" : (2,12),
@@ -201,7 +204,8 @@ if __name__ == "__main__":
                "Mo" : (8,30),
                "Ag" : (9,40),
                "Ba" : (11,60),
-               "Ti" : (1,11)}
+               "Ti" : (1,11),
+               "Ca" : (1,16),}
 
     nbins = {"Fe" : 120,
              "Cu" : 45,
@@ -209,7 +213,8 @@ if __name__ == "__main__":
              "Mo" : 55,
              "Ag" : 55,
              "Ba" : 50,
-             "Ti" : 50,}
+             "Ti" : 50,
+             "Ca" : 100}
 
     mrange = {"Fe" : (5,8),
               "Cu" : (6,9),
@@ -217,7 +222,8 @@ if __name__ == "__main__":
               "Mo" : (12,18),
               "Ag" : (17,22),
               "Ba" : (25,36),
-              "Ti" : (3.8,5.3),}
+              "Ti" : (3.8,5.3),
+              "Ca" : (3,7),}
 
     rfiles = {"Fe" : "reco_fe_26cm.root",
               "Cu" : "reco_multisource.root",
@@ -226,7 +232,7 @@ if __name__ == "__main__":
               "Ag" : "reco_multisource.root",
               "Ba" : "reco_multisource.root",
               "Ti" : "reco_titanium.root",
-              }
+              "Ca" : "reco_calcium.root",}
               
     respdic = {}
     respdic["Fe"] = [energies['Fe'][0],0,0.9,0]
