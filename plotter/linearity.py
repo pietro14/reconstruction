@@ -6,16 +6,22 @@ from mcPlots import doTinyCmsPrelim
 ROOT.gROOT.LoadMacro('./fitter/libCpp/RooDoubleCBFast.cc+')
 ROOT.gROOT.LoadMacro('./fitter/libCpp/RooCruijff.cc+')
 
-def full_error_e(energy,staterr,deltax=3):
+def full_error_e(energy,staterr,deltax=2):
     # from the z-scan, we observe ~10% response change / 5cm for z ~ 21 cm
     syst_pos_rel = 0.02 * deltax
     syst_pos = syst_pos_rel * energy
     return math.hypot(syst_pos,staterr)
 
+def ic_delta_multisource(mat,k=1.2):
+    return k if mat!='Fe' else 1
+
 def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
 
     var = 'sc_integral*6/8000'
-
+    # fitting Fe peak in Ti transparency mode
+    if suffix=='Ti':
+        var="{base} * {calib}".format(base=var,calib=5.9/6.15)
+    
     xmin,xmax=erange
     mark = ROOT.kFullSquare
     line = ROOT.kAzure-6
@@ -44,9 +50,9 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
         work.factory('Cruijff::cb2(x[{xmin},{xmax}],mean2,sigmaL,sigma,alphaL,alphaR)'.format(xmin=xmin,xmax=xmax))
     else:
         work.factory('DoubleCBFast::cb2(x[{xmin},{xmax}],mean2,sigma,alpha1,n1,alpha2,n2)'.format(xmin=xmin,xmax=xmax))
-    if suffix=='Ti':
+    if suffix in ['Ti','Ca']:
         # this is to model the Fe55 peak
-        work.factory('Cruijff::cb3(x[{xmin},{xmax}],mean3[5.9,5.5,7],sigmaL,sigma,alphaL,alphaR)'.format(xmin=xmin,xmax=xmax))
+        work.factory('Cruijff::cb3(x[{xmin},{xmax}],mean3[5.9,5,8],sigmaL,sigma,alphaL,alphaR)'.format(xmin=xmin,xmax=xmax))
         work.factory("expr::mean4('mean3+deltaFe',mean3,deltaFe[0.6])")
         work.factory('Cruijff::cb4(x[{xmin},{xmax}],mean4,sigmaL,sigma,alphaL,alphaR)'.format(xmin=xmin,xmax=xmax))
 
@@ -63,15 +69,15 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     
     x = work.var('x')
 
-    work.factory('nSig1[{ns}]'.format(ns=0.2*spectrum.Integral()))
+    work.factory('nSig1[{ns},0,1e9]'.format(ns=0.2*spectrum.Integral()))
     work.factory("expr::nSig2('nSig1*frac',nSig1,frac[0.1,0,0.3])")
     work.factory('nBkg[{ns}]'.format(ns=0.5*spectrum.Integral()))
-    if suffix!='Ti':
-        work.factory("SUM::pdfTot(nSig1*cb1,nSig2*cb2,nBkg*bkg)");
-    else:
-        work.factory('nSig3[{ns}]'.format(ns=0.7*spectrum.Integral()))
-        work.factory("expr::nSig4('nSig3*frac2',nSig3,frac2[0.3,0.1,0.4])")
+    if suffix in ['Ti','Ca']:
+        work.factory('nSig3[{ns},0,1e9]'.format(ns=0.7*spectrum.Integral()))
+        work.factory("expr::nSig4('nSig3*frac2',nSig3,frac2[0.05,0.0,0.4])")
         work.factory("SUM::pdfTot(nSig1*cb1,nSig2*cb2,nSig3*cb3,nSig4*cb4,nBkg*bkg)");
+    else:
+        work.factory("SUM::pdfTot(nSig1*cb1,nSig2*cb2,nBkg*bkg)");
 
     if suffix=='Fe':
         work.var('nBkg').setVal(0)
@@ -87,13 +93,18 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     elif suffix in ['Cu']:
         work.var('alphaR').setRange(0.1,10)
         work.var('alphaR').setConstant(ROOT.kFALSE)
+    elif suffix in ['Ag']:
+        work.var('alphaR').setVal(0.1)
+        work.var('alphaR').setRange(0.1,0.4)
+        work.var('sigma').setRange(1.8,3.1)
     if suffix=='Ti':
-        work.var('frac2').setRange(0.2,0.5); work.var('frac').setRange(0.2,0.5); 
+        work.var('frac2').setVal(0.1);       work.var('frac2').setConstant(ROOT.kTRUE)
+        work.var('frac').setRange(0.3,0.5);  work.var('frac').setConstant(ROOT.kTRUE)
         work.var('alphaL').setVal(0.251);    #work.var('alphaL').setConstant(ROOT.kTRUE)
         work.var('alphaR').setVal(0.252);    #work.var('alphaR').setConstant(ROOT.kTRUE)
         work.var('sigma').setVal(0.616);     #work.var('sigma').setConstant(ROOT.kTRUE)
-        work.var('sigmaL').setVal(0.616);    #work.var('sigmaL').setConstant(ROOT.kTRUE)
-        work.var('mean3').setVal(6.33);      #work.var('mean3').setConstant(ROOT.kTRUE)
+        work.var('sigmaL').setRange(0.2,1.0);    #work.var('sigmaL').setConstant(ROOT.kTRUE)
+        work.var('mean3').setVal(5.33);      #work.var('mean3').setConstant(ROOT.kTRUE)
         work.var('mean1').setVal(4.5)
         
         work.var('a').setVal(2.62289e-02);  work.var('a').setConstant(ROOT.kTRUE)
@@ -101,6 +112,21 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
         work.var('c').setVal(6.68959e-04);  work.var('c').setConstant(ROOT.kTRUE)
         work.var('d').setVal(2.18863e-02);  work.var('d').setConstant(ROOT.kTRUE)
         work.var('e').setVal(2.00491e-02);  work.var('e').setConstant(ROOT.kTRUE)
+    if suffix=='Ca':
+        work.var('frac2').setRange(0.2,0.3); work.var('frac').setRange(0.1,0.3); 
+        work.var('alphaL').setVal(0.251);    work.var('alphaL').setConstant(ROOT.kTRUE)
+        work.var('alphaR').setVal(0.);       #work.var('alphaR').setConstant(ROOT.kTRUE)
+        work.var('sigma').setVal(0.616);     #work.var('sigma').setRange(0.4,1.3)
+        work.var('sigmaL').setVal(0.616);    #work.var('sigmaL').setRange(0.4,1.3)
+        work.var('mean3').setVal(5.33);      work.var('mean3').setConstant(ROOT.kTRUE)
+        work.var('mean1').setVal(3.5)
+        
+        work.var('a').setVal(2.62289e-02);  work.var('a').setConstant(ROOT.kTRUE)
+        work.var('b').setVal(8.81561e-02);  work.var('b').setConstant(ROOT.kTRUE)
+        work.var('c').setVal(6.68959e-04);  work.var('c').setConstant(ROOT.kTRUE)
+        work.var('d').setVal(2.18863e-02);  work.var('d').setConstant(ROOT.kTRUE)
+        work.var('e').setVal(2.00491e-02);  work.var('e').setConstant(ROOT.kTRUE)
+
 
         
     work.Print()
@@ -119,7 +145,7 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     pdf.plotOn(frame,ROOT.RooFit.Components("bkg"),ROOT.RooFit.LineStyle(ROOT.kDotted), ROOT.RooFit.LineColor(ROOT.kCyan), ROOT.RooFit.Name('pbkg'))
     pdf.plotOn(frame,ROOT.RooFit.Components("cb1"), ROOT.RooFit.LineStyle(ROOT.kDotted), ROOT.RooFit.LineColor(ROOT.kRed), ROOT.RooFit.Name('pcb1'))
     pdf.plotOn(frame,ROOT.RooFit.Components("cb2"), ROOT.RooFit.LineStyle(ROOT.kDotted), ROOT.RooFit.LineColor(ROOT.kOrange), ROOT.RooFit.Name('pcb2'))
-    if suffix=='Ti':
+    if suffix in ['Ti','Ca']:
         pdf.plotOn(frame,ROOT.RooFit.Components("cb3"), ROOT.RooFit.LineStyle(ROOT.kDashed), ROOT.RooFit.LineColor(ROOT.kSpring+4), ROOT.RooFit.Name('pcb3'))
         pdf.plotOn(frame,ROOT.RooFit.Components("cb4"), ROOT.RooFit.LineStyle(ROOT.kDashed), ROOT.RooFit.LineColor(ROOT.kSpring+1), ROOT.RooFit.Name('pcb4'))        
     rooData.plotOn(frame,ROOT.RooFit.MarkerStyle(mark))
@@ -154,13 +180,13 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     leg.AddEntry("tot","Parametric Total Model","L")
     leg.AddEntry("pcb1","Signal Model 1","L")
     leg.AddEntry("pcb2","Signal Model 2","L")
-    if suffix=='Ti':
+    if suffix in ['Ti','Ca']:
         leg.AddEntry("pcb3","^{55}Fe Signal Model 1","L")
         leg.AddEntry("pcb4","^{55}Fe Signal Model 2","L")        
     leg.AddEntry("pbkg","Background Model","L")
     leg.Draw("Same")
 
-    doTinyCmsPrelim("CYGNO","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
+    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
     
     for ext in ['pdf','png','root']:
         c.SaveAs('energy_{suff}.{ext}'.format(ext=ext,suff=suffix))
@@ -179,8 +205,7 @@ if __name__ == "__main__":
 
     base_sel = "(TMath::Hypot(sc_xmean-2304/2,sc_ymean-2304/2)<800)"
 
-    materials = ["Cu","Rb","Mo","Ag","Ba","Fe","Ti","Ca"]
-#    materials = ["Ca"]
+    materials = ["Ag","Ba","Cu","Rb","Mo","Fe","Ti","Ca"]
 
     energies = {"Ca" : [3.69,  4.01],
                 "Ti" : [4.51,  4.93],
@@ -211,16 +236,16 @@ if __name__ == "__main__":
                "Ag" : (9,40),
                "Ba" : (11,60),
                "Ti" : (1,11),
-               "Ca" : (1,16),}
+               "Ca" : (0.5,16),}
 
     nbins = {"Fe" : 120,
              "Cu" : 45,
              "Rb" : 45,
              "Mo" : 55,
-             "Ag" : 55,
+             "Ag" : 50,
              "Ba" : 50,
-             "Ti" : 50,
-             "Ca" : 100}
+             "Ti" : 60,
+             "Ca" : 70}
 
     mrange = {"Fe" : (5,8),
               "Cu" : (6,9),
@@ -228,8 +253,8 @@ if __name__ == "__main__":
               "Mo" : (12,18),
               "Ag" : (17,22),
               "Ba" : (25,36),
-              "Ti" : (3.8,5.3),
-              "Ca" : (3,7),}
+              "Ti" : (3.8,5.0),
+              "Ca" : (3,4.5),}
 
     rfiles = {"Fe" : "reco_fe_26cm.root",
               "Cu" : "reco_multisource.root",
@@ -255,17 +280,17 @@ if __name__ == "__main__":
     reso = ROOT.TGraphErrors(len(energies))
     i=0
     for mat,etrue in energies.items():
-        response1 =  respdic[mat][0]*calibFe
-        response2 = (respdic[mat][0]+energies[mat][1]-energies[mat][0])*calibFe
-        unc1      = full_error_e(response1,respdic[mat][1]*calibFe)
-        unc2      = full_error_e(response2,respdic[mat][1]*calibFe)
+        response1 =  respdic[mat][0]*calibFe*ic_delta_multisource(mat)
+        response2 = (respdic[mat][0]+energies[mat][1]-energies[mat][0])*calibFe*ic_delta_multisource(mat)
+        unc1      = full_error_e(response1,respdic[mat][1]*calibFe*ic_delta_multisource(mat))
+        unc2      = full_error_e(response2,respdic[mat][1]*calibFe*ic_delta_multisource(mat))
                                  
         resp.SetPoint(i,energies[mat][0],response1)
         resp.SetPointError(i,0,unc1)
         resp2.SetPoint(i,energies[mat][1],response2)
         resp2.SetPointError(i,0,unc2)
-        reso.SetPoint(i,energies[mat][0],100*respdic[mat][2]/respdic[mat][0])
-        reso.SetPointError(i,0,100*respdic[mat][3]/respdic[mat][0])
+        reso.SetPoint(i,energies[mat][0],100*respdic[mat][2]/respdic[mat][0]/ic_delta_multisource(mat))
+        reso.SetPointError(i,0,100*respdic[mat][3]/respdic[mat][0]/ic_delta_multisource(mat))
         i+=1
 
     
@@ -310,7 +335,7 @@ if __name__ == "__main__":
     leg.SetFillStyle(0)
     leg.SetLineColor(0)
     leg.SetTextSize(0.04)
-    leg.AddEntry(resp,"main line","ep")
+    leg.AddEntry(resp,"1^{st} line","ep")
     leg.AddEntry(resp2,"2^{nd} line","ep")
     leg.Draw("Same")
 
@@ -321,7 +346,7 @@ if __name__ == "__main__":
     line.SetLineStyle(ROOT.kDashed)
     line.Draw()
 
-    doTinyCmsPrelim("CYGNO","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
+    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
 
     fout.cd()
     resp.Write()
@@ -341,7 +366,7 @@ if __name__ == "__main__":
     reso.GetYaxis().SetLimits(0,30)
     reso.GetYaxis().SetRangeUser(0,30)
     reso.GetYaxis().SetTitle("#sigma_{E}/E (%)")        
-    doTinyCmsPrelim("CYGNO","(LIME)",lumi=0,textSize=0.04,xoffs=-0.05)
+    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.04,xoffs=-0.05)
     for ext in ['pdf','png','root']:
         c.SaveAs('resolution.{ext}'.format(ext=ext))
 
