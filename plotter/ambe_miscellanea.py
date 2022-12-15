@@ -1,9 +1,25 @@
 import os, math, optparse, ROOT
 from array import array
 from simple_plot import getCanvas, doLegend
+from mcPlots import doTinyCmsPrelim
 
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(True)
+
+def formatHisto(histo):
+    histo.GetXaxis().SetTitleFont(42)
+    histo.GetXaxis().SetTitleSize(0.05)
+    histo.GetXaxis().SetTitleOffset(1.1)
+    histo.GetXaxis().SetLabelFont(42)
+    histo.GetXaxis().SetLabelSize(0.05)
+    histo.GetXaxis().SetLabelOffset(0.007)
+    histo.GetYaxis().SetTitleFont(42)
+    histo.GetYaxis().SetTitleSize(0.05)
+    histo.GetYaxis().SetTitleOffset(1.2)
+    histo.GetYaxis().SetLabelFont(42)
+    histo.GetYaxis().SetLabelSize(0.05)
+    histo.GetYaxis().SetLabelOffset(0.007)
+
 
 def fitFe(rfile,calib=True):
     tf = ROOT.TFile.Open(rfile)
@@ -389,6 +405,42 @@ def fitIntegral(rfile,xmin,xmax,outfilename,hname='integral_diff'):
 
     c.SaveAs(outfilename)
     return [mean,mErr,sigma,sErr]
+
+
+def compareDeDx(histfile="plots_lnf/2022-12-15-cosmics/plots-bkgonly.root"):
+    f = ROOT.TFile.Open(histfile)
+    h_data = f.Get('dedx_background')
+    h_data.SetTitle('')
+    h_toymc_arr = [0.0, 0.0, 0.0, 0.0, 3.0, 6.0, 4.0, 9.0, 18.0, 26.0, 74.0, 122.0, 196.0, 309.0, 476.0, 619.0, 838.0, 1170.0, 1494.0, 1884.0, 2224.0, 2735.0, 3054.0, 3359.0, 3378.0, 3605.0, 3395.0, 3042.0, 2932.0, 2673.0, 2362.0, 2037.0, 1656.0, 1458.0, 1232.0, 1012.0, 784.0, 608.0, 586.0, 440.0, 341.0, 342.0, 245.0, 244.0, 216.0, 158.0, 160.0, 144.0, 143.0, 108.0, 86.0, 79.0, 80.0, 56.0, 79.0, 56.0, 42.0, 34.0, 36.0, 36.0, 34.0, 28.0, 18.0, 27.0, 22.0, 15.0, 25.0, 16.0, 23.0, 16.0, 10.0, 11.0, 15.0, 11.0, 6.0, 13.0, 7.0, 6.0, 7.0, 11.0, 3.0, 7.0, 12.0, 7.0, 7.0, 6.0, 6.0, 5.0, 2.0, 5.0, 3.0, 3.0, 3.0, 2.0, 6.0, 3.0, 2.0, 3.0, 2.0, 3.0]
+    binsize = 12./100. # keV/cm
+
+    h_toymc = h_data.Clone('dedx_toymc')
+    for ibin,val in enumerate(h_toymc_arr):
+        h_toymc.SetBinContent(ibin+1,val)
+
+    h_toymc.Sumw2()
+    h_toymc.Scale(h_data.Integral()/h_toymc.Integral())
+
+    c=getCanvas()
+    c.SetLogy()
+    h_toymc.SetFillColor(ROOT.kCyan)
+    h_data.SetMarkerStyle(ROOT.kFullCircle)
+    h_data.SetMarkerSize(1.5)
+    formatHisto(h_data)
+    h_data.GetYaxis().SetTitle('Superclusters')
+    h_data.Draw('pe')
+    h_toymc.Draw('hist same')
+
+    ## add legend
+    histos = [h_data,h_toymc]
+    labels = ['data','simulation']
+    styles = ['pe','F']
+    legend = doLegend(histos,labels,styles,corner='TR')
+    legend.Draw()
+
+    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
+
+    c.SaveAs('dedx_cosmics_datamc.pdf')
     
 ### this is meant to be run on top of ROOT files produced by simple_plots, not on the trees
 if __name__ == "__main__":
@@ -498,6 +550,8 @@ if __name__ == "__main__":
         reso.GetYaxis().SetTitle("#delta E/E (%)")        
         c.SaveAs("resolution.pdf")
 
+    elif options.make == 'dedx-comp':
+        compareDeDx()
         
     else:
         print ("make ",options.make," not implemented.")

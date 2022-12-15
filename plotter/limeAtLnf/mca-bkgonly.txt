@@ -1,0 +1,4 @@
+bkg    : reco_bkgtofe_26cm : 1 ; FillColor=ROOT.kBlue+1, FillStyle=3004, Label="No source" 
+fakes+ : reco_pedestals : 1 ; FillColor=ROOT.kRed+1, Label="Fakes"
+
+data   : reco_fe_26cm : 1 ; FillColor=ROOT.kRed+1, Label="Source"

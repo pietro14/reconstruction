@@ -175,7 +175,7 @@ def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBo
     nentries = len(histos)
     (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
     if corner == "TR":
-        (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
+        (x1,y1,x2,y2) = (.83-legWidth, .7 - textSize*max(nentries-3,0), .88, .89)
     elif corner == "TC":
         (x1,y1,x2,y2) = (.5, .7 - textSize*max(nentries-3,0), .5+legWidth, .89)
     elif corner == "TL":

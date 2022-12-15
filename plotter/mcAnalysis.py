@@ -214,11 +214,6 @@ class MCAnalysis:
                         ## get the counts from the histograms instead of pickle file (smart, but extra load for ROOT from EOS it seems)
                         total_w += sum(tty.getEntries() for tty in self._allData[pname])
                         is_w = 0
-<<<<<<< HEAD
-                        total_w += tmp_tree.GetEntries()
-                        print ("total w = ",total_w)
-=======
->>>>>>> origin/summer22
                         scale = "(%s)" % field[2]
                     else:
                         countersobj  = open(countersfile, "r")
@@ -245,10 +240,7 @@ class MCAnalysis:
                 else:
                     print("Poorly formatted line: ", field)
                     raise RuntimeError
-<<<<<<< HEAD
-=======
-                
->>>>>>> origin/summer22
+
                 # Adjust free-float and fixed from command line
                 for p0 in options.processesToFloat:
                     for p in p0.split(","):
@@ -278,15 +270,13 @@ class MCAnalysis:
                     myvariations[0].name = "norm_"+tty.getOption('PegNormToProcess')
                     print("Overwrite the norm systematic for %s to make it correlated with %s" % (pname, tty.getOption('PegNormToProcess')))
                 if pname not in self._rank: self._rank[pname] = len(self._rank)
-<<<<<<< HEAD
-            if to_norm: 
-                for tty in ttys: tty.setScaleFactor("%s*%g" % (scale, 1.0/total_w))
-=======
             if to_norm:
                 for tty in ttys: tty.setScaleFactor("%s" % scale)
->>>>>>> origin/summer22
             for tty in ttys: tty.makeTTYVariations()
-        data_entries = sum(tty.getEntries() for tty in self._allData['data'])
+        if 'data' in self._allData:
+            data_entries = sum(tty.getEntries() for tty in self._allData['data'])
+        else:
+            data_entries = 1
         for p in self.listProcesses():
             if p != 'data':
                 p_entries = sum(tty.getEntries() for tty in self._allData[p])
