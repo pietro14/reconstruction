@@ -272,7 +272,7 @@ class analysis:
         pedmap.Write()
         pedmapS.Write()
         pedmean1D = ROOT.TH1D('pedmean','pedestal mean',500,97,103)
-        pedrms1D = ROOT.TH1D('pedrms','pedestal RMS',500,0,5)
+        pedrms1D = ROOT.TH1D('pedrms','pedestal RMS',1000,0,10)
         for ix in range(nx):
             for iy in range(ny):
                pedmean1D.Fill(pedmap.GetBinContent(ix,iy)) 
