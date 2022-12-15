@@ -15,7 +15,7 @@ def full_error_e(energy,staterr,deltax=2):
 def ic_delta_multisource(mat,k=1.2):
     return k if mat!='Fe' else 1
 
-def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
+def fitOne(filein,selection,erange,mrange,suffix,energies,nbins,pdir):
 
     var = 'sc_integral*6/8000'
     # fitting Fe peak in Ti transparency mode
@@ -189,20 +189,33 @@ def fitOne(filein,selection,erange,mrange,suffix,energies,nbins):
     doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
     
     for ext in ['pdf','png','root']:
-        c.SaveAs('energy_{suff}.{ext}'.format(ext=ext,suff=suffix))
+        c.SaveAs('{pdir}/energy_{suff}.{ext}'.format(pdir=pdir,ext=ext,suff=suffix))
 
     m    = work.var('mean1').getVal()
     merr = work.var('mean1').getError()
     s    = work.var('sigma').getVal()
     serr = work.var('sigma').getError()
+    if suffix in ['Ti','Ca']:
+        m2 = work.var('mean3').getVal()
+        m2err = work.var('mean3').getError()
+    else:
+        m2 = None
+        m2err = None
 
-    return [m,merr,s,serr]
+    return [m,merr,s,serr,m2,m2err]
 
 if __name__ == "__main__":
 
     parser = optparse.OptionParser(usage='usage: %prog [opts] ', version='%prog 1.0')
+    parser.add_option("--pdir", "--print-dir", dest="printDir", type="string", default="plots", help="print out plots in this directory");
     (options, args) = parser.parse_args()
 
+    outname = options.printDir
+    if not os.path.exists(outname):
+        os.system("mkdir -p "+outname)
+        if os.path.exists("../index.php"): os.system("cp ../index.php "+outname)
+    print("Will save plots to ",outname)
+    
     base_sel = "(TMath::Hypot(sc_xmean-2304/2,sc_ymean-2304/2)<800)"
 
     materials = ["Ag","Ba","Cu","Rb","Mo","Fe","Ti","Ca"]
@@ -269,7 +282,7 @@ if __name__ == "__main__":
     respdic["Fe"] = [energies['Fe'][0],0,0.9,0]
 
     for mat in materials:
-        respdic[mat] = fitOne("trees-lnf/%s" % rfiles[mat],'({base})*({extra})'.format(base=base_sel,extra=extras[mat]),eranges[mat],mrange[mat],mat,energies[mat],nbins[mat])
+        respdic[mat] = fitOne("trees-lnf/%s" % rfiles[mat],'({base})*({extra})'.format(base=base_sel,extra=extras[mat]),eranges[mat],mrange[mat],mat,energies[mat],nbins[mat],outname)
 
     calibFe = energies['Fe'][0]/respdic['Fe'][0]
 
@@ -284,13 +297,17 @@ if __name__ == "__main__":
         response2 = (respdic[mat][0]+energies[mat][1]-energies[mat][0])*calibFe*ic_delta_multisource(mat)
         unc1      = full_error_e(response1,respdic[mat][1]*calibFe*ic_delta_multisource(mat))
         unc2      = full_error_e(response2,respdic[mat][1]*calibFe*ic_delta_multisource(mat))
-                                 
+        if mat in ['Ti','Ca']: # in these cases the Fe peak dominates the fit for the sigmaR
+            scaleForResolNorm = respdic[mat][4]*calibFe*ic_delta_multisource(mat)
+        else:
+            scaleForResolNorm = respdic[mat][0]*calibFe*ic_delta_multisource(mat)
+            
         resp.SetPoint(i,energies[mat][0],response1)
         resp.SetPointError(i,0,unc1)
         resp2.SetPoint(i,energies[mat][1],response2)
         resp2.SetPointError(i,0,unc2)
-        reso.SetPoint(i,energies[mat][0],100*respdic[mat][2]/respdic[mat][0]/ic_delta_multisource(mat))
-        reso.SetPointError(i,0,100*respdic[mat][3]/respdic[mat][0]/ic_delta_multisource(mat))
+        reso.SetPoint(i,energies[mat][0],100*respdic[mat][2]/scaleForResolNorm/ic_delta_multisource(mat))
+        reso.SetPointError(i,0,100*respdic[mat][3]/scaleForResolNorm/ic_delta_multisource(mat))
         i+=1
 
     
@@ -352,7 +369,7 @@ if __name__ == "__main__":
     resp.Write()
     c.Write()
     for ext in ['pdf','png','root']:
-        c.SaveAs('linearity.{ext}'.format(ext=ext))
+        c.SaveAs('{pdir}/linearity.{ext}'.format(pdir=outname,ext=ext))
     fout.Close()
     
     # energy resolution
@@ -368,7 +385,7 @@ if __name__ == "__main__":
     reso.GetYaxis().SetTitle("#sigma_{E}/E (%)")        
     doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.04,xoffs=-0.05)
     for ext in ['pdf','png','root']:
-        c.SaveAs('resolution.{ext}'.format(ext=ext))
+        c.SaveAs('{pdir}/resolution.{ext}'.format(pdir=outname,ext=ext))
 
 
 
