@@ -16,6 +16,8 @@ cal_integral_normrange:  calib_energy(sc_integral)    : 100,0,2 ; XTitle="I_{SC}
 
 density:                 sc_integral/sc_nhits : 50,0,50 ; XTitle="#delta (photons/pixels)", IncludeOverflows=True
 
+dedx:   calib_energy(sc_integral)/(0.0152 * sc_length) : 100,0,12 ; XTitle="E_{SC}/length (keV/cm)", IncludeOverflows=False
+
 rms:    sc_rms : 50,0,20 ; XTitle="rms (photons)", IncludeOverflows=True
 
 length: 0.152 * sc_length : 50,0,350 ; XTitle="length (mm)", IncludeOverflows=True, Logy=True
