@@ -441,6 +441,37 @@ def plotPedRms1D(histfile="../pedestals/pedmap_run5857_rebin1.root"):
     doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=0.0)
     c.SaveAs('pedrms1d.pdf')
 
+def plotPedHistory(var,tmin=0,tmax=100):
+    f = ROOT.TFile.Open('ped%s.root' % var)
+    g_data = f.Get('history')
+    g_data.SetMarkerStyle(ROOT.kOpenCircle)
+    g_data.SetMarkerSize(1.5)
+    
+    start_time = ROOT.TDatime(2022,6,23,12,0,0).Convert()
+    stop_time  = ROOT.TDatime(2022,7,6,12,0,0).Convert()
+
+    g_data.GetXaxis().SetRangeUser(start_time,stop_time)
+    g_data.GetXaxis().SetTimeFormat("%d-%m");
+    g_data.GetXaxis().SetNdivisions(-502)
+
+    if var=='mean':
+        g_data.GetYaxis().SetRangeUser(100.3,100.7)
+    else:
+        g_data.GetYaxis().SetRangeUser(3.2,3.5)        
+
+    g_data.GetYaxis().SetDecimals()
+            
+    c=getCanvas()
+    c.SetLeftMargin(0.2)
+    ROOT.gStyle.SetOptStat(0)
+    g_data.GetYaxis().SetTitle('pedestal mean' if var=='mean' else 'pedestal #sigma')
+    formatHisto(g_data)
+    g_data.GetYaxis().SetTitleOffset(2.1)
+    g_data.Draw('AP')
+
+    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=0)
+    c.SaveAs('ped%s.pdf' % var)
+
     
 def compareDeDx(histfile="plots_lnf/2022-12-15-cosmics/plots-bkgonly.root"):
     f = ROOT.TFile.Open(histfile)
@@ -597,6 +628,10 @@ if __name__ == "__main__":
 
     elif options.make == 'pedrms1d':
         plotPedRms1D()
+
+    elif options.make == 'pedhistory':
+        plotPedHistory('mean')
+        plotPedHistory('rms')
         
     else:
         print ("make ",options.make," not implemented.")
