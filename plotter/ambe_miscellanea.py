@@ -407,6 +407,41 @@ def fitIntegral(rfile,xmin,xmax,outfilename,hname='integral_diff'):
     return [mean,mErr,sigma,sErr]
 
 
+def plotVignette1D(histfile="../data/vignette_runs03930to03932.root"):
+    f = ROOT.TFile.Open(histfile)
+    h_data = f.Get('vign1d')
+
+    c=getCanvas()
+    ROOT.gStyle.SetOptStat(0)
+    h_data.SetMarkerStyle(ROOT.kFullCircle)
+    h_data.SetMarkerSize(1.5)
+    h_data.GetXaxis().SetTitle('R (pixels)')
+    h_data.GetYaxis().SetTitle('LY / LY_{R=0}')
+    formatHisto(h_data)
+    h_data.Draw('pe')
+
+    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=-0.04)
+    c.SaveAs('vignette1d.pdf')
+
+def plotPedRms1D(histfile="../pedestals/pedmap_run5857_rebin1.root"):
+    f = ROOT.TFile.Open(histfile)
+    h_data = f.Get('pedrms')
+
+    c=getCanvas()
+    c.SetLeftMargin(0.2)
+    ROOT.gStyle.SetOptStat(0)
+    h_data.SetFillStyle(1001)
+    h_data.SetFillColor(ROOT.kAzure-9)
+    h_data.GetXaxis().SetTitle('Pedestal #sigma')
+    h_data.GetYaxis().SetTitle('Pixels')
+    formatHisto(h_data)
+    h_data.GetYaxis().SetTitleOffset(2.1)
+    h_data.Draw('hist')
+
+    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=0.0)
+    c.SaveAs('pedrms1d.pdf')
+
+    
 def compareDeDx(histfile="plots_lnf/2022-12-15-cosmics/plots-bkgonly.root"):
     f = ROOT.TFile.Open(histfile)
     h_data = f.Get('dedx_background')
@@ -415,6 +450,7 @@ def compareDeDx(histfile="plots_lnf/2022-12-15-cosmics/plots-bkgonly.root"):
     binsize = 12./100. # keV/cm
 
     h_toymc = h_data.Clone('dedx_toymc')
+    h_toymc.SetFillStyle(1001)
     for ibin,val in enumerate(h_toymc_arr):
         h_toymc.SetBinContent(ibin+1,val)
 
@@ -422,14 +458,15 @@ def compareDeDx(histfile="plots_lnf/2022-12-15-cosmics/plots-bkgonly.root"):
     h_toymc.Scale(h_data.Integral()/h_toymc.Integral())
 
     c=getCanvas()
+    ROOT.gStyle.SetOptStat(0)
     c.SetLogy()
-    h_toymc.SetFillColor(ROOT.kCyan)
     h_data.SetMarkerStyle(ROOT.kFullCircle)
     h_data.SetMarkerSize(1.5)
-    formatHisto(h_data)
-    h_data.GetYaxis().SetTitle('Superclusters')
-    h_data.Draw('pe')
-    h_toymc.Draw('hist same')
+    h_toymc.SetFillColor(ROOT.kAzure+6)
+    h_toymc.GetYaxis().SetTitle('Superclusters')
+    formatHisto(h_toymc)
+    h_toymc.Draw('hist')
+    h_data.Draw('pe same')
 
     ## add legend
     histos = [h_data,h_toymc]
@@ -438,7 +475,7 @@ def compareDeDx(histfile="plots_lnf/2022-12-15-cosmics/plots-bkgonly.root"):
     legend = doLegend(histos,labels,styles,corner='TR')
     legend.Draw()
 
-    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=-0.06)
+    doTinyCmsPrelim("#bf{CYGNO}","(LIME)",lumi=0,textSize=0.05,xoffs=-0.04)
 
     c.SaveAs('dedx_cosmics_datamc.pdf')
     
@@ -450,7 +487,9 @@ if __name__ == "__main__":
     parser.add_option('', '--outdir' , type='string'       , default='./'    , help='output directory with directory structure and plots')
     parser.add_option('', '--source' , type='string'       , default='ambe'  , help='in case of efficiency plotting, make it for fe/ambe')
     (options, args) = parser.parse_args()
-                 
+
+    ROOT.gROOT.ProcessLine(".x tdrstyle.cc")
+
     if  options.make == 'fitfe':
         fitFe('plots/ambe/clusters_3sourcesNloCalNeutronsFex1_2020_05_05/energy.root')
     elif options.make == 'fitfeuncalib':
@@ -552,6 +591,12 @@ if __name__ == "__main__":
 
     elif options.make == 'dedx-comp':
         compareDeDx()
+
+    elif options.make == 'plotvignette':
+        plotVignette1D()
+
+    elif options.make == 'pedrms1d':
+        plotPedRms1D()
         
     else:
         print ("make ",options.make," not implemented.")

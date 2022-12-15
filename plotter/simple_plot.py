@@ -755,7 +755,7 @@ def getCanvas(name='c'):
     lMargin = 0.14
     rMargin = 0.10
     bMargin = 0.15
-    tMargin = 0.10
+    tMargin = 0.07
     c.SetLeftMargin(lMargin)
     c.SetRightMargin(rMargin)
     c.SetTopMargin(tMargin)
@@ -1747,6 +1747,8 @@ if __name__ == "__main__":
     parser.add_option('', '--var2' , type='string'       , default='slimness'      , help='variable2 to plot the histogram 2D')
     
     (options, args) = parser.parse_args()
+
+    ROOT.gROOT.ProcessLine(".x tdrstyle.cc")
 
     ## make the output directory first
     os.system('mkdir -p {od}'.format(od=options.outdir))
