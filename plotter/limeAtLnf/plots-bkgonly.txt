@@ -16,7 +16,7 @@ cal_integral_anyrange:   calib_energy(sc_integral)    : 100,0,225 ; XTitle="E_{S
 
 cal_integral_highrange:  calib_energy(sc_integral)    : 100,15,225 ; XTitle="E_{SC} (keV)", IncludeOverflows=True
 
-cal_integral_lowrange:   calib_energy(sc_integral)    : 100,0.5,16 ; XTitle="E_{SC} (keV)", IncludeOverflows=False
+cal_integral_lowrange:   calib_energy(sc_integral)    : 85,0.,50 ; XTitle="E_{SC} (keV)", IncludeOverflows=False, Logy=True
 
 cal_integral_normrange:  calib_energy(sc_integral)    : 100,0,2 ; XTitle="E_{SC} (keV)", IncludeOverflows=False
 
