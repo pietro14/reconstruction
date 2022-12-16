@@ -175,7 +175,7 @@ def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBo
     nentries = len(histos)
     (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
     if corner == "TR":
-        (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
+        (x1,y1,x2,y2) = (.83-legWidth, .7 - textSize*max(nentries-3,0), .88, .89)
     elif corner == "TC":
         (x1,y1,x2,y2) = (.5, .7 - textSize*max(nentries-3,0), .5+legWidth, .89)
     elif corner == "TL":
@@ -755,7 +755,7 @@ def getCanvas(name='c'):
     lMargin = 0.14
     rMargin = 0.10
     bMargin = 0.15
-    tMargin = 0.10
+    tMargin = 0.07
     c.SetLeftMargin(lMargin)
     c.SetRightMargin(rMargin)
     c.SetTopMargin(tMargin)
@@ -1747,6 +1747,8 @@ if __name__ == "__main__":
     parser.add_option('', '--var2' , type='string'       , default='slimness'      , help='variable2 to plot the histogram 2D')
     
     (options, args) = parser.parse_args()
+
+    ROOT.gROOT.ProcessLine(".x tdrstyle.cc")
 
     ## make the output directory first
     os.system('mkdir -p {od}'.format(od=options.outdir))

@@ -1,3 +1,4 @@
+alwaystrue : 1
 clusters : sc_integral > 0
 #runrange : (run>=1700 && run<=2300) || run>5000
 minenergy   : sc_integral > 0

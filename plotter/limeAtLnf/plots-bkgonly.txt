@@ -24,7 +24,7 @@ density:                 sc_integral/sc_nhits : 50,0,50 ; XTitle="#delta (photon
 
 density_fine:            sc_integral/sc_nhits : 80,5,20 ; XTitle="#delta (photons/pixels)", IncludeOverflows=True
 
-dedx:   calib_energy(sc_integral)/(0.152 * sc_length) : 50,0,3 ; XTitle="E_{SC}/length (keV/mm)", IncludeOverflows=True
+dedx:   calib_energy(sc_integral)/(0.0152 * sc_length) : 100,0,12 ; XTitle="E_{SC}/length (keV/cm)", IncludeOverflows=False
 
 rms:    sc_rms : 50,0,20 ; XTitle="rms (photons)", IncludeOverflows=True
 

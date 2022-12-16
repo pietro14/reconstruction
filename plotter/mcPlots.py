@@ -147,7 +147,7 @@ def doTinyCmsPrelim(textLeft="_default_",textRight="_default_",hasExpo=False,tex
     if textLeft not in ['', None]:
         doSpam(textLeft, (.28 if hasExpo else 0.07 if doWide else .16)+xoffs, .955, .60+xoffs, .995, align=12, textSize=textSize)
     if textRight not in ['', None]:
-        doSpam(textRight,(0.5 if doWide else .58)+xoffs, .955, .98+xoffs, .995, align=32, textSize=textSize)
+        doSpam(textRight,(0.5 if doWide else .58)+xoffs, .955, .96+xoffs, .995, align=32, textSize=textSize)
 
 def reMax(hist,hist2,islog,factorLin=1.3,factorLog=2.0,doWide=False):
     if  hist.ClassName() == 'THStack':
