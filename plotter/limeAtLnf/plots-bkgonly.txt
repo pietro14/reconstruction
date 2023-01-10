@@ -1,3 +1,9 @@
+cmos_integral: calib_energy(cmos_integral)  : 30,2200,3500 ; XTitle="sensor energy (keV/50 ms)", IncludeOverflows=True
+
+multiplicity: nSc : 40,0,130 ; XTitle="Supercluster number", IncludeOverflows=True
+
+energy_integral: calib_energy(Sum$(sc_integral)) : 30,100,1600 ; XTitle="#sum_{i} E_{SC}^{i} (keV/50 ms)", IncludeOverflows=True
+
 raw_integral_anyrange:   sc_integral    : 100,5e2,3e5 ; XTitle="I_{SC} (photons)", IncludeOverflows=True, Logy=True
 
 raw_integral_highrange:  sc_integral    : 100,5e3,3e5 ; XTitle="I_{SC} (photons)", IncludeOverflows=True
@@ -8,15 +14,17 @@ raw_integral_normrange:  sc_integral    : 100,0,3e3 ; XTitle="I_{SC} (photons)",
 
 cal_integral_anyrange:   calib_energy(sc_integral)    : 100,0,225 ; XTitle="E_{SC} (keV)", IncludeOverflows=True, Logy=True
 
-cal_integral_highrange:  calib_energy(sc_integral)    : 100,15,225 ; XTitle="I_{SC} (keV)", IncludeOverflows=True
+cal_integral_highrange:  calib_energy(sc_integral)    : 100,50,300 ; XTitle="E_{SC} (keV)", IncludeOverflows=True, Logy=True
 
-cal_integral_lowrange:   calib_energy(sc_integral)    : 100,0.5,16 ; XTitle="I_{SC} (keV)", IncludeOverflows=False
+cal_integral_lowrange:   calib_energy(sc_integral)    : 85,0.,50 ; XTitle="E_{SC} (keV)", IncludeOverflows=False, Logy=True
 
-cal_integral_normrange:  calib_energy(sc_integral)    : 100,0,2 ; XTitle="I_{SC} (keV)", IncludeOverflows=False
+cal_integral_normrange:  calib_energy(sc_integral)    : 100,0,2 ; XTitle="E_{SC} (keV)", IncludeOverflows=False
 
 density:                 sc_integral/sc_nhits : 50,0,50 ; XTitle="#delta (photons/pixels)", IncludeOverflows=True
 
-dedx:   calib_energy(sc_integral)/(0.0152 * sc_length) : 100,0,12 ; XTitle="E_{SC}/length (keV/cm)", IncludeOverflows=False
+density_fine:            sc_integral/sc_nhits : 100,5,35 ; XTitle="#delta (photons/pixels)", IncludeOverflows=True, Logy=True
+
+dedx:   calib_energy(sc_integral)/(0.0152 * sc_length) : 100,0,12 ; XTitle="E_{SC}/length (keV/cm)", IncludeOverflows=True
 
 rms:    sc_rms : 50,0,20 ; XTitle="rms (photons)", IncludeOverflows=True
 

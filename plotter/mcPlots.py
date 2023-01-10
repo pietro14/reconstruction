@@ -566,14 +566,14 @@ def doLegend(pmap,mca,corner="TR",textSize=0.035,cutoff=1e-2,cutoffSignals=True,
                 lbl = mca.getProcessOption(p,'Label',p)
                 if signalPlotScale and signalPlotScale!=1: 
                     lbl=lbl+" x "+("%d"%signalPlotScale if floor(signalPlotScale)==signalPlotScale else "%.2f"%signalPlotScale)
-                myStyle = mcStyle if type(mcStyle) == str else mcStyle[0]
+                myStyle = mcStyle if type(mcStyle) == str else mcStyle[1] if any(re.match(x,p) for x in options.forceFillColorNostackMode.split(",")) else mcStyle[0]
                 sigEntries.append( (pmap[p],lbl,myStyle) )
         backgrounds = mca.listBackgrounds(allProcs=True)
         for p in backgrounds:
             if mca.getProcessOption(p,'HideInLegend',False): continue
             if p in pmap and pmap[p].Integral() >= cutoff*total: 
                 lbl = mca.getProcessOption(p,'Label',p)
-                myStyle = mcStyle if type(mcStyle) == str else mcStyle[1]
+                myStyle = mcStyle if type(mcStyle) == str else mcStyle[1] if any(re.match(x,p) for x in options.forceFillColorNostackMode.split(",")) else mcStyle[0]
                 bgEntries.append( (pmap[p],lbl,myStyle) )
         nentries = len(sigEntries) + len(bgEntries) + ('data' in pmap)
 
@@ -738,7 +738,8 @@ class PlotMaker:
                                   xblind=xblind,
                                   makeCanvas=makeCanvas,
                                   outputDir=dir,
-                                  printDir=self._options.printDir+(("/"+subname) if subname else ""))
+                                  printDir=self._options.printDir+(("/"+subname) if subname else ""),
+                                  contentAxisTitle=self._options.contentAxisTitle)
                 if getattr(mca,'_altPostFits',None):
                     roofit = roofitizeReport(pmap)
                     if self._options.processesToPeg == []:
@@ -762,7 +763,8 @@ class PlotMaker:
                                           xblind=xblind,
                                           makeCanvas=makeCanvas,
                                           outputDir=subdir,
-                                          printDir=self._options.printDir+(("/"+subname) if subname else "")+"/post_"+key)
+                                          printDir=self._options.printDir+(("/"+subname) if subname else "")+"/post_"+key,
+                                          contentAxisTitle=self._options.contentAxisTitle)
                         if getattr(pfs, 'label', None):
                             self._options.legendHeader = legendHeaderBackup
                 if pspec.getOption("SlicesY",None):
@@ -778,10 +780,11 @@ class PlotMaker:
                                 stylePlot(h,pspec_slice, lambda opt, deft: mca.getProcessOption(k, opt, deft))
                         self.printOnePlot(mca,pspec_slice,pmap_slice,
                                           xblind=xblind, makeCanvas=makeCanvas, outputDir=dir,
-                                          printDir=self._options.printDir+(("/"+subname) if subname else ""))
+                                          printDir=self._options.printDir+(("/"+subname) if subname else ""),
+                                          contentAxisTitle=self._options.contentAxisTitle)
             if elist: mca.clearCut()
 
-    def printOnePlot(self,mca,pspec,pmapIn,mytotal=None,makeCanvas=True,outputDir=None,printDir=None,xblind=[9e99,-9e99],extraProcesses=[],plotmode="auto",outputName=None):
+    def printOnePlot(self,mca,pspec,pmapIn,mytotal=None,makeCanvas=True,outputDir=None,printDir=None,xblind=[9e99,-9e99],extraProcesses=[],plotmode="auto",outputName=None,contentAxisTitle=None):
                 pmap = dict( (k, h if isinstance(h,HistoWithNuisances) else HistoWithNuisances(h)) for (k,h) in pmapIn.items() )
                 options = self._options
                 if printDir == None: printDir=self._options.printDir
@@ -828,7 +831,10 @@ class PlotMaker:
                         else:
                             plot.SetLineColor(plot.GetFillColor())
                             plot.SetLineWidth(3)
-                            plot.SetFillStyle(0)
+                            if len(options.forceFillColorNostackMode) and any(re.match(x,p) for x in options.forceFillColorNostackMode.split(",")):
+                                pass
+                            else:
+                                plot.SetFillStyle(0)
                             if plotmode == "norm" and (plot.ClassName()[:2] == "TH"):
                                 ref = pmap['data'].Integral() if 'data' in pmap else 1.0
                                 if (plot.Integral()): plot.Scale(ref/plot.Integral())
@@ -860,6 +866,7 @@ class PlotMaker:
 
                 stack.Draw("GOFF")
                 ytitle = "Events" if not self._options.printBinning else "Events / %s" %(self._options.printBinning)
+                if contentAxisTitle != None: ytitle = contentAxisTitle
                 total.GetXaxis().SetTitleFont(42)
                 total.GetXaxis().SetTitleSize(0.05)
                 total.GetXaxis().SetTitleOffset(1.1)
@@ -952,8 +959,8 @@ class PlotMaker:
                     total.SetMinimum(pspec.getOption('YMin'))
                 if pspec.hasOption('ZMin') and pspec.hasOption('ZMax'):
                     total.GetZaxis().SetRangeUser(pspec.getOption('ZMin',1.0), pspec.getOption('ZMax',1.0))
-                #if options.yrange: 
-                #    total.GetYaxis().SetRangeUser(options.yrange[0], options.yrange[1])
+                if options.yrange: 
+                    total.GetYaxis().SetRangeUser(options.yrange[0], options.yrange[1])
                 if options.addspam:
                     if pspec.getOption('Legend','TR')=="TL":
                         doSpam(options.addspam, .68, .855, .9, .895, align=32, textSize=(0.045 if doRatio else 0.033)*options.topSpamSize)
@@ -964,7 +971,7 @@ class PlotMaker:
                 if plotmode == "stack":
                     if options.noStackSig: mcStyle = ("L","F")
                     else:                  mcStyle = "F"
-                else: mcStyle = "L"
+                else: mcStyle = ("L","F") if len(options.forceFillColorNostackMode) else "L"
                 if options.allProcInLegend: legendCutoff = 0.0
                 doLegend(pmap,mca,corner=pspec.getOption('Legend','TR'),
                                   cutoff=legendCutoff, mcStyle=mcStyle,
@@ -1109,6 +1116,7 @@ class PlotMaker:
                                     plot.SetMarkerColor(mca.getProcessOption(p,'FillColor',ROOT.kBlack,noThrow=True))
                                     plot.Draw(pspec.getOption("PlotMode","COLZ"))
                                     c1.Print("%s/%s_%s.%s" % (fdir, outputName, p, ext))
+                                    if contentAxisTitle != None: plot.GetZaxis().SetTitle(contentAxisTitle)
                                 if "data" in pmap and "TGraph" in pmap["data"].ClassName():
                                     pmap["data"].SetMarkerStyle(mca.getProcessOption('data','MarkerStyle',1))
                                     pmap["data"].SetMarkerSize(pspec.getOption("MarkerSize",1.6))
@@ -1183,7 +1191,7 @@ def addPlotMakerOptions(parser, addAlsoMCAnalysis=True):
     parser.add_option("--wide", dest="wideplot", action="store_true", default=False, help="Draw a wide canvas")
     parser.add_option("--elist", dest="elist", action="store_true", default='auto', help="Use elist (on by default if making more than 2 plots)")
     parser.add_option("--no-elist", dest="elist", action="store_false", default='auto', help="Don't elist (which are on by default if making more than 2 plots)")
-    #if not parser.has_option("--yrange"): parser.add_option("--yrange", dest="yrange", default=None, nargs=2, type='float', help="Y axis range");
+    if not parser.has_option("--yrange"): parser.add_option("--yrange", dest="yrange", default=None, nargs=2, type='float', help="Y axis range");
     parser.add_option("--emptyStack", dest="emptyStack", action="store_true", default=False, help="Allow empty stack in order to plot, for example, only signals but no backgrounds.")
     parser.add_option("--perBin", dest="perBin", action="store_true", default=False, help="Print the contents of every bin in another txt file");
     parser.add_option("--legendHeader", dest="legendHeader", type="string", default=None, help="Put a header to the legend")
@@ -1194,6 +1202,8 @@ def addPlotMakerOptions(parser, addAlsoMCAnalysis=True):
     parser.add_option("--cmssqrtS", dest="cmssqrtS", type="string", default="LIME", help="Sqrt of s to be written in the official CMS text.")
     parser.add_option("--printBin", dest="printBinning", type="string", default=None, help="Write 'Events/xx' instead of 'Events' on the y axis")
     parser.add_option("--allProcInLegend", action="store_true", help="Put all processes in legend, regardless their integral.")
+    parser.add_option("--forceFillColorNostackMode", type=str, default="", help="Use fill color and style defined in MCA file when using --plotmode nostack|norm (comma separated list of regexps, by default only lines are used).")
+    parser.add_option("--contentAxisTitle", type=str, help="Set name of axis with bin content (Y for TH1, Z for TH2), overriding the one set by default or in the MCA file")
     
 if __name__ == "__main__":
     from optparse import OptionParser
