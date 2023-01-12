@@ -31,7 +31,7 @@ def reporthook(blocknum, blocksize, totalsize):
     else: # total size is unknown
         sys.stderr.write("read %d\n" % (readsofar,))
 
-def swift_download_root_file(url,run,tmp=None):
+def swift_download_root_file(url,run,tmp=None,justName=False):
     import ROOT
     from urllib.request import urlretrieve
     try:
@@ -44,7 +44,8 @@ def swift_download_root_file(url,run,tmp=None):
          tmpname = ("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
     else:
          tmpname = ("%s/histograms_Run%05d.root" % (tmpdir,run))
-    urlretrieve(url, tmpname, reporthook)
+    if not justName:
+        urlretrieve(url, tmpname, reporthook)
     return tmpname 
 
 def rootlocation(tag,run):
@@ -69,7 +70,7 @@ def rootlocation(tag,run):
     return sel
 
 def swift_read_root_file(tmpname):
-    f  = uproot.open(tmpname,object_cache=None,array_cache=None)
+    f  = uproot.open(tmpname)
     return f
 
 def swift_rm_root_file(tmpname):

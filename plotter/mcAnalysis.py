@@ -273,7 +273,10 @@ class MCAnalysis:
             if to_norm:
                 for tty in ttys: tty.setScaleFactor("%s" % scale)
             for tty in ttys: tty.makeTTYVariations()
-        data_entries = sum(tty.getEntries() for tty in self._allData['data'])
+        if 'data' in self._allData:
+            data_entries = sum(tty.getEntries() for tty in self._allData['data'])
+        else:
+            data_entries = 1
         for p in self.listProcesses():
             if p != 'data':
                 p_entries = sum(tty.getEntries() for tty in self._allData[p])

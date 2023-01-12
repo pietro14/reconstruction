@@ -7,10 +7,11 @@ def getGraph(name,title,runs):
 
     ret = ROOT.TGraphErrors()
     ret.SetTitle("")
+    ret.SetName("history")
     r = 0
     print(runs)
     for run,time in runs.items():
-        fname = "../pedestals/pedmap_run%d_rebin1.root" % run
+        fname = "/nfs/cygno2/CYGNO_RECO/Autumn22Prod/lime_pedestals/pedmap_run%d_rebin1.root" % run
         if not os.path.isfile(fname):
             print ("run ",run," not present, skip...")
             continue
@@ -84,5 +85,9 @@ if __name__ == '__main__':
         c.SetBottomMargin(0.2); c.SetLeftMargin(0.2); c.SetRightMargin(0.1); 
         result.Draw("AP")
 
-        for ext in ['pdf','png','root']:
+        for ext in ['pdf','png']:
             c.SaveAs("%s.%s" % (var,ext))
+
+        fout = ROOT.TFile.Open("%s.root" % var,'recreate')
+        result.Write()
+        fout.Close()

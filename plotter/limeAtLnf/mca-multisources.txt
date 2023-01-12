@@ -1,0 +1,16 @@
+fe+             : reco_fe_26cm      : 1 ; FillColor=ROOT.kRed+1, FillStyle=3004, Label="^{55}Fe source" 
+
+cu+             : reco_multisource  : (run>=5801 && run<=5805) ; FillColor=ROOT.kGreen+3, FillStyle=3004, Label="Cu source" 
+rb+             : reco_multisource  : (run>=5806 && run<=5810) ; FillColor=ROOT.kAzure+2, FillStyle=3004, Label="Rb source" 
+mo+             : reco_multisource  : (run>=5811 && run<=5820) ; FillColor=ROOT.kAzure+8, FillStyle=3004, Label="Mo source" 
+ag+             : reco_multisource  : (run>=5821 && run<=5830) ; FillColor=ROOT.kViolet-3, FillStyle=3004, Label="Ag source" 
+ba+             : reco_multisource  : (run>=5831 && run<=5845) ; FillColor=ROOT.kOrange+1, FillStyle=3004, Label="Ba source" 
+
+ti+       : reco_titanium     : (run>=6122 && run<=6131) ; FillColor=ROOT.kBlue+1, FillStyle=3004, Label="Ti source" 
+ca+        : reco_calcium      : (run!=6153 && run!=6164 && run!=6175 && run!=6186 && run!=6197 && run!=6208 && run!=6221 && run!=6232 && run!=6243 && run!=6254 && run!=6265 && run!=6276 && run!=6287 && run!=6290) ; FillColor=ROOT.kMagenta+1, FillStyle=3004, Label="Ca source"
+
+#fakes+ : reco_pedestals : 1 ; FillColor=ROOT.kRed+1, Label="Fakes"
+
+bkg    : reco_bkgtofe_26cm : 1 ; FillColor=ROOT.kBlack, FillStyle=3004, Label="No source" 
+
+data   : reco_fe_26cm : 1 ; FillColor=ROOT.kRed+1, Label="Source"
