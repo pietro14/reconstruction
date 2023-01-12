@@ -140,12 +140,14 @@ class analysis:
         pedmapS = ROOT.TH2D('pedmapsigma','pedmapsigma',nx,0,self.xmax,ny,0,self.xmax)
 
         pedsum = np.zeros((nx,ny))
-        
+
         if options.rawdata_tier == 'root':
             tmpdir = '{tmpdir}'.format(tmpdir=options.tmpdir if options.tmpdir else "/tmp/")
             if not sw.checkfiletmp(int(options.pedrun),'root',tmpdir):
                 print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.pedrun)))
                 pedfilename = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.pedrun)),int(options.pedrun),tmpdir)
+            else:
+                pedfilename = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.pedrun)),int(options.pedrun),tmp=tmpdir,justName=True)                
             tf = sw.swift_read_root_file(pedfilename)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
@@ -185,6 +187,7 @@ class analysis:
                         pedsum = np.add(pedsum,arr)
                         numev += 1
         else:
+            print ("keys = ",keys)
             for i,name in enumerate(keys):
                 if 'pic' in name:
                     patt = re.compile('\S+run(\d+)_ev(\d+)')
@@ -195,12 +198,11 @@ class analysis:
                 if event in self.options.excImages: justSkip=True
                 if maxImages>-1 and event>min(len(keys),maxImages): break
                 if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
-                    
                 if 'pic' not in name: justSkip=True
-                if event%20 == 0:
-                    print("Calc pedestal mean with event: ",name)
                 if justSkip:
                     continue
+                if event%20 == 0:
+                    print("Calc pedestal mean with event: ",event)
                 arr = tf[name].values()
                 pedsum = np.add(pedsum,arr)
                 numev += 1
@@ -252,10 +254,10 @@ class analysis:
                 if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
      
                 if 'pic' not in name: justSkip=True
-                if event%20 == 0:
-                    print("Calc pedestal rms with event: ",name)
                 if justSkip:
                      continue
+                if event%20 == 0:
+                    print("Calc pedestal rms with event: ",event)
                 arr = tf[name].values()
                 pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
                 numev += 1
