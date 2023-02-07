@@ -1144,6 +1144,15 @@ class PlotMaker:
                                     plot.GetZaxis().SetLabelSize(0.045)
                                     plot.GetZaxis().SetLabelOffset(0.007)
                                     plot.GetZaxis().SetTitle(pspec.getOption('ZTitle',"Events"))
+                                    if pspec.hasOption('YMin') and pspec.hasOption('YMax'):
+                                        plot.GetYaxis().SetRangeUser(pspec.getOption('YMin',1.0), pspec.getOption('YMax',1.0))
+                                    elif pspec.hasOption('YMin'):
+                                        plot.SetMinimum(pspec.getOption('YMin'))
+                                    if pspec.hasOption('ZMin') and pspec.hasOption('ZMax'):
+                                        plot.GetZaxis().SetRangeUser(pspec.getOption('ZMin',1.0), pspec.getOption('ZMax',1.0))
+                                    elif pspec.hasOption('ZMin'):
+                                        plot.SetMinimum(pspec.getOption('ZMin'))
+
 
                                     plot.Draw(pspec.getOption("PlotMode","COLZ"))
 
