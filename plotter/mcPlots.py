@@ -145,9 +145,9 @@ def doTinyCmsPrelim(textLeft="_default_",textRight="_default_",hasExpo=False,tex
     textLeft = textLeft.replace("%(lumi)",lumitext)
     textRight = textRight.replace("%(lumi)",lumitext)
     if textLeft not in ['', None]:
-        doSpam(textLeft, (.28 if hasExpo else 0.07 if doWide else .16)+xoffs, .955, .60+xoffs, .995, align=12, textSize=textSize)
+        doSpam(textLeft, (.28 if hasExpo else 0.2 if doWide else .16)+xoffs, .955, .60+xoffs, .995, align=12, textSize=textSize)
     if textRight not in ['', None]:
-        doSpam(textRight,(0.5 if doWide else .58)+xoffs, .955, .96+xoffs, .995, align=32, textSize=textSize)
+        doSpam(textRight,(0.5 if doWide else .55)+xoffs, .955, .82+xoffs if doWide else .93+xoffs, .995, align=32, textSize=textSize)
 
 def reMax(hist,hist2,islog,factorLin=1.3,factorLog=2.0,doWide=False):
     if  hist.ClassName() == 'THStack':
@@ -860,9 +860,14 @@ class PlotMaker:
 
                 # define aspect ratio
                 doWide = True if self._options.wideplot or pspec.getOption("Wide",False) else False
-                plotformat = (1200,600) if doWide else (600,600)
+                plotformat = (800,600) if doWide else (600,600)
                 sf = 20./plotformat[0]
-                ROOT.gStyle.SetPadLeftMargin(600.*0.18/plotformat[0])
+                if doWide:
+                    ROOT.gStyle.SetPadLeftMargin(plotformat[0]*0.2/plotformat[0])
+                    ROOT.gStyle.SetPadRightMargin(plotformat[0]*0.06/plotformat[0])
+                else:
+                    ROOT.gStyle.SetPadLeftMargin(600.*0.18/plotformat[0])
+                    ROOT.gStyle.SetPadRightMargin(600.*0.08/plotformat[0])
 
                 stack.Draw("GOFF")
                 ytitle = "Events" if not self._options.printBinning else "Events / %s" %(self._options.printBinning)
@@ -871,17 +876,18 @@ class PlotMaker:
                 total.GetXaxis().SetTitleSize(0.05)
                 total.GetXaxis().SetTitleOffset(1.1)
                 total.GetXaxis().SetLabelFont(42)
-                total.GetXaxis().SetLabelSize(0.05)
+                total.GetXaxis().SetLabelSize(0.045)
                 total.GetXaxis().SetLabelOffset(0.007)
                 total.GetYaxis().SetTitleFont(42)
                 total.GetYaxis().SetTitleSize(0.05)
-                total.GetYaxis().SetTitleOffset(0.9 if doWide else 2.0)
+                total.GetYaxis().SetTitleOffset(1.7)
                 total.GetYaxis().SetLabelFont(42)
-                total.GetYaxis().SetLabelSize(0.05)
+                total.GetYaxis().SetLabelSize(0.045)
                 total.GetYaxis().SetLabelOffset(0.007)
                 total.GetYaxis().SetTitle(pspec.getOption('YTitle',ytitle))
                 total.GetXaxis().SetTitle(pspec.getOption('XTitle',outputName))
-                total.GetXaxis().SetNdivisions(pspec.getOption('XNDiv',510))
+                total.GetXaxis().SetNdivisions(pspec.getOption('XNDiv',505))
+
                 if outputDir: outputDir.WriteTObject(stack)
                 # 
                 if not makeCanvas and not self._options.printPlots: return
@@ -1114,7 +1120,35 @@ class PlotMaker:
                                         plot.GetZaxis().SetRangeUser(pspec.getOption('ZMin',1.0), pspec.getOption('ZMax',1.0))
                                     plot.SetMarkerStyle(mca.getProcessOption(p,'MarkerStyle',1,noThrow=True))
                                     plot.SetMarkerColor(mca.getProcessOption(p,'FillColor',ROOT.kBlack,noThrow=True))
+
+                                    plot.GetXaxis().SetTitleFont(42)
+                                    plot.GetXaxis().SetTitleSize(0.05)
+                                    plot.GetXaxis().SetTitleOffset(1.1)
+                                    plot.GetXaxis().SetLabelFont(42)
+                                    plot.GetXaxis().SetLabelSize(0.045)
+                                    plot.GetXaxis().SetLabelOffset(0.007)
+                                    plot.GetYaxis().SetTitleFont(42)
+                                    plot.GetYaxis().SetTitleSize(0.05)
+                                    plot.GetYaxis().SetTitleOffset(1.7)
+                                    plot.GetYaxis().SetLabelFont(42)
+                                    plot.GetYaxis().SetLabelSize(0.045)
+                                    plot.GetYaxis().SetLabelOffset(0.007)
+                                    plot.GetYaxis().SetTitle(pspec.getOption('YTitle',ytitle))
+                                    plot.GetXaxis().SetTitle(pspec.getOption('XTitle',outputName))
+                                    plot.GetXaxis().SetNdivisions(pspec.getOption('XNDiv',505))
+                                    plot.GetYaxis().SetNdivisions(pspec.getOption('XNDiv',505))
+                                    plot.GetZaxis().SetTitleFont(42)
+                                    plot.GetZaxis().SetTitleSize(0.05)
+                                    plot.GetZaxis().SetTitleOffset(1.3)
+                                    plot.GetZaxis().SetLabelFont(42)
+                                    plot.GetZaxis().SetLabelSize(0.045)
+                                    plot.GetZaxis().SetLabelOffset(0.007)
+                                    plot.GetZaxis().SetTitle(pspec.getOption('ZTitle',"Events"))
+
                                     plot.Draw(pspec.getOption("PlotMode","COLZ"))
+
+                                    doTinyCmsPrelim(hasExpo = total.GetMaximum() > 9e4 and not c1.GetLogy(),textSize=0.033*options.topSpamSize, options=options,doWide=doWide)
+
                                     c1.Print("%s/%s_%s.%s" % (fdir, outputName, p, ext))
                                     if contentAxisTitle != None: plot.GetZaxis().SetTitle(contentAxisTitle)
                                 if "data" in pmap and "TGraph" in pmap["data"].ClassName():
