@@ -2,9 +2,7 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 
 import numpy as np
-from root_numpy import tree2array,fill_hist,fill_profile
-from gbr_trainer import GBRLikelihoodTrainer, getCanvas, doLegend
-import math, joblib, os
+import math, os
 
 # map run - z distance
 #          no source        8.7       8.4        8.1k       5k
@@ -20,11 +18,101 @@ runs = {5870: 46,
         5905: 11,
         5910: 6.5}
 
+def doSpam(text,x1,y1,x2,y2,align=12,fill=False,textSize=0.033,_noDelete={}):
+    cmsprel = ROOT.TPaveText(x1,y1,x2,y2,"NDC");
+    cmsprel.SetTextSize(textSize);
+    cmsprel.SetFillColor(0);
+    cmsprel.SetFillStyle(1001 if fill else 0);
+    cmsprel.SetLineStyle(2);
+    cmsprel.SetLineColor(0);
+    cmsprel.SetTextAlign(align);
+    cmsprel.SetTextFont(42);
+    cmsprel.AddText(text);
+    cmsprel.Draw("same");
+    _noDelete[text] = cmsprel; ## so it doesn't get deleted by PyROOT
+    return cmsprel
+
+def doTinyCmsPrelim(textLeft="#bf{CYGNO}",textRight="(LIME)",hasExpo=False,textSize=0.033,lumi=None, xoffs=0, options=None, doWide=False):
+    if textLeft  == "_default_": textLeft  = "#bf{CYGNO}"
+    if textRight == "_default_": textRight = "(LIME)"
+    if lumi      == None       : lumi      = 1
+    if   lumi > 3.54e+1: lumitext = "%.0f fb^{-1}" % lumi
+    elif lumi > 3.54e+0: lumitext = "%.1f fb^{-1}" % lumi
+    elif lumi > 3.54e-1: lumitext = "%.2f fb^{-1}" % lumi
+    elif lumi > 3.54e-2: lumitext = "%.0f pb^{-1}" % (lumi*1000)
+    elif lumi > 3.54e-3: lumitext = "%.1f pb^{-1}" % (lumi*1000)
+    else               : lumitext = "%.2f pb^{-1}" % (lumi*1000)
+    lumitext = "%.1f fb^{-1}" % lumi
+    textLeft = textLeft.replace("%(lumi)",lumitext)
+    textRight = textRight.replace("%(lumi)",lumitext)
+    if textLeft not in ['', None]:
+        doSpam(textLeft, (.28 if hasExpo else 0.2 if doWide else .12)+xoffs, .94, .60+xoffs, .94, align=12, textSize=textSize)
+    if textRight not in ['', None]:
+        doSpam(textRight,(0.5 if doWide else .55)+xoffs, .94, .82+xoffs if doWide else .91+xoffs, .94, align=32, textSize=textSize)
+
+def getCanvas(name='c'):
+
+    ROOT.gStyle.SetPalette(ROOT.kRainBow)
+    ROOT.gStyle.SetNumberContours(51)
+    ROOT.gErrorIgnoreLevel = 100
+    ROOT.gStyle.SetOptStat(0)
+
+    c = ROOT.TCanvas(name,'',1200,1200)
+    lMargin = 0.14
+    rMargin = 0.10
+    bMargin = 0.15
+    tMargin = 0.10
+    c.SetLeftMargin(lMargin)
+    c.SetRightMargin(rMargin)
+    c.SetTopMargin(tMargin)
+    c.SetBottomMargin(bMargin)
+    c.SetFrameBorderMode(0);
+    c.SetBorderMode(0);
+    c.SetBorderSize(0);
+    return c
+
+def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBorder=False,nColumns=1):
+    nentries = len(histos)
+    (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
+    if corner == "TR":
+        (x1,y1,x2,y2) = (.85-legWidth, .7 - textSize*max(nentries-3,0), .90, .89)
+    elif corner == "TC":
+        (x1,y1,x2,y2) = (.5, .7 - textSize*max(nentries-3,0), .5+legWidth, .89)
+    elif corner == "TL":
+        (x1,y1,x2,y2) = (.2, .7 - textSize*max(nentries-3,0), .2+legWidth, .89)
+    elif corner == "BR":
+        (x1,y1,x2,y2) = (.85-legWidth, .15 + textSize*max(nentries-3,0), .90, .25)
+    elif corner == "BC":
+        (x1,y1,x2,y2) = (.5, .15 + textSize*max(nentries-3,0), .5+legWidth, .25)
+    elif corner == "BL":
+        (x1,y1,x2,y2) = (.2, .23 + textSize*max(nentries-3,0), .33+legWidth, .35)
+    leg = ROOT.TLegend(x1,y1,x2,y2)
+    leg.SetNColumns(nColumns)
+    leg.SetFillColor(0)
+    leg.SetFillColorAlpha(0,0.6)  # should make the legend semitransparent (second number is 0 for fully transparent, 1 for full opaque)
+    #leg.SetFillStyle(0) # transparent legend, so it will not cover plots (markers of legend entries will cover it unless one changes the histogram FillStyle, but this has other effects on color, so better not touching the FillStyle)
+    leg.SetShadowColor(0)
+    if not legBorder:
+        leg.SetLineColor(0)
+        leg.SetBorderSize(0)  # remove border  (otherwise it is drawn with a white line, visible if it overlaps with plots
+    leg.SetTextFont(42)
+    leg.SetTextSize(textSize)
+    for (plot,label,style) in zip(histos,labels,styles): leg.AddEntry(plot,label,style)
+    leg.Draw()
+    ## assign it to a global variable so it's not deleted
+    global legend_
+    legend_ = leg
+    return leg
+
+
 def getFriend(inputfile):
+    print ("ddddd = ",os.path.dirname(inputfile))
+    print ("bbb = ",os.path.basename(inputfile).split('.root')[0])
     friendfile = "{dirn}/friends/{base}_Friend.root".format(dirn=os.path.dirname(inputfile),
                                                     base=os.path.basename(inputfile).split('.root')[0])
-    frf = friendfile if os.path.isfile(friendfile) else None
-    return frf
+    print ("ssss = ",friendfile)
+    print ("ccc = ",os.path.isfile(friendfile))
+    return friendfile
 
 def response_vsrun(inputfile,params,runN):
     params['selection'] = "({sel}) && run=={run}".format(sel=params['selection'],run=runN)
@@ -184,16 +272,28 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
     frame.SetTitle('')
 
     # fit histogram
-    rooData.plotOn(frame,ROOT.RooFit.MarkerStyle(marker))
+    rooData.plotOn(frame,ROOT.RooFit.MarkerStyle(marker),ROOT.RooFit.MarkerSize(2))
     pdf = work.pdf('cb')
     pdf.fitTo(rooData,ROOT.RooFit.Save())#,ROOT.RooFit.PrintLevel(-1))
     pdf.plotOn(frame,ROOT.RooFit.LineColor(color))
-    rooData.plotOn(frame,ROOT.RooFit.MarkerStyle(marker))
+    rooData.plotOn(frame,ROOT.RooFit.MarkerStyle(marker),ROOT.RooFit.MarkerSize(2))
 
-    frame.GetYaxis().SetTitle("superclusters")
-    frame.GetXaxis().SetTitle("E/E^{raw}_{peak}")
-    frame.GetXaxis().SetTitleOffset(1.2)
-    
+    frame.GetXaxis().SetTitleFont(42)
+    frame.GetXaxis().SetTitleSize(0.05)
+    frame.GetXaxis().SetTitleOffset(1.1)
+    frame.GetXaxis().SetLabelFont(42)
+    frame.GetXaxis().SetLabelSize(0.045)
+    frame.GetXaxis().SetLabelOffset(0.007)
+    frame.GetYaxis().SetTitleFont(42)
+    frame.GetYaxis().SetTitleSize(0.05)
+    frame.GetYaxis().SetTitleOffset(1.3)
+    frame.GetYaxis().SetLabelFont(42)
+    frame.GetYaxis().SetLabelSize(0.045)
+    frame.GetYaxis().SetLabelOffset(0.007)
+    frame.GetYaxis().SetTitle("Events")
+    frame.GetXaxis().SetTitle("E/E^{mpv}")
+    frame.GetXaxis().SetNdivisions(510)
+
     m = work.var('mean').getVal()
     s = work.var('sigma').getVal()
 
@@ -215,6 +315,17 @@ def fitAllResponses(inputfile="response_histos.root"):
               46  : (0.6,1.7),
               }
 
+    dummy_uncorr = ROOT.TH1F("dummy_uncorr","",1,0,1)
+    dummy_regr = ROOT.TH1F("dummy_regr","",1,0,1)
+
+    dummy_uncorr.SetMarkerStyle(ROOT.kOpenSquare)
+    dummy_uncorr.SetLineColor(ROOT.kRed+2)
+    dummy_uncorr.SetMarkerSize(2)
+    
+    dummy_regr.SetMarkerStyle(ROOT.kFullCircle)
+    dummy_regr.SetLineColor(ROOT.kBlue)
+    dummy_regr.SetMarkerSize(2)
+
     results = {}
     tf = ROOT.TFile(inputfile,"read")
     for i,v in enumerate(runs.items()):
@@ -233,7 +344,14 @@ def fitAllResponses(inputfile="response_histos.root"):
             (frame,mean,sigma,meanerr,sigmaerr)=fitResponseHisto(histo,xmin,xmax,8,marker,linecol)
             frame.Draw("same")
             results[(corr,dist)] = (mean,sigma,meanerr,sigmaerr)
-        for ext in ['pdf','png']:
+            
+        responses = [dummy_uncorr,dummy_regr]
+        titles = ['E_{rec}','E']
+        styles = ['pl','pl']    
+        legend = doLegend(responses,titles,styles,corner="TL")    
+
+        doTinyCmsPrelim(hasExpo = False,textSize=0.04, options=None,doWide=False)
+        for ext in ['pdf','png','root']:
             c.SaveAs('respcomp_{dist}_fit.{ext}'.format(dist=dist,ext=ext))
     return results
 
@@ -351,5 +469,5 @@ if __name__ == '__main__':
     parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] ')
     (options, args) = parser.parse_args()
 
-    makeResponseHistos(args[0],args[1])
+    #    makeResponseHistos(args[0],args[1])
     graphVsR("fit")
