@@ -129,7 +129,7 @@ class SnakesFactory:
                     plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                     plt.title("Clusters found in the DBSCAN seeding")
                     colorpix = np.zeros([rescale,rescale,3])
-                    for j in range(0,np.shape(clu)[0]):
+                    for j in range(0,len(clu)):
 
                         a = np.random.rand(3)
                         colorpix[clu[j][:,0],clu[j][:,1]] = a
@@ -145,7 +145,7 @@ class SnakesFactory:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin,vmax=vmax,origin='lower' )
                 plt.title("Clusters found DDBSCAN")             
-                for j in range(0,np.shape(clu)[0]):
+                for j in range(0,len(clu)):
                     ybox = clu[j][:,0]
                     xbox = clu[j][:,1]
                     if (len(ybox) > 0) and (len(xbox) > 0):
@@ -240,17 +240,23 @@ class SnakesFactory:
                 print('[Plotting 0th iteration]')
                 u,indices = np.unique(ddb.labels_,return_index = True)
                 clu = [X[ddb.labels_[:,0] == i] for i in np.unique(ddb.labels_[:,0]) if i != -1]
+                polyclu = [X[ddb.labels_[:,1] == i] for i in np.unique(ddb.labels_[:,1]) if i != 0]
                 #clu = [X[ddb.labels_ == i] for i in np.unique(ddb.labels_) if i != -1]
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
-                plt.title("Polynomial clusters found in iteration 0")
+                plt.title("Polynomial + general clusters found in iteration 0")
                 colorpix = np.ones([rescale,rescale,3]) * [255,255,255]
-                for j in range(0,np.shape(clu)[0]):
-
+                for j in range(0,len(clu)):
                     a = np.random.rand(3)
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
-                    
                 plt.imshow(colorpix,cmap='binary',origin='lower' )
+                
+                for j in range(0,len(polyclu)):
+                    print ("covering with dark grey the polynomial cluster # ",j)
+                    black = np.array([0.0,0.0,0.0],dtype = float)
+                    colorpix[polyclu[j][:,0],polyclu[j][:,1]] = black
+                plt.imshow(colorpix,cmap='binary',origin='lower') 
+
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                 with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='0th'), "wb") as fp:

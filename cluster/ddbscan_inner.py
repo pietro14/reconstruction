@@ -108,6 +108,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             print("test cluster n. ",i)
             print("** clu has ",moment_length)
             print("** min samples now ",min_samples)
+            print("moment length = ",moment_length)
             
         if moment_length < min_samples:
             min_samples = moment_length
@@ -119,7 +120,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             x = data[labels==label_num][:,0]
             y = data[labels==label_num][:,1]
             if (np.median(np.abs(y - np.median(y))) == 0):
-                ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.3)
+                ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
                 ransac.fit(np.expand_dims(x, axis=1), y)
             else:
                 ransac = RANSACRegressor(min_samples=0.8)
@@ -135,7 +136,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 y_rot = x * np.sin(np.pi/4) + (y * np.sin(np.pi/4)) 
                 
                 if (np.median(np.abs(y_rot - np.median(y_rot))) == 0):
-                    ransac = RANSACRegressor(min_samples=0.5, residual_threshold = 0.3)
+                    ransac = RANSACRegressor(min_samples=0.5, residual_threshold = 0.1)
                     ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
                 else:
                     ransac = RANSACRegressor(min_samples=0.5)
@@ -238,7 +239,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 fit_model, fit_deri = ransac_polyfit(x, y, order = order, t = dir_thickness)
                 counter = 1
                 if sum(fit_model == None) != 0:
-                    order = 3
+                    order = 2
                     fit_model, fit_deri = ransac_polyfit(x, y, order = order, t = dir_thickness)
                 #Adding new points to the cluster (If the fit_model output is None, then no model was found)
                 if sum(fit_model == None) == 0:
@@ -334,12 +335,12 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                         if (pts1 == pts0) or (sum(fit_model == None) != 0):
                             if debug:
                                 print ("last polynomial order = ", order)
-                            if order == 3:
+                            if order == 2:
                                 if debug:
                                     print('The cluster %d' %(label_num) + ' needed %d attempts' %(counter))
                                 break
                             else:
-                                order = 3
+                                order = 2
                                 fit_model, fit_deri = ransac_polyfit(x, y, order = order, t = dir_thickness)
                                 if sum(fit_model == None) != 0:
                                     break
@@ -359,6 +360,8 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
 
         ddbsc_t2=time.time()
         if debug:
+            print ("label num at polyclusters = ",label_num)
+            print ("Found N = ",len(poly_clusters), " polynomial clusters")
             print ("Polynomial clustering took ",ddbsc_t2-ddbsc_t1," secs.")
         
         # Now that the clusters with good fit models were found, the rest of the data will be clustered with the standard DBSCAN logic
@@ -408,6 +411,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 labels[labels==label_num] = len(data)
         dbt2 = time.time()
         if debug:
+            print("A total of ",label_num+1, " clusters have been found")
             print("last clustering took... ",dbt2-dbt1)
         
         #False clusters remotion
