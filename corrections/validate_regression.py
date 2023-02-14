@@ -2,12 +2,13 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 
 from test_regression import getFriend
-from gbr_trainer import getCanvas,doLegend
+from test_regression import getCanvas,doLegend,doTinyCmsPrelim
 
 def onePlot(source, params):
     tf = ROOT.TFile.Open(params[0])
     tree = tf.Get("Events")
     frf = getFriend(params[0])
+    print ("FRF =",frf)
     tree.AddFriend("Friends",frf)
 
     selection = "run>={rmin} && run<={rmax}".format(rmin=params[1],rmax=params[2])
@@ -56,10 +57,10 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
 
     #        source   [file, runmin, runmax, max_integral]
-    sources = {'fe55' : ('trees/fe55.root',        5867, 5911, 2e4),
-               'CuMo' : ('trees/multiSource.root', 5811, 5820, 5e4),
-               'CuAg' : ('trees/multiSource.root', 5821, 5830, 5e4),
-               'bkg'  : ('trees/noSource.root',    5861, 5866, 2e4) }
+    sources = {'fe55' : ('~/cernbox/CYGNUS/reco/lime/merged_winter22/reco_runs5X.root', 5867, 5911, 2e4),
+               'CuMo' : ('~/cernbox/CYGNUS/reco/lime/merged_winter22/reco_runs5X.root', 5811, 5820, 5e4),
+               'CuAg' : ('~/cernbox/CYGNUS/reco/lime/merged_winter22/reco_runs5X.root', 5821, 5830, 5e4),
+               'bkg'  : ('~/cernbox/CYGNUS/reco/lime/merged_winter22/reco_runs5X.root', 5861, 5866, 2e4) }
     
     for s,params in sources.items():
         onePlot(s,params)
