@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-LNF    : reco_runs5862to5866 : 1 ; FillColor=ROOT.kBlue+1, FillStyle=3004, Label="LNF" 
-=======
-LNF    : reco_runs5862to5866 : 290./140. ; FillColor=ROOT.kBlue+1, FillStyle=3004, Label="LNF"
->>>>>>> origin/summer22
-
-fakes+ : reco_pedestals : 1 ; FillColor=ROOT.kRed+1, Label="Fakes"
-
-data   : reco_bkgruns_noped : 1 ; FillColor=ROOT.kRed+1, Label="LNGS"
+bkg    : merged_bkgruns : 1 ; FillColor=ROOT.kBlue+1, FillStyle=3004, Label="No source" 
+fakes+ : merged_pedruns : 1 ; FillColor=ROOT.kRed+1, Label="Fakes"
+data   : merged_feruns : 1 ; FillColor=ROOT.kRed+1, Label="Source"
