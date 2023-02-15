@@ -59,7 +59,8 @@ int marinBand(double length, double x_min, double x_max, double y_min, double y_
 }
 
 float calib_energy(double uncalib) {
-  float photon2kev = 0.00075;
+  //float photon2kev = 0.00075; // LNF
+  float photon2kev = 0.0018266; // LNGS Run2
   return photon2kev * uncalib;
 }
 
