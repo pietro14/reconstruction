@@ -2,11 +2,11 @@ cmos_integral: calib_energy(cmos_integral)  : 30,2200,3500 ; XTitle="sensor ener
 
 multiplicity: nSc : 40,0,130 ; XTitle="Supercluster number", IncludeOverflows=True
 
-multiplicityLong: Sum$(sc_integral > 400 && 0.152*sc_length > 50 ) : 10,0,10 ;  XTitle="N_{long}", IncludeOverflows=True, Logy=True
+multiplicityLong: 3.33*Sum$(sc_integral > 700 && 0.152*sc_length > 50 ) : 10,0,30 ;  XTitle="#nu_{long} (Hz)", IncludeOverflows=True, Logy=False, YMin=100
 
-multiplicitySpots: Sum$(sc_integral > 400 && 0.152*sc_length < 50 && sc_rms>6 &&  sc_tgausssigma/sc_lgausssigma>0.6 &&  sc_tgausssigma/sc_lgausssigma<1.1) : 20,0,20 ;  XTitle="N_{short}", IncludeOverflows=True
+multiplicitySpots: 3.33*Sum$(sc_integral > 700 && 0.152*sc_length < 50 && sc_rms>6 &&  sc_tgausssigma/sc_lgausssigma>0.6 &&  sc_tgausssigma/sc_lgausssigma<1.1) : 10,0,30 ;  XTitle="#nu_{short} (Hz)", IncludeOverflows=True
 
-energy_integral: calib_energy(Sum$(sc_integral*(sc_integral > 400 && sc_rms>6))) : 30,100,1600 ; XTitle="#sum_{i} E_{SC}^{i} (keV/50 ms)", IncludeOverflows=True
+energy_integral: 3.33*calib_energy(Sum$(sc_integral*(sc_integral > 700 && sc_rms>6))) : 60,0,5000 ; XTitle="#sum_{i} E_{SC}^{i} (keV/s)", IncludeOverflows=True, Logy=True, YMin=100
 
 raw_integral_anyrange:   sc_integral    :100,5e2,3e5 ; XTitle="I_{SC} (photons)", IncludeOverflows=True, Logy=True
 
