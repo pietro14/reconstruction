@@ -51,6 +51,7 @@ if __name__ == "__main__":
     parser.add_option('--cfg' '--config-file',dest='configFile', default="configFile_LNGS.txt",  type='string', help='the config file to be run')
     parser.add_option('-t',   '--tmp',dest='tmpdir', default="/tmp/",  type='string', help='the input directory')
     parser.add_option('-r',   '--resubmit',dest='resubmit', action='store_true', default=False, help='check the existence of the output in the outdir and resubmit the requested run range')
+    parser.add_option(        '--pedestals-only',dest='pedOnly', action='store_true', default=False, help='run only on pedestal runs')
     parser.add_option(        '--runlog', dest='runlog', default=None, type='string', help='if given, check in the runlog that the runs exists before creating the job')
     (options, args) = parser.parse_args()
 
@@ -129,9 +130,12 @@ if __name__ == "__main__":
             with open(options.runlog,"r") as csvfile:
                 csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
                 next(csvreader) # skips header
-                existing_runs = [int(row[0]) for row in list(csvreader)]
-            if run not in existing_runs:
+                existing_runs_list = [(int(row[0]),row[1]) for row in list(csvreader)]
+            existing_runs = dict(existing_runs_list)
+            if run not in existing_runs.keys():
                 print ("\t=> Run %d not in %s runlog, so skipping it" % (run,options.runlog))
+                continue
+            if options.pedOnly and "PED" not in existing_runs[run]:
                 continue
         if options.resubmit:
             recofile = '%s/reco_run%05d_3D.root' % (absopath,run)
