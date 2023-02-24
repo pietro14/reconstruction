@@ -44,10 +44,10 @@ if __name__ == '__main__':
 
     from optparse import OptionParser
     parser = OptionParser(usage='%prog workdir runs [options] ')
-    parser.add_option('-f', '--root-input', dest='inputTree',  default="trees-lngs/merged_feruns_8882_9797.root", help="ROOT file with the Events TTree");
+    parser.add_option('-f', '--root-input', dest='inputTree',  default="trees-lngs/merged_feruns_8882_9857.root", help="ROOT file with the Events TTree");
     parser.add_option('-p', '--plot-only',  dest='plotOnly',  action='store_true', default=False, help="don'trun the analysis from the trees, use the results file");
     parser.add_option('-i', '--input-table', dest='inputTable',  default=None, help="Pickle file with the saved panda DataFrame with analysis results");
-    parser.add_option('-r', '--run-range',  dest='runRange',  default=[8882,9797], nargs=2, help="minimum and maximum");
+    parser.add_option('-r', '--run-range',  dest='runRange',  default=[8882,9857], nargs=2, help="minimum and maximum");
     parser.add_option('-a', '--analysis',  dest='analysis',  default='history', help="Type of analysis (default LY history)");
     parser.add_option('-v', '--variable',  dest='variable',  default='fitm', help="variable to be plotted (in case of zscans analysis)");
     (options, args) = parser.parse_args()
