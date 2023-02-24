@@ -49,6 +49,7 @@ if __name__ == '__main__':
     parser.add_option('-i', '--input-table', dest='inputTable',  default=None, help="Pickle file with the saved panda DataFrame with analysis results");
     parser.add_option('-r', '--run-range',  dest='runRange',  default=[8882,9797], nargs=2, help="minimum and maximum");
     parser.add_option('-a', '--analysis',  dest='analysis',  default='history', help="Type of analysis (default LY history)");
+    parser.add_option('-v', '--variable',  dest='variable',  default='fitm', help="variable to be plotted (in case of zscans analysis)");
     (options, args) = parser.parse_args()
 
     
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     doFit = True
     HV1 = 420
 
-    results = pd.DataFrame(columns=['run','date','vgem1','vgem2','vgem3','mean','meanerr','rms','fitm','fitmerr','fits','fitserr'])
+    results = pd.DataFrame(columns=['run','date','vgem1','vgem2','vgem3','nev','nclu','mean','meanerr','rms','fitm','fitmerr','fits','fitserr'])
     
     if not options.plotOnly:
      
@@ -87,6 +88,7 @@ if __name__ == '__main__':
         tf = ROOT.TFile.Open(options.inputTree)
         tree = tf.Get("Events")
         histo = ROOT.TH1F("histo","",500,1000,20000)
+        dummy = ROOT.TH1F("dummy","",1,0,1)
         
         ir = 0
         with open('../pedestals/runlog_LNGS.csv',"r") as csvfile:
@@ -115,12 +117,15 @@ if __name__ == '__main__':
                 tdate.Print()
                 
                 histo.Reset()
+                dummy.Reset()
                 sel = "({base})*(run=={run})".format(base=base_selection,run=run)
+                runsel = "(run=={run})".format(run=run)
                 tree.Draw("sc_integral>>histo",sel)
+                tree.Draw("0.5>>dummy",runsel)
                 mean = histo.GetMean()
                 meanErr = histo.GetMeanError()
                 rms = histo.GetRMS()
-                print ("run = ",run,"    mean = ",mean," rms = ",rms)
+                print ("run = ",run,"    mean = ",mean," rms = ",rms," nevents = ",dummy.Integral())
 
                 rMean = rMeanError = rSigma = rSigmaError = -999
                 if doFit:
@@ -146,7 +151,7 @@ if __name__ == '__main__':
                     ret.SetPointError(ir, 0, meanErr)
 
                 entry = pd.DataFrame.from_dict({'run':[run],'date':[time],'vgem1':[vgem1],'vgem2':[vgem2],'vgem3':[vgem3],
-                                                'mean':[mean],'meanerr':[meanErr],'rms':[rms],
+                                                'nev':[dummy.Integral()],'nclu':[histo.Integral()],'mean':[mean],'meanerr':[meanErr],'rms':[rms],
                                                 'fitm':[rMean],'fitmerr':[rMeanError],'fits':[rSigma],'fitserr':[rSigmaError]})
                 results = pd.concat([results,entry], ignore_index=True)
                 
@@ -260,8 +265,20 @@ if __name__ == '__main__':
                 print (data)
 
                 x = data['vgem1'].unique()
-                y = [np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]
-                ye = [np.mean(data[data['vgem1']==v]['fitmerr'].values) for v in x]
+                if (options.variable in ['fitm','mean']):
+                    y = [np.mean(data[data['vgem1']==v][options.variable].values) for v in x]
+                elif (options.variable in ['fits','rms']):
+                    y =  [np.mean(data[data['vgem1']==v][options.variable].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]
+                    ye = [np.mean(data[data['vgem1']==v]['fitserr'].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]                    
+                else:
+                    print ("WARNING! variable ",options.variable," is not foreseen to be plotted")
+                    y = [-999 for v in x]
+                if options.variable=='nclu':
+                    y = [np.sum(data[data['vgem1']==v]['nclu'].values)/np.sum(data[data['vgem1']==v]['nev'].values) for v in x]
+                    print (y)
+                    ye = [np.sqrt(np.mean(data[data['vgem1']==v]['nclu'].values))/np.mean(data[data['vgem1']==v]['nev'].values) for v in x]
+                else:
+                    ye = [0 for v in x]
 
                 
                 ret = ROOT.TGraphErrors()
@@ -284,17 +301,16 @@ if __name__ == '__main__':
                 ret.GetYaxis().SetLabelFont(42)
                 ret.GetYaxis().SetLabelSize(0.04)
                 ret.GetXaxis().SetTitle("V_{GEM1} (V)")
-                ret.GetYaxis().SetTitle("LY (counts)") 
-
+                if (options.variable in ['fitm','mean']):
+                    ret.GetYaxis().SetTitle("LY (counts)")
+                elif (options.variable=='nclu'):
+                    ret.GetYaxis().SetTitle("cluster multiplicity")
+                elif (options.variable in ['fits','rms']):
+                    ret.GetYaxis().SetTitle("energy resolution")
+                else:
+                    ret.GetYaxis().SetTitle("arbitrary units")
                 graphs[z] = ret
                 
-                c = ROOT.TCanvas('c','',600,600)
-                c.SetBottomMargin(0.2); c.SetLeftMargin(0.2); c.SetRightMargin(0.1); 
-                ret.Draw("AP")
-                
-                for ext in ['pdf','png','root']:
-                    c.SaveAs("light-yield-zscan-zpos%s.%s" % (z.replace("/","_"),ext))
-
             c = ROOT.TCanvas('c','',600,600)
             c.SetBottomMargin(0.2); c.SetLeftMargin(0.2); c.SetRightMargin(0.1);
             ig=0
@@ -302,7 +318,14 @@ if __name__ == '__main__':
             for zp,gr in graphs.items():
                 gr.SetMarkerColor(colors[zp])
                 gr.SetLineColor(colors[zp])
-                gr.GetYaxis().SetRangeUser(0,15e3)
+                if (options.variable in ['fitm','mean']):
+                    gr.GetYaxis().SetRangeUser(0,15e3)
+                elif (options.variable in ['nclu']):
+                    gr.GetYaxis().SetRangeUser(0,3)
+                elif (options.variable in ['fits','rms']):
+                    gr.GetYaxis().SetRangeUser(0,0.5)
+                else:
+                    pass
                 if ig==0: gr.Draw("AP")
                 else: gr.Draw("P")
                 ig+=1
@@ -313,5 +336,5 @@ if __name__ == '__main__':
             legend = doLegend(responses,titles,styles,corner="TL")
             
             for ext in ['pdf','png','root']:
-                c.SaveAs("light-yield-zscans.%s" % ext)
+                c.SaveAs("%s-zhvscans.%s" % (options.variable,ext))
                 
