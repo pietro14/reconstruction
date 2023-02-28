@@ -22,7 +22,7 @@ if __name__ == "__main__":
                 outputRunlog.write(' , '.join(row[:-6])+'\n')
             else:
                 run=int(row[0])
-                if run<options.runMin or run>options.runMax or any('NULL' in field for field in row[:-7]): continue
+                if run<options.runMin or run>options.runMax: continue
                 outputRunlog.write(' , '.join(row[:-6])+'\n')
 
     outputRunlog.close()
