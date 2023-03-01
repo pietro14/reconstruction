@@ -64,8 +64,8 @@ if __name__ == '__main__':
     ROOT.gStyle.SetTextSize(0.08);
     ROOT.gStyle.SetStatFont(132);
 
-    runmin = options.runRange[0]
-    runmax = options.runRange[1]
+    runmin = int(options.runRange[0])
+    runmax = int(options.runRange[1])
     pklfile = "light-yield-history-range-%d_%d.pkl" % (runmin,runmax)
 
     timeAx = True
@@ -102,9 +102,9 @@ if __name__ == '__main__':
                         break
                 run = int(row[0])
                 if "S003:DATA:Fe" not in row[1] or run<runmin or run>runmax: continue
-                vgem1 = int(row[-13])
-                vgem2 = int(row[-14])
-                vgem3 = int(row[-15])
+                vgem1 = int(row[-14])
+                vgem2 = int(row[-15])
+                vgem3 = int(row[-16])
                 print ("HV1,2,3 = {v1}, {v2}, {v3}".format(v1=vgem1,v2=vgem2,v3=vgem3))
                 #if vgem1 != HV1 or vgem2 != HV1 or vgem3 != HV1: continue
                 
@@ -205,10 +205,11 @@ if __name__ == '__main__':
             ret.SetName("history")
 
             HV1=420
-            data = df[(df['vgem1']==HV1)&(df['vgem2']==HV1)&(df['vgem3']==HV1)]
+            #data = df[(df['vgem1']==HV1)&(df['vgem2']==HV1)&(df['vgem3']==HV1)]
+            data = df[(df['vgem2']==HV1)&(df['vgem3']==HV1)]
             t = data['date'].values
             r = data['run'].values
-            if doFit:
+            if options.variable=='mean':
                 y = data['mean'].values
                 ye = data['meanerr'].values
             else:
@@ -267,13 +268,12 @@ if __name__ == '__main__':
                 x = data['vgem1'].unique()
                 if (options.variable in ['fitm','mean']):
                     y = [np.mean(data[data['vgem1']==v][options.variable].values) for v in x]
+                    print ("y = ",y)
+                    ye = [np.mean(data[data['vgem1']==v]['meanerr' if options.variable=='mean' else 'fitmerr'].values) for v in x]
                 elif (options.variable in ['fits','rms']):
                     y =  [np.mean(data[data['vgem1']==v][options.variable].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]
                     ye = [np.mean(data[data['vgem1']==v]['fitserr'].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]                    
-                else:
-                    print ("WARNING! variable ",options.variable," is not foreseen to be plotted")
-                    y = [-999 for v in x]
-                if options.variable=='nclu':
+                elif options.variable=='nclu':
                     y = [np.sum(data[data['vgem1']==v]['nclu'].values)/np.sum(data[data['vgem1']==v]['nev'].values) for v in x]
                     print (y)
                     ye = [np.sqrt(np.mean(data[data['vgem1']==v]['nclu'].values))/np.mean(data[data['vgem1']==v]['nev'].values) for v in x]
