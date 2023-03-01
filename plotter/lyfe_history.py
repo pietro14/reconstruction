@@ -197,6 +197,7 @@ if __name__ == '__main__':
         
         
     else:
+        if options.inputTable: pklfile=options.inputTable
         print ("Retrieving the data from panda df in: ",pklfile)
         df = pd.read_pickle(pklfile)
         if options.analysis == 'history':
@@ -205,8 +206,8 @@ if __name__ == '__main__':
             ret.SetName("history")
 
             HV1=420
-            #data = df[(df['vgem1']==HV1)&(df['vgem2']==HV1)&(df['vgem3']==HV1)]
-            data = df[(df['vgem2']==HV1)&(df['vgem3']==HV1)]
+            data = df[(df['vgem1']==HV1)&(df['vgem2']==HV1)&(df['vgem3']==HV1)&(df['run']>=runmin)&(df['run']<=runmax)]
+            #data = df[(df['vgem2']==HV1)&(df['vgem3']==HV1)]
             t = data['date'].values
             r = data['run'].values
             if options.variable=='mean':
