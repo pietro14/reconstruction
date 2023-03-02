@@ -237,12 +237,12 @@ if __name__ == '__main__':
             ret.GetXaxis().SetLabelOffset(0.03)
             ret.GetXaxis().SetLabelFont(42)
             ret.GetXaxis().SetLabelSize(0.03)
-            ret.GetXaxis().SetRangeUser(runmin,runmax)
             ret.GetYaxis().SetTitleFont(42)
             ret.GetYaxis().SetLabelFont(42)
             if timeAx:
                 ret.GetXaxis().SetTimeDisplay(1);
                 ret.GetXaxis().SetTimeFormat("#splitline{%d\/%m}{%H:%M}");
+                ret.GetXaxis().SetTimeOffset(0,"gmt")
                 ret.GetXaxis().SetTitle("date")
             else:
                 ret.GetXaxis().SetTitle("run")
