@@ -19,8 +19,8 @@ from framework.postprocessor import PostProcessor
 ## if you insist on running on LSF, instead add:
 ## --log friends_log/ --submit --env lxbatch --queue 1nd (optional, default 8nh)
 
-DEFAULT_MODULES = [#("examples.regressionTrainingVars_lime", "trueEnergy"),
-                   ("examples.eventVars_lime", "regressedEnergy"),
+DEFAULT_MODULES = [("examples.regressionTrainingVars_lime", "trueEnergy"),
+                   #("examples.eventVars_lime", "regressedEnergy"),
                    ]
 
 
