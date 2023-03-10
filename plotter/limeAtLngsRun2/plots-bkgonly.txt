@@ -1,0 +1,59 @@
+cmos_integral: calib_energy(cmos_integral)  : 30,2200,3500 ; XTitle="sensor energy (keV/50 ms)", IncludeOverflows=True
+
+multiplicity: Sum$(sc_integral > 1500)/0.3 : 20,0,60 ; XTitle="Clusters/time (Hz)", IncludeOverflows=True
+
+multiplicityLong: Sum$(sc_integral > 1500 && 0.152*sc_length > 50 )/0.3 : 10,0,30 ;  XTitle="N_{long}/time (Hz)", IncludeOverflows=True, Logy=True
+
+multiplicitySpots: Sum$(sc_integral > 1500 && 0.152*sc_length < 50 && sc_rms>6 &&  sc_tgausssigma/sc_lgausssigma>0.6 &&  sc_tgausssigma/sc_lgausssigma<1.1)/0.3 : 20,0,60 ;  XTitle="N_{short}/time (Hz)", IncludeOverflows=True
+
+energy_integral: calib_energy(Sum$(sc_integral*(sc_integral > 1500 && sc_rms>6)))/0.3 : 30,0,3000 ; XTitle="#sum_{i} E_{SC}^{i} (keV/s)", IncludeOverflows=True, Logy=True
+
+raw_integral_anyrange:   sc_integral    : 200,1e3,1e6 ; XTitle="I_{SC} (photons)", IncludeOverflows=True, Logy=True
+
+raw_integral_highrange:  sc_integral    : 100,5e3,3e5 ; XTitle="I_{SC} (photons)", IncludeOverflows=False
+
+raw_integral_lowrange:   sc_integral    : 100,0,1e4 ; XTitle="I_{SC} (photons)", IncludeOverflows=False
+
+raw_integral_normrange:  sc_integral    : 100,0,2e3 ; XTitle="I_{SC} (photons)", IncludeOverflows=False
+
+cal_integral_anyrange:   calib_energy(sc_integral)    : 250,1,600 ; XTitle="E (keV)", IncludeOverflows=True, Logy=True
+
+cal_integral_highrange:  calib_energy(sc_integral)    : 100,20,300 ; XTitle="E (keV)", IncludeOverflows=False, Logy=True
+
+cal_integral_lowrange:   calib_energy(sc_integral)    : 100,2.,20 ; XTitle="E (keV)", IncludeOverflows=False, Logy=True
+
+cal_integral_normrange:  calib_energy(sc_integral)    : 100,0,2 ; XTitle="E (keV)", IncludeOverflows=False
+
+density:                 sc_integral/sc_nhits : 50,0,50 ; XTitle="#delta (photons/pixel)", IncludeOverflows=True
+
+density_fine:            sc_integral/sc_nhits : 200,0,50 ; XTitle="#delta (photons/pixel)", IncludeOverflows=True, Logy=True
+
+density_anyrange:        sc_integral/sc_nhits : 300,0,300 ; XTitle="#delta (photons/pixel)", IncludeOverflows=True, Logy=True
+
+cal_density_anyrange:    calib_energy(sc_integral)/sc_nhits * 1000 : 300,0,20 ; XTitle="#Delta (eV/pixel)", IncludeOverflows=True, Logy=True
+
+dedx:   calib_energy(sc_integral)/(0.0152 * sc_length) : 100,0,50 ; XTitle="E/length (keV/cm)", IncludeOverflows=True
+
+rms:    sc_rms : 50,0,20 ; XTitle="rms (photons)", IncludeOverflows=True
+
+length: 0.152 * sc_length : 50,0,350 ; XTitle="length (mm)", IncludeOverflows=True, Logy=True
+
+width:  0.152 * sc_width : 50,0,20 ; XTitle="#sigma_{T} (mm)", IncludeOverflows=False
+
+tgausssigma: 0.152 * sc_tgausssigma : 50,0,3 ; XTitle="#sigma_{T}^{Gauss} (mm)", IncludeOverflows=True
+
+slimness: sc_width/sc_length : 50,0,1 ; XTitle="#xi"
+
+gslimness: sc_tgausssigma/sc_lgausssigma : 50,0,2 ; XTitle="#xi_{Gauss}"
+
+nhits: sc_nhits : 100,0,2e4 ; XTitle="n_{p}" , IncludeOverflows=False, Logy=True
+
+EvsL: sc_integral\:0.152*sc_length : 50,0,350,100,5e5,3e5; XTitle="length (mm)", YTitle="I_{SC} (photons)", Logy=True, Logx=True, Logz=True
+
+MvsL: marinTheta(sc_xmin,sc_xmax,sc_ymin,sc_ymax,sc_xmean,sc_ymean)\:0.152*sc_length : 200,0,350,200,0,1.6; XTitle="length (mm)", YTitle="#theta (rad)", Logz=True
+
+XvsY: sc_xmean\:sc_ymean : 200,0,2304,200,0,2304; XTitle="x (pixels)", YTitle="y (pixels)", ZMin=0, ZMax=1.5, Wide=True
+
+IprofXY: sc_integral\:sc_xmean\:sc_ymean : 200,0,2304,200,0,2304; XTitle="x (pixels)", YTitle="y (pixels)", ZTitle="I_{SC} (photons)", Profile2D=True, ZMin=8000, ZMax=300000, Wide=True
+
+densityprofXY:    sc_integral/sc_nhits\:sc_xmean\:sc_ymean : 200,0,2304,200,0,2304; XTitle="x (pixels)", YTitle="y (pixels)", ZTitle="#delta (photons/pixel)", Profile2D=True, ZMin=10, ZMax=100, Wide=True
