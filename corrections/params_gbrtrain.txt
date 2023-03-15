@@ -1,6 +1,4 @@
 {
-'target'            : "sc_integral/sc_trueint",
-#'inputs'            : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp/sc_tgausssigma|sc_lgaussamp/sc_lgausssigma|sc_rms",
 'inputs'            : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp|sc_tgausssigma|sc_lgaussamp|sc_lgausssigma|sc_rms",
 'inputsfriend'      : "sc_trueint",
 'regr_vars'         : "sc_xmean|sc_ymean|sc_tgaussamp/sc_tgausssigma|sc_lgaussamp/sc_lgausssigma|sc_rms",
@@ -10,5 +8,5 @@
 'min_samples_split' : 6,
 'min_samples_leaf'  : 7,
 'learning_rate'     : 0.1,
-'verbose'           : 0,
+'verbose'           : 1,
 }

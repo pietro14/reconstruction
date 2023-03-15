@@ -43,9 +43,14 @@ print (" AAAA ===== ")
 data_arr = data.to_numpy()
 Nevents = len(data_arr)
 conc = np.stack(data.to_numpy()[0],axis=-1)
-for i in range(1,Nevents):
-    conc = np.append(conc,np.stack(data.to_numpy()[i],axis=-1),axis=0)
+print ("conc 0")
 print (conc)
+for i in range(1,Nevents):
+    event = np.stack(data.to_numpy()[i],axis=-1)
+    conc = np.vstack([conc,event])
+print ("conc alla fine")
+print (conc)
+print ("--->")
 
 data_pd = pd.DataFrame(conc, columns=variables+variables_friend)
 

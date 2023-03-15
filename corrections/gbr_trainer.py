@@ -75,7 +75,6 @@ def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBo
 class GBRLikelihoodTrainer:
     def set_defaults(self,params):
         self.tree_name = params['tree_name']
-        self.target = params['target']
         self.var = params['inputs']
         self.varfriend = params['inputsfriend']
         self.regr_vars = params['regr_vars']
@@ -97,7 +96,7 @@ class GBRLikelihoodTrainer:
     def variables(self):
         return self.var.split("|")
     
-    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None):
+    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savepanda=None):
         print ("Loading events from file %s and converting to numpy arrays for training. Itmay take time..." % rfile)
         events = uproot.open(rfile)
         if friendrfile:
@@ -109,16 +108,31 @@ class GBRLikelihoodTrainer:
         regr_inputs = self.regr_vars.split("|")
         variables_events = list(set(variables_events + regr_inputs))
         
+        if self.verbose: print ("---> Now loading main tree %s..." % rfile)
         data_main = events[self.tree_name].arrays(variables_events,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
+        if self.verbose: print ("---> Now loading friend tree %s ..." % friendrfile)
         data_friend = friends["Friends"].arrays(variables_friends,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
+        if self.verbose: print ("---> Now attaching main and friend pandas...")
         data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
+        if self.verbose > 0:
+            print (" ~~~~~~~~~~~~~~ DATA BEFORE FLATTENING ~~~~~~~~~~~~~~~~~ ")
+            print (data)
+            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
 
+        if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
         data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
 
+        
+        
         # now convert to numpy array to flatten it: 1 event is 1 cluster
+        if self.verbose: print ("---> Now flattenting panda...")
         data_arr = data.to_numpy()
+        print ("number of events = ",len(data.index))
+        print ("uuu = ",len(data_arr))
+        print ("aaaa = ",data_arr.shape[0])
         conc = np.stack(data_arr[0],axis=-1)
         for i in range(1,len(data_arr)):
+            if i%1000==0: print ("Flattened %d / %d entries" % (i,len(data_arr)))
             event = np.stack(data_arr[i],axis=-1)
             conc = np.vstack([conc,event])
 
@@ -132,19 +146,24 @@ class GBRLikelihoodTrainer:
             print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
 
         ### hardcoded, move to configuration
-        data_sel = data_pd[(data_pd['sc_trueint']>-2)&(data_pd['sc_integral']>1500)&(data_pd['sc_rms']>6)&(data_pd['sc_tgausssigma']*0.152>0.3)&(np.hypot(data_pd['sc_xmean']-2304/2,data_pd['sc_ymean']-2304/2)<800)]
+        if self.verbose: print ("---> Now applying selection to panda...")
+        data_sel = data_pd[(data_pd['sc_trueint']>0)&(data_pd['sc_integral']>1500)&(data_pd['sc_rms']>6)&(data_pd['sc_tgausssigma']*0.152>0.3)&(np.hypot(data_pd['sc_xmean']-2304/2,data_pd['sc_ymean']-2304/2)<800)]
         if self.verbose > 0:
             print (" ~~~~~~~~~~~~~~ DATA SEL ~~~~~~~~~~~~~~~~~ ")
             print (data_sel)
             print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
 
         print("List of regression variables = ",regr_inputs)
+        if self.verbose: print ("---> Now only saving regression variables to panda...")
         data_regr = data_sel[regr_inputs+["target"]]
         if self.verbose > 0:
             print (" ~~~~~~~~~~~~~~ DATA REGR ~~~~~~~~~~~~~~~~~ ")
             print (data_regr)
             print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
-        
+
+        if savepanda:
+            if self.verbose: print ("---> Now saving panda to pikle file %s..." % savepanda)
+            data_regr.to_pickle(savepanda)
         X = data_regr.to_numpy()[:,:-1]
         y = data_regr.to_numpy()[:,-1]
         return X,y
