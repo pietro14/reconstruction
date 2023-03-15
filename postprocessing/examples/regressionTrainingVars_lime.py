@@ -137,8 +137,10 @@ class RegressionTrainingVarsLime(Module):
         for V in self.vars: ret[V] = []
 
         if event.run not in self.runmap:
-            ret["sc_trueint"].append(-1)
-            ret["sc_truez"].append(-1)
+            clusters = Collection(event,"sc","nSc")
+            for c in clusters:
+                ret["sc_trueint"].append(-1)
+                ret["sc_truez"].append(-1)
         else:
             hv = self.runmap[event.run][0]
             z = self.runmap[event.run][1]
