@@ -1,11 +1,14 @@
 {
 'target'            : "sc_integral/sc_trueint",
-'inputs'            : "sc_xmean|sc_ymean|sc_tgaussamp/sc_tgausssigma|sc_lgaussamp/sc_lgausssigma",
-'selection'         : 'sc_trueint>0 && sc_nhits>150 && sc_rms>10 && sc_xmean>250 && TMath::Hypot(sc_xmean-2304/2,sc_ymean-2304/2)<1000',
+#'inputs'            : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp/sc_tgausssigma|sc_lgaussamp/sc_lgausssigma|sc_rms",
+'inputs'            : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp|sc_tgausssigma|sc_lgaussamp|sc_lgausssigma|sc_rms",
+'inputsfriend'      : "sc_trueint",
+'regr_vars'         : "sc_xmean|sc_ymean|sc_tgaussamp/sc_tgausssigma|sc_lgaussamp/sc_lgausssigma|sc_rms",
 'tree_name'         : "Events",
 'n_estimators'      : 500,
 'max_depth'         : 3,
 'min_samples_split' : 6,
 'min_samples_leaf'  : 7,
-'learning_rate'     : 0.1
+'learning_rate'     : 0.1,
+'verbose'           : 0,
 }

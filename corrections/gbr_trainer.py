@@ -4,7 +4,9 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 
 import numpy as np
-from root_numpy import tree2array,fill_hist
+import awkward
+import uproot
+import pandas as pd
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -75,12 +77,16 @@ class GBRLikelihoodTrainer:
         self.tree_name = params['tree_name']
         self.target = params['target']
         self.var = params['inputs']
-        self.cuts_base = params['selection']
+        self.varfriend = params['inputsfriend']
+        self.regr_vars = params['regr_vars']
         self.X_test = None
         self.y_test = None
         self.training = False
+        self.verbose = params['verbose']
         
-    def __init__(self,params):
+    def __init__(self,paramsfile):
+        config = open(paramsfile, "r")
+        params = eval(config.read())
         self.set_defaults(params)
         training_keys = ['n_estimators','max_depth','min_samples_split','learning_rate']
         self.training_params = {k: params[k] for k in training_keys}
@@ -91,23 +97,56 @@ class GBRLikelihoodTrainer:
     def variables(self):
         return self.var.split("|")
     
-    def get_dataset(self,rfile,friendrfile=None):
-        tfile = ROOT.TFile.Open(rfile)
-        tree = tfile.Get(self.tree_name)
+    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None):
+        print ("Loading events from file %s and converting to numpy arrays for training. Itmay take time..." % rfile)
+        events = uproot.open(rfile)
         if friendrfile:
-            tree.AddFriend("Friends",friendrfile)
+            friends = uproot.open(friendrfile)
+        variables_events = self.var.split("|")
+        variables_friends = self.varfriend.split("|")
+
+        # add regression inputs, only the variables which are function of the others and remove the eventual duplicates
+        regr_inputs = self.regr_vars.split("|")
+        variables_events = list(set(variables_events + regr_inputs))
         
-        # so target is always the first variable
-        variables = [self.target] + self.var.split("|")
-        print("List of variables = ",variables)
-        dataset = tree2array(tree,variables,object_selection={self.cuts_base : variables})
-        tfile.Close()
+        data_main = events[self.tree_name].arrays(variables_events,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
+        data_friend = friends["Friends"].arrays(variables_friends,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
+        data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
+
+        data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
+
+        # now convert to numpy array to flatten it: 1 event is 1 cluster
+        data_arr = data.to_numpy()
+        conc = np.stack(data_arr[0],axis=-1)
+        for i in range(1,len(data_arr)):
+            event = np.stack(data_arr[i],axis=-1)
+            conc = np.vstack([conc,event])
+
+        # now convert back to pd dataframe to make the selection easily
+        # order is important
+        variables = variables_events + variables_friends + ["target"]        # so target is always the last variable
+        data_pd = pd.DataFrame(conc, columns=variables)
+        if self.verbose > 0:
+            print (" ~~~~~~~~~~~~~~ DATA ALL ~~~~~~~~~~~~~~~~~ ")
+            print (data_pd)
+            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+
+        ### hardcoded, move to configuration
+        data_sel = data_pd[(data_pd['sc_trueint']>-2)&(data_pd['sc_integral']>1500)&(data_pd['sc_rms']>6)&(data_pd['sc_tgausssigma']*0.152>0.3)&(np.hypot(data_pd['sc_xmean']-2304/2,data_pd['sc_ymean']-2304/2)<800)]
+        if self.verbose > 0:
+            print (" ~~~~~~~~~~~~~~ DATA SEL ~~~~~~~~~~~~~~~~~ ")
+            print (data_sel)
+            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+
+        print("List of regression variables = ",regr_inputs)
+        data_regr = data_sel[regr_inputs+["target"]]
+        if self.verbose > 0:
+            print (" ~~~~~~~~~~~~~~ DATA REGR ~~~~~~~~~~~~~~~~~ ")
+            print (data_regr)
+            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
         
-        conc = np.stack(dataset[0],axis=-1)
-        for i in range(1,len(dataset)):
-            conc = np.append(conc,np.stack(dataset[i],axis=-1),axis=0)
-        X = conc[:,1:]
-        y = conc[:,0]
+        X = data_regr.to_numpy()[:,:-1]
+        y = data_regr.to_numpy()[:,-1]
         return X,y
 
     def train_model(self,X,y,options):
@@ -253,10 +292,9 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
 
     recofile = args[0]
-    config = open(args[1], "r")
-    params = eval(config.read())
+    paramsfile = args[1]
 
-    GBR = GBRLikelihoodTrainer(params)
+    GBR = GBRLikelihoodTrainer(paramsfile)
     if options.applyOnly == False:
         X,y = GBR.get_dataset(recofile,options.friend)
         print("Dataset loaded from file ",args[0], " Now train the model.")
