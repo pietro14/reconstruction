@@ -4,7 +4,7 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 
 import numpy as np
-import awkward
+import awkward as ak
 import uproot
 import pandas as pd
 
@@ -96,74 +96,56 @@ class GBRLikelihoodTrainer:
     def variables(self):
         return self.var.split("|")
     
-    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savepanda=None):
-        print ("Loading events from file %s and converting to numpy arrays for training. Itmay take time..." % rfile)
-        events = uproot.open(rfile)
-        if friendrfile:
-            friends = uproot.open(friendrfile)
-        variables_events = self.var.split("|")
-        variables_friends = self.varfriend.split("|")
-
-        # add regression inputs, only the variables which are function of the others and remove the eventual duplicates
-        regr_inputs = self.regr_vars.split("|")
-        variables_events = list(set(variables_events + regr_inputs))
-        
-        if self.verbose: print ("---> Now loading main tree %s..." % rfile)
-        data_main = events[self.tree_name].arrays(variables_events,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
-        if self.verbose: print ("---> Now loading friend tree %s ..." % friendrfile)
-        data_friend = friends["Friends"].arrays(variables_friends,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
-        if self.verbose: print ("---> Now attaching main and friend pandas...")
-        data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
+    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savePanda=None,loadPanda=None):
+        if not loadPanda:
+            print ("Loading events from file %s and converting to numpy arrays for training. Itmay take time..." % rfile)
+            events = uproot.open(rfile)
+            if friendrfile:
+                friends = uproot.open(friendrfile)
+            variables_events = self.var.split("|")
+            variables_friends = self.varfriend.split("|")
+     
+            # add regression inputs, only the variables which are function of the others and remove the eventual duplicates
+            regr_inputs = self.regr_vars.split("|")
+            variables_events = list(set(variables_events + regr_inputs))
+            
+            if self.verbose: print ("---> Now loading main tree %s..." % rfile)
+            data_main = events[self.tree_name].arrays(variables_events,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
+            print ("main entries panda = ",len(data_main.index))
+            if self.verbose: print ("---> Now loading friend tree %s ..." % friendrfile)
+            data_friend = friends["Friends"].arrays(variables_friends,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
+            print("friends entries = ",len(data_friend.index))
+            if self.verbose: print ("---> Now attaching main and friend pandas...")
+            data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
+            if self.verbose > 0:
+                print (" ~~~~~~~~~~~~~~ DATA BEFORE SELECTION ~~~~~~~~~~~~~~~~~~ ")
+                print (data)
+                print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+     
+            if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
+            data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
+     
+            ### hardcoded, move to configuration
+            if self.verbose: print ("---> Now applying selection to panda...")
+            data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>6)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<800)]
+            if self.verbose > 0:
+                print (" ~~~~~~~~~~~~~~ DATA AFTER SELECTION ~~~~~~~~~~~~~~~~~ ")
+                print (data_sel)
+                print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+     
+            print("List of regression variables = ",regr_inputs)
+            if self.verbose: print ("---> Now only saving regression variables to panda...")
+            data_regr = data_sel[regr_inputs+["target"]]     
+            if savePanda:
+                if self.verbose: print ("---> Now saving panda to pikle file %s..." % savePanda)
+                data_regr.to_pickle(savePanda)
+        else:
+            data_regr = pd.read_pickle(loadPanda)
         if self.verbose > 0:
-            print (" ~~~~~~~~~~~~~~ DATA BEFORE FLATTENING ~~~~~~~~~~~~~~~~~ ")
-            print (data)
-            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
-
-        if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
-        data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
-
-        
-        
-        # now convert to numpy array to flatten it: 1 event is 1 cluster
-        if self.verbose: print ("---> Now flattenting panda...")
-        data_arr = data.to_numpy()
-        print ("number of events = ",len(data.index))
-        print ("uuu = ",len(data_arr))
-        print ("aaaa = ",data_arr.shape[0])
-        conc = np.stack(data_arr[0],axis=-1)
-        for i in range(1,len(data_arr)):
-            if i%1000==0: print ("Flattened %d / %d entries" % (i,len(data_arr)))
-            event = np.stack(data_arr[i],axis=-1)
-            conc = np.vstack([conc,event])
-
-        # now convert back to pd dataframe to make the selection easily
-        # order is important
-        variables = variables_events + variables_friends + ["target"]        # so target is always the last variable
-        data_pd = pd.DataFrame(conc, columns=variables)
-        if self.verbose > 0:
-            print (" ~~~~~~~~~~~~~~ DATA ALL ~~~~~~~~~~~~~~~~~ ")
-            print (data_pd)
-            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
-
-        ### hardcoded, move to configuration
-        if self.verbose: print ("---> Now applying selection to panda...")
-        data_sel = data_pd[(data_pd['sc_trueint']>0)&(data_pd['sc_integral']>1500)&(data_pd['sc_rms']>6)&(data_pd['sc_tgausssigma']*0.152>0.3)&(np.hypot(data_pd['sc_xmean']-2304/2,data_pd['sc_ymean']-2304/2)<800)]
-        if self.verbose > 0:
-            print (" ~~~~~~~~~~~~~~ DATA SEL ~~~~~~~~~~~~~~~~~ ")
-            print (data_sel)
-            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
-
-        print("List of regression variables = ",regr_inputs)
-        if self.verbose: print ("---> Now only saving regression variables to panda...")
-        data_regr = data_sel[regr_inputs+["target"]]
-        if self.verbose > 0:
-            print (" ~~~~~~~~~~~~~~ DATA REGR ~~~~~~~~~~~~~~~~~ ")
+            print (" ~~~~~~~~~~~~~~ DATA REGRESSION ~~~~~~~~~~~~~~~~~ ")
             print (data_regr)
-            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
 
-        if savepanda:
-            if self.verbose: print ("---> Now saving panda to pikle file %s..." % savepanda)
-            data_regr.to_pickle(savepanda)
         X = data_regr.to_numpy()[:,:-1]
         y = data_regr.to_numpy()[:,-1]
         return X,y
@@ -308,6 +290,8 @@ if __name__ == '__main__':
     parser.add_option('-a',   '--apply-only', dest='applyOnly', action='store_true', default=False,  help='only apply regression on saved models and the data of the input file. Do not train')
     parser.add_option('--cv', '--central-value-only', dest='cvOnly', action='store_true', default=False,  help='Train only the central value regression, not the uncertainties.')
     parser.add_option('-f',   '--friend', dest='friend', default=None, type='string', help='file to be used as friend (eg for Etrue)')
+    parser.add_option(        '--savePanda', dest='savePanda', default=None, type='string', help='file where to store the regression data as panda dataframe for re-use')
+    parser.add_option(        '--loadPanda', dest='loadPanda', default=None, type='string', help='file with regression data as panda dataframe to be loaded instead of the full ROOT files')
     (options, args) = parser.parse_args()
 
     recofile = args[0]
@@ -315,7 +299,7 @@ if __name__ == '__main__':
 
     GBR = GBRLikelihoodTrainer(paramsfile)
     if options.applyOnly == False:
-        X,y = GBR.get_dataset(recofile,options.friend)
+        X,y = GBR.get_dataset(recofile,friendrfile=options.friend,savePanda=options.savePanda,loadPanda=options.loadPanda)
         print("Dataset loaded from file ",args[0], " Now train the model.")
     
         GBR.train_model(X,y,options)
