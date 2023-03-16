@@ -17,6 +17,10 @@ from sklearn.inspection import permutation_importance
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
+def fill_hist(hist,arr):
+    for i in range(len(arr)):
+        hist.Fill(arr[i])
+
 def getCanvas(name='c'):
 
     ROOT.gStyle.SetPalette(ROOT.kRainBow)
@@ -94,7 +98,7 @@ class GBRLikelihoodTrainer:
         return "{args.base_name}_{args.vars_name}_{args.cuts_name}_vgem{args.vgem1}V_ntrees{args.ntrees}".format(args=self)
 
     def variables(self):
-        return self.var.split("|")
+        return self.regr_vars.split("|")
     
     def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savePanda=None,loadPanda=None):
         if not loadPanda:
