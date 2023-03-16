@@ -4,7 +4,9 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 
 import numpy as np
-from root_numpy import tree2array,fill_hist
+import awkward as ak
+import uproot
+import pandas as pd
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +16,10 @@ from sklearn import ensemble
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
+
+def fill_hist(hist,arr):
+    for i in range(len(arr)):
+        hist.Fill(arr[i])
 
 def getCanvas(name='c'):
 
@@ -73,14 +79,17 @@ def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBo
 class GBRLikelihoodTrainer:
     def set_defaults(self,params):
         self.tree_name = params['tree_name']
-        self.target = params['target']
         self.var = params['inputs']
-        self.cuts_base = params['selection']
+        self.varfriend = params['inputsfriend']
+        self.regr_vars = params['regr_vars']
         self.X_test = None
         self.y_test = None
         self.training = False
+        self.verbose = params['verbose']
         
-    def __init__(self,params):
+    def __init__(self,paramsfile):
+        config = open(paramsfile, "r")
+        params = eval(config.read())
         self.set_defaults(params)
         training_keys = ['n_estimators','max_depth','min_samples_split','learning_rate']
         self.training_params = {k: params[k] for k in training_keys}
@@ -89,25 +98,60 @@ class GBRLikelihoodTrainer:
         return "{args.base_name}_{args.vars_name}_{args.cuts_name}_vgem{args.vgem1}V_ntrees{args.ntrees}".format(args=self)
 
     def variables(self):
-        return self.var.split("|")
+        return self.regr_vars.split("|")
     
-    def get_dataset(self,rfile,friendrfile=None):
-        tfile = ROOT.TFile.Open(rfile)
-        tree = tfile.Get(self.tree_name)
-        if friendrfile:
-            tree.AddFriend("Friends",friendrfile)
-        
-        # so target is always the first variable
-        variables = [self.target] + self.var.split("|")
-        print("List of variables = ",variables)
-        dataset = tree2array(tree,variables,object_selection={self.cuts_base : variables})
-        tfile.Close()
-        
-        conc = np.stack(dataset[0],axis=-1)
-        for i in range(1,len(dataset)):
-            conc = np.append(conc,np.stack(dataset[i],axis=-1),axis=0)
-        X = conc[:,1:]
-        y = conc[:,0]
+    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savePanda=None,loadPanda=None):
+        if not loadPanda:
+            print ("Loading events from file %s and converting to numpy arrays for training. Itmay take time..." % rfile)
+            events = uproot.open(rfile)
+            if friendrfile:
+                friends = uproot.open(friendrfile)
+            variables_events = self.var.split("|")
+            variables_friends = self.varfriend.split("|")
+     
+            # add regression inputs, only the variables which are function of the others and remove the eventual duplicates
+            regr_inputs = self.regr_vars.split("|")
+            variables_events = list(set(variables_events + regr_inputs))
+            
+            if self.verbose: print ("---> Now loading main tree %s..." % rfile)
+            data_main = events[self.tree_name].arrays(variables_events,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
+            print ("main entries panda = ",len(data_main.index))
+            if self.verbose: print ("---> Now loading friend tree %s ..." % friendrfile)
+            data_friend = friends["Friends"].arrays(variables_friends,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
+            print("friends entries = ",len(data_friend.index))
+            if self.verbose: print ("---> Now attaching main and friend pandas...")
+            data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
+            if self.verbose > 0:
+                print (" ~~~~~~~~~~~~~~ DATA BEFORE SELECTION ~~~~~~~~~~~~~~~~~~ ")
+                print (data)
+                print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+     
+            if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
+            data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
+     
+            ### hardcoded, move to configuration
+            if self.verbose: print ("---> Now applying selection to panda...")
+            data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>6)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<800)]
+            if self.verbose > 0:
+                print (" ~~~~~~~~~~~~~~ DATA AFTER SELECTION ~~~~~~~~~~~~~~~~~ ")
+                print (data_sel)
+                print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+     
+            print("List of regression variables = ",regr_inputs)
+            if self.verbose: print ("---> Now only saving regression variables to panda...")
+            data_regr = data_sel[regr_inputs+["target"]]     
+            if savePanda:
+                if self.verbose: print ("---> Now saving panda to pikle file %s..." % savePanda)
+                data_regr.to_pickle(savePanda)
+        else:
+            data_regr = pd.read_pickle(loadPanda)
+        if self.verbose > 0:
+            print (" ~~~~~~~~~~~~~~ DATA REGRESSION ~~~~~~~~~~~~~~~~~ ")
+            print (data_regr)
+            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+
+        X = data_regr.to_numpy()[:,:-1]
+        y = data_regr.to_numpy()[:,-1]
         return X,y
 
     def train_model(self,X,y,options):
@@ -250,15 +294,16 @@ if __name__ == '__main__':
     parser.add_option('-a',   '--apply-only', dest='applyOnly', action='store_true', default=False,  help='only apply regression on saved models and the data of the input file. Do not train')
     parser.add_option('--cv', '--central-value-only', dest='cvOnly', action='store_true', default=False,  help='Train only the central value regression, not the uncertainties.')
     parser.add_option('-f',   '--friend', dest='friend', default=None, type='string', help='file to be used as friend (eg for Etrue)')
+    parser.add_option(        '--savePanda', dest='savePanda', default=None, type='string', help='file where to store the regression data as panda dataframe for re-use')
+    parser.add_option(        '--loadPanda', dest='loadPanda', default=None, type='string', help='file with regression data as panda dataframe to be loaded instead of the full ROOT files')
     (options, args) = parser.parse_args()
 
     recofile = args[0]
-    config = open(args[1], "r")
-    params = eval(config.read())
+    paramsfile = args[1]
 
-    GBR = GBRLikelihoodTrainer(params)
+    GBR = GBRLikelihoodTrainer(paramsfile)
     if options.applyOnly == False:
-        X,y = GBR.get_dataset(recofile,options.friend)
+        X,y = GBR.get_dataset(recofile,friendrfile=options.friend,savePanda=options.savePanda,loadPanda=options.loadPanda)
         print("Dataset loaded from file ",args[0], " Now train the model.")
     
         GBR.train_model(X,y,options)
