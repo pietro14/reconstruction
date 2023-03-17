@@ -1,13 +1,17 @@
 import ROOT, itertools
 import math, joblib
 import numpy as np
+import pandas as pd
 
 from framework.datamodel import Collection 
 from framework.eventloop import Module
 
+def getly(df,hv,z):
+    return np.mean(df[(df['vgem']==hv)&(df['z']==z)]['ly'].values)
+
 class RegressionTrainingVarsLime(Module):
     def __init__(self):
-        self.vars = ["sc_trueint","sc_truez"]
+        self.vars = ["sc_trueint","sc_truez","hv"]        
         self.runmap = {
             9364 :[ 440 , 5],
             9378 :[ 440 , 15],
@@ -20,7 +24,6 @@ class RegressionTrainingVarsLime(Module):
             9442 :[ 440 , 25],
             9735 :[ 440 , 48],
             9745 :[ 440 , 36],
-            9365 :[ 440 , 5],
 
             9365 :[ 430 , 5],
             9379 :[ 430 , 15],
@@ -107,18 +110,20 @@ class RegressionTrainingVarsLime(Module):
             9753 :[ 360 , 36],
         }
 
-        self.energy_range_map = {360: (1500,5000,4000),
-                                 370: (2000,6000,4700),
-                                 380: (2000,7000,5500),
-                                 390: (2500,8000,6500),
-                                 400: (2500,10000,7500),
-                                 410: (2500,11000,8600),
-                                 420: (3000,12000,10000),
-                                 430: (4000,14000,11000),
-                                 440: (4000,17000,13000),
+        df = pd.read_pickle("data/fitm-zhvscans-ext.pkl")
+        # the "target" variable is the value without saturation, i.e. the value at max z
+        self.energy_range_map = {360: (1500,5000,getly(df,360,48)),
+                                 370: (2000,6000,getly(df,370,48)),
+                                 380: (2000,7000,getly(df,380,48)),
+                                 390: (2500,8000,getly(df,390,48)),
+                                 400: (2500,10000,getly(df,400,48)),
+                                 410: (2500,11000,getly(df,410,48)),
+                                 420: (3000,12000,getly(df,420,48)),
+                                 430: (4000,14000,getly(df,430,48)),
+                                 440: (4000,17000,getly(df,440,48)),
                                  }
             
-        self.sigma0 = 0.01
+        self.sigma0 = 0.001
         
     def beginJob(self):
         pass
