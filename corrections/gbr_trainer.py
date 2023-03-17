@@ -121,6 +121,7 @@ class GBRLikelihoodTrainer:
             print("friends entries = ",len(data_friend.index))
             if self.verbose: print ("---> Now attaching main and friend pandas...")
             data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
+            data = data[ data['sc_integral'].map(len)>0 ]
             if self.verbose > 0:
                 print (" ~~~~~~~~~~~~~~ DATA BEFORE SELECTION ~~~~~~~~~~~~~~~~~~ ")
                 print (data)
