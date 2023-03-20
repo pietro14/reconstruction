@@ -11,7 +11,7 @@ def getly(df,hv,z):
 
 class RegressionTrainingVarsLime(Module):
     def __init__(self):
-        self.vars = ["sc_trueint","sc_truez","hv"]        
+        self.vars = ["sc_trueint","sc_truez","sc_hv"]
         self.runmap = {
             9364 :[ 440 , 5],
             9378 :[ 440 , 15],
@@ -146,6 +146,7 @@ class RegressionTrainingVarsLime(Module):
             for c in clusters:
                 ret["sc_trueint"].append(-1)
                 ret["sc_truez"].append(-1)
+                ret["sc_hv"].append(-1)
         else:
             hv = self.runmap[event.run][0]
             z = self.runmap[event.run][1]
@@ -154,9 +155,10 @@ class RegressionTrainingVarsLime(Module):
                 etrue = -1
                 emin,emax,etrue0 = self.energy_range_map[hv]
                 if emin < c.integral < emax:
-                    etrue = etrue0 * np.random.normal(1,self.sigma0)
+                    etrue = etrue0 #* np.random.normal(1,self.sigma0)
                 ret["sc_trueint"].append(etrue)
                 ret["sc_truez"].append(z)
+                ret["sc_hv"].append(hv)
         for V in self.vars:
             self.out.fillBranch(V,ret[V])
 
