@@ -129,23 +129,24 @@ class GBRLikelihoodTrainer:
             if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
             data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
      
-            ### hardcoded, move to configuration
-            if self.verbose: print ("---> Now applying selection to panda...")
-            data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>6)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<1000)]
-            if len(addCuts):
-                for k,v in addCuts.items():
-                    print ("Adding selection: %d < %s <= %d " % (v[0],k,v[1]))
-                    data_sel = data_sel[(v[0]<data_sel[k]<=v[1])]
-            if self.verbose > 0:
-                print (" ~~~~~~~~~~~~~~ DATA AFTER SELECTION ~~~~~~~~~~~~~~~~~ ")
-                print (data_sel)
-                print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
             if savePanda:
                 if self.verbose: print ("---> Now saving selected clusters to panda into pikle file %s..." % savePanda)
-                data_sel.to_pickle(savePanda)     
+                data.to_pickle(savePanda)
         else:
-            data_sel = pd.read_pickle(loadPanda)
+            data = pd.read_pickle(loadPanda)
 
+        ### hardcoded, move to configuration
+        if self.verbose: print ("---> Now applying selection to panda...")
+        data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>6)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<900)]
+        if len(addCuts):
+            for k,v in addCuts.items():
+                print ("Adding selection: %d < %s <= %d " % (v[0],k,v[1]))
+                data_sel = data_sel[(data_sel[k]>=v[0])&(data_sel[k]<v[1])]
+        if self.verbose > 0:
+            print (" ~~~~~~~~~~~~~~ DATA AFTER SELECTION ~~~~~~~~~~~~~~~~~ ")
+            print (data_sel)
+            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+            
         if self.verbose:
             print("List of regression variables = ",regr_inputs)
             print ("---> Now select only regression variables...")
@@ -233,7 +234,7 @@ class GBRLikelihoodTrainer:
     def get_testdata(self):
         return self.X_test, self.y_test
 
-    def test_models(self,recofile,options):
+    def test_models(self,recofile,options,panda=None):
         prefix=options.outname
         print ("Test the saved models on the input file: ",recofile)
         # use the ones of the object if testing after training (to ensure orthogonality wrt training sample)
@@ -241,7 +242,7 @@ class GBRLikelihoodTrainer:
             X_test = self.X_test
             y_test = self.y_test
         else:
-            X,y = self.get_dataset(recofile,options.friend)
+            X,y = self.get_dataset(recofile,options.friend,loadPanda=panda)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.95, random_state=13)
 
         hist = ROOT.TH1F('hist','',50,0.,2.0)
@@ -267,14 +268,14 @@ class GBRLikelihoodTrainer:
         hists["uncorr"] = hist.Clone('hist_uncorr')
         fill_hist(hists["uncorr"],y_test)
         labels = {'uncorr': "raw ({rms:1.2f}%)".format(rms=hists['uncorr'].GetRMS()),
-                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS()),
-                  'q0.50': 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS()) }
+                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS())}
         colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan}
         color_median = {'q0.50': ROOT.kBlack}
-        if options.cvOnly==False:
-            colors.update(color_median)
-
         styles = {'uncorr': 3005, 'mse': 3004, 'q0.50': 0}
+        if options.cvOnly==False:
+            labels['q0.50'] = 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS())
+            colors['q0.50'] = color_median
+            styles['q0.50'] = 0
         arr_hists = []; arr_styles = []; arr_labels = []
         for i,k in enumerate(colors):
             drawopt = '' if i==0 else 'same'
@@ -311,15 +312,15 @@ if __name__ == '__main__':
     if options.applyOnly == False:
         X,y = GBR.get_dataset(recofile,friendrfile=options.friend,savePanda=options.savePanda,loadPanda=options.loadPanda)
         print("Dataset loaded from file ",args[0], " Now train the model.")
-    
+
         GBR.train_model(X,y,options)
         print("GBR likelihood computed. Now plot results and control plots")
-    
+        
         GBR.plot_training()
         GBR.save_models(options.outname)
 
     # now test the model (this is to test that the model was saved correctly)
-    GBR.test_models(recofile,options)
+    GBR.test_models(recofile,options,panda=options.loadPanda)
     
     print("DONE.")
     

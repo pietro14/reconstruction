@@ -282,11 +282,11 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
 def fitAllResponses(inputfile="response_histos.root"):
 
-    limits = {5 : (0.3,1.1),
-              15  : (0.4,1.4),
-              25  : (0.5,1.6),
-              36  : (0.6,1.6),
-              48  : (0.6,1.7),
+    limits = {5 : (0.1,1.2),
+              15  : (0.3,1.4),
+              25  : (0.3,1.4),
+              36  : (0.3,1.3),
+              48  : (0.4,1.4),
               }
 
     dummy_uncorr = ROOT.TH1F("dummy_uncorr","",1,0,1)
@@ -399,7 +399,7 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     titles = ['uncorrected','regression']
     styles = ['pl','pl']
     
-    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.6,1.4)
+    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.,1.1)
     legend = doLegend(responses,titles,styles,corner="TL")    
     for ext in ['pdf','png']:
         c.SaveAs("response.%s"%ext)
