@@ -100,19 +100,18 @@ class GBRLikelihoodTrainer:
     def variables(self):
         return self.regr_vars.split("|")
     
-    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savePanda=None,loadPanda=None):
+    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savePanda=None,loadPanda=None,addCuts={}):
+        variables_events = self.var.split("|")
+        variables_friends = self.varfriend.split("|")
+        # add regression inputs, only the variables which are function of the others and remove the eventual duplicates
+        regr_inputs = self.regr_vars.split("|")
+        variables_events = list(set(variables_events + regr_inputs))
+
         if not loadPanda:
             print ("Loading events from file %s and converting to numpy arrays for training. Itmay take time..." % rfile)
             events = uproot.open(rfile)
             if friendrfile:
                 friends = uproot.open(friendrfile)
-            variables_events = self.var.split("|")
-            variables_friends = self.varfriend.split("|")
-     
-            # add regression inputs, only the variables which are function of the others and remove the eventual duplicates
-            regr_inputs = self.regr_vars.split("|")
-            variables_events = list(set(variables_events + regr_inputs))
-            
             if self.verbose: print ("---> Now loading main tree %s..." % rfile)
             data_main = events[self.tree_name].arrays(variables_events,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
             print ("main entries panda = ",len(data_main.index))
@@ -121,7 +120,7 @@ class GBRLikelihoodTrainer:
             print("friends entries = ",len(data_friend.index))
             if self.verbose: print ("---> Now attaching main and friend pandas...")
             data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
-            data = data[ data['sc_integral'].map(len)>0 ]
+            #data = data[ data['sc_integral'].map(len)>0 ]
             if self.verbose > 0:
                 print (" ~~~~~~~~~~~~~~ DATA BEFORE SELECTION ~~~~~~~~~~~~~~~~~~ ")
                 print (data)
@@ -132,20 +131,26 @@ class GBRLikelihoodTrainer:
      
             ### hardcoded, move to configuration
             if self.verbose: print ("---> Now applying selection to panda...")
-            data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>6)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<800)]
+            data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>6)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<1000)]
+            if len(addCuts):
+                for k,v in addCuts.items():
+                    print ("Adding selection: %d < %s <= %d " % (v[0],k,v[1]))
+                    data_sel = data_sel[(v[0]<data_sel[k]<=v[1])]
             if self.verbose > 0:
                 print (" ~~~~~~~~~~~~~~ DATA AFTER SELECTION ~~~~~~~~~~~~~~~~~ ")
                 print (data_sel)
                 print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
-     
-            print("List of regression variables = ",regr_inputs)
-            if self.verbose: print ("---> Now only saving regression variables to panda...")
-            data_regr = data_sel[regr_inputs+["target"]]     
             if savePanda:
-                if self.verbose: print ("---> Now saving panda to pikle file %s..." % savePanda)
-                data_regr.to_pickle(savePanda)
+                if self.verbose: print ("---> Now saving selected clusters to panda into pikle file %s..." % savePanda)
+                data_sel.to_pickle(savePanda)     
         else:
-            data_regr = pd.read_pickle(loadPanda)
+            data_sel = pd.read_pickle(loadPanda)
+
+        if self.verbose:
+            print("List of regression variables = ",regr_inputs)
+            print ("---> Now select only regression variables...")
+        data_regr = data_sel[regr_inputs+["target"]]     
+
         if self.verbose > 0:
             print (" ~~~~~~~~~~~~~~ DATA REGRESSION ~~~~~~~~~~~~~~~~~ ")
             print (data_regr)
@@ -162,7 +167,7 @@ class GBRLikelihoodTrainer:
 
         # MEAN SQUARE ERRORS REGRESSION
         print("===> Training mean square errors regression...")
-        reg_ls = ensemble.GradientBoostingRegressor(loss='squared_error',
+        reg_ls = ensemble.GradientBoostingRegressor(loss='ls',
                                                     **self.training_params)
         self.models_["mse"] = reg_ls.fit(X_train, y_train)
         mse = mean_squared_error(y_test, reg_ls.predict(X_test))
@@ -170,7 +175,7 @@ class GBRLikelihoodTrainer:
 
         # QUANTILE REGRESSION
         print("===> Now training quantiles regression...")
-        alphas = [] if options.cvOnly==True else [0.05, 0.5, 0.95]
+        alphas = [0.5] if options.cvOnly==True else [0.05, 0.5, 0.95]
         for alpha in alphas:
             print("\t### Quantile = ",alpha)
             reg = ensemble.GradientBoostingRegressor(loss='quantile', alpha=alpha,

@@ -2,21 +2,11 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 
 import numpy as np
-import math, os
+import math, os, joblib
 
-# map run - z distance
-#          no source        8.7       8.4        8.1k       5k
-#runs = {4433: 50, 4441: 46, 4448: 36, 4455: 26, 4463: 6}
-#runs = {4441: 46, 4448: 36, 4455: 26}
-runs = {5870: 46,
-        5875: 41,
-        5880: 36,
-        5885: 31,
-        5890: 26,
-        5895: 21,
-        5900: 16,
-        5905: 11,
-        5910: 6.5}
+from gbr_trainer import GBRLikelihoodTrainer,fill_hist
+
+Zsteps = [5,15,25,36,48]
 
 def doSpam(text,x1,y1,x2,y2,align=12,fill=False,textSize=0.033,_noDelete={}):
     cmsprel = ROOT.TPaveText(x1,y1,x2,y2,"NDC");
@@ -106,20 +96,15 @@ def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBo
 
 
 def getFriend(inputfile):
-    print ("ddddd = ",os.path.dirname(inputfile))
-    print ("bbb = ",os.path.basename(inputfile).split('.root')[0])
-    friendfile = "{dirn}/friends/{base}_Friend.root".format(dirn=os.path.dirname(inputfile),
+    friendfile = "{dirn}/{base}_Friend.root".format(dirn=os.path.dirname(inputfile),
                                                     base=os.path.basename(inputfile).split('.root')[0])
-    print ("ssss = ",friendfile)
-    print ("ccc = ",os.path.isfile(friendfile))
     return friendfile
 
-def response_vsrun(inputfile,params,runN):
-    params['selection'] = "({sel}) && run=={run}".format(sel=params['selection'],run=runN)
-    print ("New selection SEL = {sel}".format(sel=params['selection']))
-
-    GBR = GBRLikelihoodTrainer(params)
-    X,y = GBR.get_dataset(inputfile,getFriend(inputfile))
+def response_vsrun(inputfile,paramsfile,Z,panda=None):
+    GBR = GBRLikelihoodTrainer(paramsfile)
+    eps=0.1
+    zSel = {'sc_truez': (Z-eps,Z+eps)}
+    X,y = GBR.get_dataset(inputfile,getFriend(inputfile),loadPanda=panda,addCuts=zSel)
     filename = "gbrLikelihood_mse.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
@@ -136,15 +121,15 @@ def response_vsrun(inputfile,params,runN):
     return (histos['uncorr'],histos['regr'])
     
     
-def response2D(inputfile,params):
+def response2D(inputfile,paramsfile,panda=None):
 
-    friendfile = "{dirn}/friends/{base}_Friend.root".format(dirn=os.path.dirname(inputfile),
-                                                            base=os.path.basename(inputfile).split('.root')[0])
-    GBR = GBRLikelihoodTrainer(params)
-    X,y = GBR.get_dataset(inputfile,getFriend(inputfile))
+    friendfile = "{dirn}/{base}_Friend.root".format(dirn=os.path.dirname(inputfile),
+                                                    base=os.path.basename(inputfile).split('.root')[0])
+    GBR = GBRLikelihoodTrainer(paramsfile)
+    X,y = GBR.get_dataset(inputfile,getFriend(inputfile),loadPanda=panda)
 
     xy_indices = []
-    vars = params["inputs"].split("|")
+    vars = GBR.variables()
     for i,v in enumerate(vars):
         if v=='sc_xmean': xy_indices.append(i)
         if v=='sc_ymean': xy_indices.append(i)
@@ -153,7 +138,7 @@ def response2D(inputfile,params):
     print("xy = ",xy)
     print("y = ",y)
 
-    energy_2D = ROOT.TH3D('energy_2D','',10,0,2304,10,0,2304,200,0,2)
+    energy_2D = ROOT.TH3D('energy_2D','',144,0,2304,144,0,2304,200,0,2)
     energy_1D = ROOT.TH2D('energy_1D','',20,0,2304/math.sqrt(2.),70,0,2)
     
     filename = "gbrLikelihood_mse.sav"
@@ -179,12 +164,12 @@ def response2D(inputfile,params):
         energy_1Ds['uncorr'].Fill(math.hypot(xy[i][1]-center,xy[i][0]-center),y[i])
         energy_1Ds['regr'].Fill(math.hypot(xy[i][1]-center,xy[i][0]-center),y_pred[i])
 
-    energy_2D_mode = ROOT.TH2D('energy_2D_mode','',10,0,2304,10,0,2304)
+    energy_2D_mode = ROOT.TH2D('energy_2D_mode','',144,0,2304,144,0,2304)
     energy_1D_mode = ROOT.TH1D('energy_1D_mode','',20,200,2100/math.sqrt(2.))
     energy_2D_mode.GetXaxis().SetTitle("ix")
     energy_2D_mode.GetYaxis().SetTitle("iy")
     energy_2D_mode.GetZaxis().SetTitle("mode")
-    energy_2D_mode.GetZaxis().SetRangeUser(0.8,1.3)
+    energy_2D_mode.GetZaxis().SetRangeUser(0.2,1.4)
     
     energy_2D_modes = {}
     energy_2D_modes['uncorr'] = energy_2D_mode.Clone('energy_2D_mode_uncorr')
@@ -217,12 +202,12 @@ def response2D(inputfile,params):
                         maxZ = h3D.GetBinContent(ix,iy,iz)
                         zbinmax = iz
                 energy_2D_modes[k].SetBinContent(ix,iy,h3D.GetZaxis().GetBinCenter(zbinmax))
-        energy_2D_modes[k].Draw("colz text45")
+        energy_2D_modes[k].Draw("colz") # text45")
         c.SaveAs("energy_2D_{name}.png".format(name=k))
 
     energy_2D_modes['ratio'] = energy_2D_modes['regr'].Clone('energy_2D_mode_ratio')
     energy_2D_modes['ratio'].Divide(energy_2D_modes['uncorr'])
-    energy_2D_modes['ratio'].Draw("colz text45")
+    energy_2D_modes['ratio'].Draw("colz") # text45")
     c.SaveAs("energy_2D_ratio.png")
     
     
@@ -232,20 +217,13 @@ def response2D(inputfile,params):
     # energy_1Ds['regr'].Draw("pe1 same")
     # c.SaveAs("energy_1D.png")
 
-def makeResponseHistos(treeFile,params_txt,outfileHistos="response_histos.root"):
+def makeResponseHistos(treeFile,params_txt,outfileHistos="response_histos.root",panda=None):
     outfile = ROOT.TFile.Open(outfileHistos,"recreate")
-    config = open(params_txt, "r")
-    params = eval(config.read())
-    config.close()
-    response2D(treeFile,params)
+    response2D(treeFile,params_txt,panda=panda)
     outfile.cd()
-    for i,v in enumerate(runs.items()):
-        config = open(args[1], "r")
-        params = eval(config.read()) # re-read to reload run
-        config.close()
-        run,dist = v
-        print("filling graph with point ",i," and run = ",run," corresponding to distance ",dist)
-        histos = response_vsrun(args[0],params,run)
+    for i,dist in enumerate(Zsteps):
+        print("filling graph with point ",i," and Z = ",dist)
+        histos = response_vsrun(args[0],params_txt,dist,panda=panda)
         for ih,h in enumerate(histos):
             h.Draw("hist")
             suff = 'uncorr' if ih==0 else 'regr'
@@ -304,15 +282,11 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
 def fitAllResponses(inputfile="response_histos.root"):
 
-    limits = {6.5 : (0.3,1.1),
-              11  : (0.4,1.4),
-              16  : (0.4,1.4),
-              21  : (0.4,1.5),
-              26  : (0.5,1.6),
-              31  : (0.6,1.5),
+    limits = {5 : (0.3,1.1),
+              15  : (0.4,1.4),
+              25  : (0.5,1.6),
               36  : (0.6,1.6),
-              41  : (0.5,1.6),
-              46  : (0.6,1.7),
+              48  : (0.6,1.7),
               }
 
     dummy_uncorr = ROOT.TH1F("dummy_uncorr","",1,0,1)
@@ -328,8 +302,7 @@ def fitAllResponses(inputfile="response_histos.root"):
 
     results = {}
     tf = ROOT.TFile(inputfile,"read")
-    for i,v in enumerate(runs.items()):
-        run,dist = v
+    for i,dist in enumerate(Zsteps):
         c = getCanvas()
         for corr in ["regr","uncorr"]:
             hname = "resp_{corr}_{dist}".format(corr=corr,dist=dist)
@@ -357,13 +330,13 @@ def fitAllResponses(inputfile="response_histos.root"):
 
 def graphVsR(typeInput='histo',histoFile="response_histos.root"):
 
-    resp_vs_z_uncorr = ROOT.TGraphErrors(len(runs))
-    reso_vs_z_uncorr = ROOT.TGraph(len(runs))
-    resp_vs_z_regr = ROOT.TGraphErrors(len(runs))
-    reso_vs_z_regr = ROOT.TGraph(len(runs))
+    resp_vs_z_uncorr = ROOT.TGraphErrors(len(Zsteps))
+    reso_vs_z_uncorr = ROOT.TGraph(len(Zsteps))
+    resp_vs_z_regr = ROOT.TGraphErrors(len(Zsteps))
+    reso_vs_z_regr = ROOT.TGraph(len(Zsteps))
 
-    reso_vs_z_uncorr_fullrms = ROOT.TGraph(len(runs))
-    reso_vs_z_regr_fullrms = ROOT.TGraph(len(runs))
+    reso_vs_z_uncorr_fullrms = ROOT.TGraph(len(Zsteps))
+    reso_vs_z_regr_fullrms = ROOT.TGraph(len(Zsteps))
 
     resp_vs_z_uncorr.GetXaxis().SetTitle("z (cm)")
     resp_vs_z_uncorr.GetYaxis().SetTitle("E/E^{peak}")
@@ -375,8 +348,7 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
 
     if typeInput=="histo":
         tf = ROOT.TFile(histoFile,"read")
-        for i,v in enumerate(runs.items()):
-            run,dist = v
+        for i,dist in enumerate(Zsteps):
             huncorr = tf.Get("resp_uncorr_{dist}".format(dist=dist))
             hregr   = tf.Get("resp_regr_{dist}".format(dist=dist))
             resp_vs_z_uncorr.SetPoint(i,dist,huncorr.GetMean())
@@ -392,8 +364,7 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     elif typeInput=="fit":
         results = fitAllResponses()
         tf = ROOT.TFile(histoFile,"read")
-        for i,v in enumerate(runs.items()):
-            run,dist = v
+        for i,dist in enumerate(Zsteps):
 
             mean,sigma,meanerr,sigmaerr = results[('uncorr',dist)]
             resp_vs_z_uncorr.SetPoint(i,dist,mean)
@@ -467,7 +438,9 @@ if __name__ == '__main__':
 
     from optparse import OptionParser
     parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] ')
+    parser.add_option(        '--loadPanda', dest='loadPanda', default=None, type='string', help='file with regression data as panda dataframe to be loaded instead of the full ROOT files')
+#    parser.add_option(        '--truthmap', dest='truthmap', default="../postprocessing/data/fitm-zhvscans-ext.pkl", type='string', help='pickle file with the results of the fit: table with HV,z,LY,sigma(LY)')
     (options, args) = parser.parse_args()
 
-    #    makeResponseHistos(args[0],args[1])
+    makeResponseHistos(args[0],args[1],panda=options.loadPanda)
     graphVsR("fit")
