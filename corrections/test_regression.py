@@ -108,6 +108,10 @@ def response_vsrun(inputfile,paramsfile,Z,panda=None):
     filename = "gbrLikelihood_mse.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
+    y_raw = X[:,GBR.rawyindex]
+
+    YoYt = np.divide(y_pred,y)
+    YrawoYt = np.divide(y_raw,y)
 
     h = ROOT.TH1F('h','',800,0,2)
     histos = {}
@@ -115,8 +119,8 @@ def response_vsrun(inputfile,paramsfile,Z,panda=None):
     histos['uncorr'] = h.Clone('h_uncorr')
     histos['regr'] = h.Clone('h_regr')
 
-    fill_hist(histos['uncorr'],y)
-    fill_hist(histos['regr'],y_pred)
+    fill_hist(histos['uncorr'],YrawoYt)
+    fill_hist(histos['regr'],YoYt)
 
     return (histos['uncorr'],histos['regr'])
     
@@ -144,7 +148,11 @@ def response2D(inputfile,paramsfile,panda=None):
     filename = "gbrLikelihood_mse.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
+    y_raw = X[:,GBR.rawyindex]
 
+    YoYt = np.divide(y_pred,y)
+    YrawoYt = np.divide(y_raw,y)
+    
     energy_2Ds = {}
     energy_1Ds = {}
 
@@ -159,10 +167,10 @@ def response2D(inputfile,paramsfile,panda=None):
     
     for i in range(len(y)):
         #print("ev {iev} has x,y=({x},{y}) and y = {z}".format(iev=i,x=xy[i][0],y=xy[i][1],z=y[i]))
-        energy_2Ds['uncorr'].Fill(xy[i][1],xy[i][0],y[i])
-        energy_2Ds['regr'].Fill(xy[i][1],xy[i][0],y_pred[i])
-        energy_1Ds['uncorr'].Fill(math.hypot(xy[i][1]-center,xy[i][0]-center),y[i])
-        energy_1Ds['regr'].Fill(math.hypot(xy[i][1]-center,xy[i][0]-center),y_pred[i])
+        energy_2Ds['uncorr'].Fill(xy[i][1],xy[i][0],YrawoYt[i])
+        energy_2Ds['regr'].Fill(xy[i][1],xy[i][0],YoYt[i])
+        energy_1Ds['uncorr'].Fill(math.hypot(xy[i][1]-center,xy[i][0]-center),YrawoYt[i])
+        energy_1Ds['regr'].Fill(math.hypot(xy[i][1]-center,xy[i][0]-center),YoYt[i])
 
     energy_2D_mode = ROOT.TH2D('energy_2D_mode','',144,0,2304,144,0,2304)
     energy_1D_mode = ROOT.TH1D('energy_1D_mode','',20,200,2100/math.sqrt(2.))
@@ -320,7 +328,7 @@ def fitAllResponses(inputfile="response_histos.root"):
             
         responses = [dummy_uncorr,dummy_regr]
         titles = ['E_{rec}','E']
-        styles = ['pl','pl']    
+        styles = ['pl','pl']
         legend = doLegend(responses,titles,styles,corner="TL")    
 
         doTinyCmsPrelim(hasExpo = False,textSize=0.04, options=None,doWide=False)

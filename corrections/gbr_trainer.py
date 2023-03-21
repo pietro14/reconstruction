@@ -108,16 +108,15 @@ class GBRLikelihoodTrainer:
         variables_events = list(set(variables_events + regr_inputs))
 
         if not loadPanda:
-            print ("Loading events from file %s and converting to numpy arrays for training. Itmay take time..." % rfile)
+            print ("Loading events from file %s and converting to numpy arrays for training. It might take time..." % rfile)
             events = uproot.open(rfile)
             if friendrfile:
                 friends = uproot.open(friendrfile)
             if self.verbose: print ("---> Now loading main tree %s..." % rfile)
             data_main = events[self.tree_name].arrays(variables_events,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
-            print ("main entries panda = ",len(data_main.index))
             if self.verbose: print ("---> Now loading friend tree %s ..." % friendrfile)
             data_friend = friends["Friends"].arrays(variables_friends,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
-            print("friends entries = ",len(data_friend.index))
+            if len(data_main.index)!=len(data_friend.index): RuntimeError("Number of entries in the main tree = %d and in the friend tree = %d don't match " %(len(data_main.index),len(data_friend.index)))
             if self.verbose: print ("---> Now attaching main and friend pandas...")
             data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
             #data = data[ data['sc_integral'].map(len)>0 ]
@@ -127,7 +126,8 @@ class GBRLikelihoodTrainer:
                 print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
      
             if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
-            data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
+            #data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
+            data["target"] = data.apply(lambda row: row.sc_trueint, axis=1)
      
             if savePanda:
                 if self.verbose: print ("---> Now saving selected clusters to panda into pikle file %s..." % savePanda)
@@ -159,6 +159,7 @@ class GBRLikelihoodTrainer:
 
         X = data_regr.to_numpy()[:,:-1]
         y = data_regr.to_numpy()[:,-1]
+        self.rawyindex = data_regr.columns.get_loc("sc_integral")
         return X,y
 
     def train_model(self,X,y,options):
@@ -175,17 +176,21 @@ class GBRLikelihoodTrainer:
         print("The mean squared error (MSE) on test set: {:.4f}".format(mse))
 
         # QUANTILE REGRESSION
-        print("===> Now training quantiles regression...")
-        alphas = [0.5] if options.cvOnly==True else [0.05, 0.5, 0.95]
-        for alpha in alphas:
-            print("\t### Quantile = ",alpha)
-            reg = ensemble.GradientBoostingRegressor(loss='quantile', alpha=alpha,
+        if not options.cvOnly:
+            print("===> Now training quantiles regression...")
+            alphas = [0.05, 0.5, 0.95]
+        
+            for alpha in alphas:
+                print("\t### Quantile = ",alpha)
+                reg = ensemble.GradientBoostingRegressor(loss='quantile', alpha=alpha,
                                                      **self.training_params)
-            self.models_["q%1.2f" % alpha] = reg.fit(X_train, y_train)
+                self.models_["q%1.2f" % alpha] = reg.fit(X_train, y_train)
         
         self.X_test = X_test
         self.y_test = y_test
         self.training = True
+        print ("X = ",X_test)
+        print ("predicted y = ",y_test)
 
     def plot_training(self):
         test_score = np.zeros((self.training_params['n_estimators'],), dtype=np.float64)
@@ -245,8 +250,8 @@ class GBRLikelihoodTrainer:
             X,y = self.get_dataset(recofile,options.friend,loadPanda=panda)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.95, random_state=13)
 
-        hist = ROOT.TH1F('hist','',50,0.,2.0)
-        hist.GetXaxis().SetTitle('E/E^{peak}_{raw}')
+        hist = ROOT.TH1F('hist','',50,0.,2)
+        hist.GetXaxis().SetTitle('E/E^{true}_{raw}')
         hist.GetYaxis().SetTitle('Events')
         
         c = getCanvas('c')
@@ -261,24 +266,27 @@ class GBRLikelihoodTrainer:
             print("The precision on the test data is: ",result)
             y_pred = model.predict(X_test)
             hists[k] = hist.Clone('hist_{k}'.format(k=k))
-            #print ("Regressed values = ",y_pred)
-            fill_hist(hists[k],y_pred)
+            print ("True values = ",y_test)
+            print ("Raw values = ",X_test[:,self.rawyindex])
+            print ("Regressed values = ",y_pred)
+            YoYt = np.divide(y_pred,y_test) # Predicted Y over Ytrue
+            print ("Pred/True = ",YoYt)
+            fill_hist(hists[k],YoYt)
             maxy = max(maxy,hists[k].GetMaximum())
             
         hists["uncorr"] = hist.Clone('hist_uncorr')
-        fill_hist(hists["uncorr"],y_test)
+        YrawoYt = np.divide(X_test[:,self.rawyindex],y_test)
+        print ("Raw/True = ",YrawoYt)
+        fill_hist(hists["uncorr"],YrawoYt)
         labels = {'uncorr': "raw ({rms:1.2f}%)".format(rms=hists['uncorr'].GetRMS()),
-                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS())}
-        colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan}
-        color_median = {'q0.50': ROOT.kBlack}
+                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS()),
+                  'q0.50': 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS()) }
+        colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan, 'q0.50': ROOT.kBlack}
         styles = {'uncorr': 3005, 'mse': 3004, 'q0.50': 0}
-        if options.cvOnly==False:
-            labels['q0.50'] = 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS())
-            colors['q0.50'] = color_median
-            styles['q0.50'] = 0
         arr_hists = []; arr_styles = []; arr_labels = []
-        for i,k in enumerate(colors):
+        for i,k in enumerate(hists):
             drawopt = '' if i==0 else 'same'
+            if k not in colors.keys(): continue 
             hists[k].SetLineColor(colors[k])
             hists[k].SetFillColor(colors[k])
             hists[k].SetFillStyle(styles[k])
