@@ -5,6 +5,7 @@ import numpy as np
 import math, os, joblib
 
 from gbr_trainer import GBRLikelihoodTrainer,fill_hist
+ROOT.gROOT.LoadMacro('../plotter/fitter/libCpp/RooCruijff.cc+')
 
 Zsteps = [5,15,25,36,48]
 
@@ -22,7 +23,7 @@ def doSpam(text,x1,y1,x2,y2,align=12,fill=False,textSize=0.033,_noDelete={}):
     _noDelete[text] = cmsprel; ## so it doesn't get deleted by PyROOT
     return cmsprel
 
-def doTinyCmsPrelim(textLeft="#bf{CYGNO}",textRight="(LIME)",hasExpo=False,textSize=0.033,lumi=None, xoffs=0, options=None, doWide=False):
+def doTinyCmsPrelim(textLeft="#bf{CYGNO}",textRight="(LIME - Run2)",hasExpo=False,textSize=0.033,lumi=None, xoffs=0, options=None, doWide=False):
     if textLeft  == "_default_": textLeft  = "#bf{CYGNO}"
     if textRight == "_default_": textRight = "(LIME)"
     if lumi      == None       : lumi      = 1
@@ -139,8 +140,6 @@ def response2D(inputfile,paramsfile,panda=None):
         if v=='sc_ymean': xy_indices.append(i)
 
     xy = X[:,xy_indices[0]:xy_indices[1]+1]
-    print("xy = ",xy)
-    print("y = ",y)
 
     energy_2D = ROOT.TH3D('energy_2D','',144,0,2304,144,0,2304,200,0,2)
     energy_1D = ROOT.TH2D('energy_1D','',20,0,2304/math.sqrt(2.),70,0,2)
@@ -245,7 +244,7 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
     histo.Rebin(rebin)
     work = ROOT.RooWorkspace()
-    work.factory('CBShape::cb(x[{xmin},{xmax}],mean[0.5,1.4],sigma[0.05,0.01,0.50],alpha[1,0.05,10],n[5,1,10])'.format(xmin=xmin,xmax=xmax))
+    work.factory('Cruijff::cb(x[{xmin},{xmax}],mean[0.3,1.4],sigma[0.05,0.01,0.50],sigma,alphaL[0,0.05,10],alphaR[0,0.05,10])'.format(xmin=xmin,xmax=xmax))
     work.Print()
     
     x = work.var('x')
@@ -277,7 +276,7 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
     frame.GetYaxis().SetLabelSize(0.045)
     frame.GetYaxis().SetLabelOffset(0.007)
     frame.GetYaxis().SetTitle("Events")
-    frame.GetXaxis().SetTitle("E/E^{mpv}")
+    frame.GetXaxis().SetTitle("E/E_{true}")
     frame.GetXaxis().SetNdivisions(510)
 
     m = work.var('mean').getVal()
@@ -290,11 +289,11 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
 def fitAllResponses(inputfile="response_histos.root"):
 
-    limits = {5 : (0.1,1.2),
-              15  : (0.3,1.4),
-              25  : (0.3,1.4),
-              36  : (0.3,1.3),
-              48  : (0.4,1.4),
+    limits = {5 : (0.1,1.6),
+              15  : (0.3,1.5),
+              25  : (0.3,1.5),
+              36  : (0.3,1.5),
+              48  : (0.4,1.5),
               }
 
     dummy_uncorr = ROOT.TH1F("dummy_uncorr","",1,0,1)
@@ -327,7 +326,7 @@ def fitAllResponses(inputfile="response_histos.root"):
             results[(corr,dist)] = (mean,sigma,meanerr,sigmaerr)
             
         responses = [dummy_uncorr,dummy_regr]
-        titles = ['E_{rec}','E']
+        titles = ['E_{raw}','E_{regr}']
         styles = ['pl','pl']
         legend = doLegend(responses,titles,styles,corner="TL")    
 
@@ -347,11 +346,11 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     reso_vs_z_regr_fullrms = ROOT.TGraph(len(Zsteps))
 
     resp_vs_z_uncorr.GetXaxis().SetTitle("z (cm)")
-    resp_vs_z_uncorr.GetYaxis().SetTitle("E/E^{peak}")
+    resp_vs_z_uncorr.GetYaxis().SetTitle("E/E_{true}")
     resp_vs_z_uncorr.SetTitle("")
 
     reso_vs_z_uncorr.GetXaxis().SetTitle("z (cm)")
-    reso_vs_z_uncorr.GetYaxis().SetTitle("E/E^{peak} resolution")
+    reso_vs_z_uncorr.GetYaxis().SetTitle("E/E_{true} resolution")
     reso_vs_z_uncorr.SetTitle("")
 
     if typeInput=="histo":
@@ -404,11 +403,11 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     resp_vs_z_regr.Draw("pe")
 
     responses = [resp_vs_z_uncorr,resp_vs_z_regr]
-    titles = ['uncorrected','regression']
+    titles = ['raw','regression']
     styles = ['pl','pl']
     
-    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.,1.1)
-    legend = doLegend(responses,titles,styles,corner="TL")    
+    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.2,1.3)
+    legend = doLegend(responses,titles,styles,corner="BR")    
     for ext in ['pdf','png']:
         c.SaveAs("response.%s"%ext)
 
