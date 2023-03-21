@@ -1,4 +1,5 @@
-# USAGE: python gbr_trainer.py ~/Work/data/cygnus/RECO/lime2021/v2/fe55/reco_run04455_3D.root params_gbrtrain.txt
+# USAGE training all regressions: python gbr_trainer.py ../prod-winter23-20230214/Merged/merged_feruns_8882_9857.root params_gbrtrain.txt -f ../prod-winter23-20230214/Merged/merged_feruns_8882_9857_Friend.root --savePanda regrdata_lngs_run2.pk
+# USAGE testing only: python gbr_trainer.py ../prod-winter23-20230214/Merged/merged_feruns_8882_9857.root params_gbrtrain.txt -f ../prod-winter23-20230214/Merged/merged_feruns_8882_9857_Friend.root --loadPanda regrdata_lngs_run2.pkl -a
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -126,7 +127,6 @@ class GBRLikelihoodTrainer:
                 print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
      
             if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
-            #data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
             data["target"] = data.apply(lambda row: row.sc_trueint, axis=1)
      
             if savePanda:

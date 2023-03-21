@@ -1,3 +1,4 @@
+# example USAGE: python test_regression.py ../prod-winter23-20230214/Merged/merged_feruns_8882_9857.root params_gbrtrain.txt --loadPanda regrdata_lngs_run2.pkl
 import ROOT
 ROOT.gROOT.SetBatch(True)
 
@@ -106,7 +107,7 @@ def response_vsrun(inputfile,paramsfile,Z,panda=None):
     eps=0.1
     zSel = {'sc_truez': (Z-eps,Z+eps)}
     X,y = GBR.get_dataset(inputfile,getFriend(inputfile),loadPanda=panda,addCuts=zSel)
-    filename = "gbrLikelihood_mse.sav"
+    filename = "gbrLikelihood_q0.50.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
     y_raw = X[:,GBR.rawyindex]
@@ -144,7 +145,7 @@ def response2D(inputfile,paramsfile,panda=None):
     energy_2D = ROOT.TH3D('energy_2D','',144,0,2304,144,0,2304,200,0,2)
     energy_1D = ROOT.TH2D('energy_1D','',20,0,2304/math.sqrt(2.),70,0,2)
     
-    filename = "gbrLikelihood_mse.sav"
+    filename = "gbrLikelihood_q0.50.sav"
     model = joblib.load(filename)
     y_pred = model.predict(X)
     y_raw = X[:,GBR.rawyindex]
@@ -244,7 +245,7 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
     histo.Rebin(rebin)
     work = ROOT.RooWorkspace()
-    work.factory('Cruijff::cb(x[{xmin},{xmax}],mean[0.3,1.4],sigma[0.05,0.01,0.50],sigma,alphaL[0,0.05,10],alphaR[0,0.05,10])'.format(xmin=xmin,xmax=xmax))
+    work.factory('Cruijff::cb(x[{xmin},{xmax}],mean[0.3,1.4],sigma[0.05,0.01,0.50],sigma,alphaL[0.1,0.01,10],alphaR[0.1,0.01,10])'.format(xmin=xmin,xmax=xmax))
     work.Print()
     
     x = work.var('x')

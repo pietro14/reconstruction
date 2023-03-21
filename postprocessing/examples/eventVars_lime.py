@@ -33,8 +33,8 @@ class ClusterVarsLime(Module):
         clusters = Collection(event,"sc","nSc")
         for c in clusters:
             for regr,model in self.models.items():
-                if c.integral>0 and c.nhits>150 and c.rms>10 and c.xmean>250:
-                    inputs = np.array([c.xmean,c.ymean,c.tgaussamp/c.tgausssigma,c.lgaussamp/c.lgausssigma])
+                if c.integral>1500 and c.rms>6 and c.tgausssigma*0.152>0.3 and np.hypot(c.xmean-2304./2.,c.ymean-2304./2.)<900: # training phase space
+                    inputs = np.array([c.integral,c.xmean,c.ymean,c.tgaussamp/c.tgausssigma,c.lgaussamp/c.lgausssigma,c.rms,c.width,c.integral/c.nhits,c.tgausssigma,c.integral/c.length])
                     y_pred = model.predict(inputs.reshape(1,-1))
                     #print ("X = ", inputs)
                     #print ("y = ",y_pred)
