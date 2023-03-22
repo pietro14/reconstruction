@@ -1,7 +1,7 @@
 {
 'inputs'            : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp|sc_tgausssigma|sc_lgaussamp|sc_lgausssigma|sc_rms|sc_width",
 'inputsfriend'      : "sc_trueint|sc_truez|sc_hv",
-'regr_vars'         : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp/sc_tgausssigma|sc_lgaussamp/sc_lgausssigma|sc_rms|sc_width|sc_integral/sc_nhits|sc_tgausssigma|sc_integral/sc_length",
+'regr_vars'         : "sc_integral|sc_xmean|sc_ymean|sc_rms|sc_width|sc_integral/sc_nhits|sc_tgausssigma",
 'tree_name'         : "Events",
 'n_estimators'      : 500,
 'max_depth'         : 3,

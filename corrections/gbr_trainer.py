@@ -137,7 +137,7 @@ class GBRLikelihoodTrainer:
 
         ### hardcoded, move to configuration
         if self.verbose: print ("---> Now applying selection to panda...")
-        data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>6)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<900)]
+        data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>8)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<900)]
         if len(addCuts):
             for k,v in addCuts.items():
                 print ("Adding selection: %d < %s <= %d " % (v[0],k,v[1]))
@@ -279,8 +279,8 @@ class GBRLikelihoodTrainer:
         print ("Raw/True = ",YrawoYt)
         fill_hist(hists["uncorr"],YrawoYt)
         labels = {'uncorr': "raw ({rms:1.2f}%)".format(rms=hists['uncorr'].GetRMS()),
-                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS()),
-                  'q0.50': 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS()) }
+                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS())}
+        if 'q0.50' in hists: labels['q0.50'] = 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS())
         colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan, 'q0.50': ROOT.kBlack}
         styles = {'uncorr': 3005, 'mse': 3004, 'q0.50': 0}
         arr_hists = []; arr_styles = []; arr_labels = []
