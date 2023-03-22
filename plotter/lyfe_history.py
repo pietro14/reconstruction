@@ -257,8 +257,10 @@ if __name__ == '__main__':
          
         if options.analysis == 'zscans':
             zpos = {'3/4': (9364,9372), '10/11': (9378,9386), '17/18': (9390,9440), '24/25': (9745,9753), '32/33': (9735,9742)}
+            zmap = {'3/4': 5, '10/11': 15, '17/18': 25, '24/25': 36, '32/33': 48}
 
             graphs = {}
+            retpd = pd.DataFrame(columns=['vgem','z','ly','lyerr'])
             
             for z,rrange in zpos.items():
                 rmin,rmax=rrange
@@ -288,6 +290,8 @@ if __name__ == '__main__':
                 for i in range(len(x)):
                     ret.SetPoint(i, x[i], y[i])
                     ret.SetPointError(i, 0, ye[i])
+                    entry = pd.DataFrame.from_dict({'vgem':[x[i]],'z':[zmap[z]],'ly':[y[i]],'lyerr':[ye[i]]})
+                    retpd = pd.concat([retpd,entry], ignore_index=True)
                     
                 ret.SetMarkerStyle(ROOT.kOpenCircle)
                 ret.SetMarkerColor(ROOT.kRed+1)
@@ -338,4 +342,4 @@ if __name__ == '__main__':
             
             for ext in ['pdf','png','root']:
                 c.SaveAs("%s-zhvscans.%s" % (options.variable,ext))
-                
+            retpd.to_pickle("%s-zhvscans.pkl" % options.variable)

@@ -1,12 +1,12 @@
 {
-'inputs'            : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp|sc_tgausssigma|sc_lgaussamp|sc_lgausssigma|sc_rms",
-'inputsfriend'      : "sc_trueint",
-'regr_vars'         : "sc_xmean|sc_ymean|sc_tgaussamp/sc_tgausssigma|sc_lgaussamp/sc_lgausssigma|sc_rms",
+'inputs'            : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp|sc_tgausssigma|sc_lgaussamp|sc_lgausssigma|sc_rms|sc_width",
+'inputsfriend'      : "sc_trueint|sc_truez|sc_hv",
+'regr_vars'         : "sc_integral|sc_xmean|sc_ymean|sc_rms|sc_width|sc_integral/sc_nhits|sc_tgausssigma",
 'tree_name'         : "Events",
 'n_estimators'      : 500,
 'max_depth'         : 3,
 'min_samples_split' : 6,
 'min_samples_leaf'  : 7,
 'learning_rate'     : 0.1,
-'verbose'           : 1,
+'verbose'           : 0,
 }

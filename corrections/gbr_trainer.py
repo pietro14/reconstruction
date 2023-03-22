@@ -1,4 +1,5 @@
-# USAGE: python gbr_trainer.py ~/Work/data/cygnus/RECO/lime2021/v2/fe55/reco_run04455_3D.root params_gbrtrain.txt
+# USAGE training all regressions: python gbr_trainer.py ../prod-winter23-20230214/Merged/merged_feruns_8882_9857.root params_gbrtrain.txt -f ../prod-winter23-20230214/Merged/merged_feruns_8882_9857_Friend.root --savePanda regrdata_lngs_run2.pk
+# USAGE testing only: python gbr_trainer.py ../prod-winter23-20230214/Merged/merged_feruns_8882_9857.root params_gbrtrain.txt -f ../prod-winter23-20230214/Merged/merged_feruns_8882_9857_Friend.root --loadPanda regrdata_lngs_run2.pkl -a
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
@@ -100,51 +101,57 @@ class GBRLikelihoodTrainer:
     def variables(self):
         return self.regr_vars.split("|")
     
-    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savePanda=None,loadPanda=None):
+    def get_dataset(self,rfile,friendrfile=None,firstEvent=None,lastEvent=None,savePanda=None,loadPanda=None,addCuts={}):
+        variables_events = self.var.split("|")
+        variables_friends = self.varfriend.split("|")
+        # add regression inputs, only the variables which are function of the others and remove the eventual duplicates
+        regr_inputs = self.regr_vars.split("|")
+        variables_events = list(set(variables_events + regr_inputs))
+
         if not loadPanda:
-            print ("Loading events from file %s and converting to numpy arrays for training. Itmay take time..." % rfile)
+            print ("Loading events from file %s and converting to numpy arrays for training. It might take time..." % rfile)
             events = uproot.open(rfile)
             if friendrfile:
                 friends = uproot.open(friendrfile)
-            variables_events = self.var.split("|")
-            variables_friends = self.varfriend.split("|")
-     
-            # add regression inputs, only the variables which are function of the others and remove the eventual duplicates
-            regr_inputs = self.regr_vars.split("|")
-            variables_events = list(set(variables_events + regr_inputs))
-            
             if self.verbose: print ("---> Now loading main tree %s..." % rfile)
             data_main = events[self.tree_name].arrays(variables_events,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
-            print ("main entries panda = ",len(data_main.index))
             if self.verbose: print ("---> Now loading friend tree %s ..." % friendrfile)
             data_friend = friends["Friends"].arrays(variables_friends,library="pd",entry_start=firstEvent,entry_stop=lastEvent)
-            print("friends entries = ",len(data_friend.index))
+            if len(data_main.index)!=len(data_friend.index): RuntimeError("Number of entries in the main tree = %d and in the friend tree = %d don't match " %(len(data_main.index),len(data_friend.index)))
             if self.verbose: print ("---> Now attaching main and friend pandas...")
             data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
+            #data = data[ data['sc_integral'].map(len)>0 ]
             if self.verbose > 0:
                 print (" ~~~~~~~~~~~~~~ DATA BEFORE SELECTION ~~~~~~~~~~~~~~~~~~ ")
                 print (data)
                 print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
      
             if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
-            data["target"] = data.apply(lambda row: row.sc_integral/row.sc_trueint, axis=1)
+            data["target"] = data.apply(lambda row: row.sc_trueint, axis=1)
      
-            ### hardcoded, move to configuration
-            if self.verbose: print ("---> Now applying selection to panda...")
-            data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>6)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<800)]
-            if self.verbose > 0:
-                print (" ~~~~~~~~~~~~~~ DATA AFTER SELECTION ~~~~~~~~~~~~~~~~~ ")
-                print (data_sel)
-                print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
-     
-            print("List of regression variables = ",regr_inputs)
-            if self.verbose: print ("---> Now only saving regression variables to panda...")
-            data_regr = data_sel[regr_inputs+["target"]]     
             if savePanda:
-                if self.verbose: print ("---> Now saving panda to pikle file %s..." % savePanda)
-                data_regr.to_pickle(savePanda)
+                if self.verbose: print ("---> Now saving selected clusters to panda into pikle file %s..." % savePanda)
+                data.to_pickle(savePanda)
         else:
-            data_regr = pd.read_pickle(loadPanda)
+            data = pd.read_pickle(loadPanda)
+
+        ### hardcoded, move to configuration
+        if self.verbose: print ("---> Now applying selection to panda...")
+        data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>8)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<900)]
+        if len(addCuts):
+            for k,v in addCuts.items():
+                print ("Adding selection: %d < %s <= %d " % (v[0],k,v[1]))
+                data_sel = data_sel[(data_sel[k]>=v[0])&(data_sel[k]<v[1])]
+        if self.verbose > 0:
+            print (" ~~~~~~~~~~~~~~ DATA AFTER SELECTION ~~~~~~~~~~~~~~~~~ ")
+            print (data_sel)
+            print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
+            
+        if self.verbose:
+            print("List of regression variables = ",regr_inputs)
+            print ("---> Now select only regression variables...")
+        data_regr = data_sel[regr_inputs+["target"]]     
+
         if self.verbose > 0:
             print (" ~~~~~~~~~~~~~~ DATA REGRESSION ~~~~~~~~~~~~~~~~~ ")
             print (data_regr)
@@ -152,6 +159,7 @@ class GBRLikelihoodTrainer:
 
         X = data_regr.to_numpy()[:,:-1]
         y = data_regr.to_numpy()[:,-1]
+        self.rawyindex = data_regr.columns.get_loc("sc_integral")
         return X,y
 
     def train_model(self,X,y,options):
@@ -161,24 +169,28 @@ class GBRLikelihoodTrainer:
 
         # MEAN SQUARE ERRORS REGRESSION
         print("===> Training mean square errors regression...")
-        reg_ls = ensemble.GradientBoostingRegressor(loss='squared_error',
+        reg_ls = ensemble.GradientBoostingRegressor(loss='ls',
                                                     **self.training_params)
         self.models_["mse"] = reg_ls.fit(X_train, y_train)
         mse = mean_squared_error(y_test, reg_ls.predict(X_test))
         print("The mean squared error (MSE) on test set: {:.4f}".format(mse))
 
         # QUANTILE REGRESSION
-        print("===> Now training quantiles regression...")
-        alphas = [] if options.cvOnly==True else [0.05, 0.5, 0.95]
-        for alpha in alphas:
-            print("\t### Quantile = ",alpha)
-            reg = ensemble.GradientBoostingRegressor(loss='quantile', alpha=alpha,
+        if not options.cvOnly:
+            print("===> Now training quantiles regression...")
+            alphas = [0.05, 0.5, 0.95]
+        
+            for alpha in alphas:
+                print("\t### Quantile = ",alpha)
+                reg = ensemble.GradientBoostingRegressor(loss='quantile', alpha=alpha,
                                                      **self.training_params)
-            self.models_["q%1.2f" % alpha] = reg.fit(X_train, y_train)
+                self.models_["q%1.2f" % alpha] = reg.fit(X_train, y_train)
         
         self.X_test = X_test
         self.y_test = y_test
         self.training = True
+        print ("X = ",X_test)
+        print ("predicted y = ",y_test)
 
     def plot_training(self):
         test_score = np.zeros((self.training_params['n_estimators'],), dtype=np.float64)
@@ -227,7 +239,7 @@ class GBRLikelihoodTrainer:
     def get_testdata(self):
         return self.X_test, self.y_test
 
-    def test_models(self,recofile,options):
+    def test_models(self,recofile,options,panda=None):
         prefix=options.outname
         print ("Test the saved models on the input file: ",recofile)
         # use the ones of the object if testing after training (to ensure orthogonality wrt training sample)
@@ -235,11 +247,11 @@ class GBRLikelihoodTrainer:
             X_test = self.X_test
             y_test = self.y_test
         else:
-            X,y = self.get_dataset(recofile,options.friend)
+            X,y = self.get_dataset(recofile,options.friend,loadPanda=panda)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.95, random_state=13)
 
-        hist = ROOT.TH1F('hist','',50,0.,2.0)
-        hist.GetXaxis().SetTitle('E/E^{peak}_{raw}')
+        hist = ROOT.TH1F('hist','',50,0.,2)
+        hist.GetXaxis().SetTitle('E/E^{true}_{raw}')
         hist.GetYaxis().SetTitle('Events')
         
         c = getCanvas('c')
@@ -254,24 +266,27 @@ class GBRLikelihoodTrainer:
             print("The precision on the test data is: ",result)
             y_pred = model.predict(X_test)
             hists[k] = hist.Clone('hist_{k}'.format(k=k))
-            #print ("Regressed values = ",y_pred)
-            fill_hist(hists[k],y_pred)
+            print ("True values = ",y_test)
+            print ("Raw values = ",X_test[:,self.rawyindex])
+            print ("Regressed values = ",y_pred)
+            YoYt = np.divide(y_pred,y_test) # Predicted Y over Ytrue
+            print ("Pred/True = ",YoYt)
+            fill_hist(hists[k],YoYt)
             maxy = max(maxy,hists[k].GetMaximum())
             
         hists["uncorr"] = hist.Clone('hist_uncorr')
-        fill_hist(hists["uncorr"],y_test)
+        YrawoYt = np.divide(X_test[:,self.rawyindex],y_test)
+        print ("Raw/True = ",YrawoYt)
+        fill_hist(hists["uncorr"],YrawoYt)
         labels = {'uncorr': "raw ({rms:1.2f}%)".format(rms=hists['uncorr'].GetRMS()),
-                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS()),
-                  'q0.50': 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS()) }
-        colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan}
-        color_median = {'q0.50': ROOT.kBlack}
-        if options.cvOnly==False:
-            colors.update(color_median)
-
+                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS())}
+        if 'q0.50' in hists: labels['q0.50'] = 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS())
+        colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan, 'q0.50': ROOT.kBlack}
         styles = {'uncorr': 3005, 'mse': 3004, 'q0.50': 0}
         arr_hists = []; arr_styles = []; arr_labels = []
-        for i,k in enumerate(colors):
+        for i,k in enumerate(hists):
             drawopt = '' if i==0 else 'same'
+            if k not in colors.keys(): continue 
             hists[k].SetLineColor(colors[k])
             hists[k].SetFillColor(colors[k])
             hists[k].SetFillStyle(styles[k])
@@ -305,15 +320,15 @@ if __name__ == '__main__':
     if options.applyOnly == False:
         X,y = GBR.get_dataset(recofile,friendrfile=options.friend,savePanda=options.savePanda,loadPanda=options.loadPanda)
         print("Dataset loaded from file ",args[0], " Now train the model.")
-    
+
         GBR.train_model(X,y,options)
         print("GBR likelihood computed. Now plot results and control plots")
-    
+        
         GBR.plot_training()
         GBR.save_models(options.outname)
 
     # now test the model (this is to test that the model was saved correctly)
-    GBR.test_models(recofile,options)
+    GBR.test_models(recofile,options,panda=options.loadPanda)
     
     print("DONE.")
     
