@@ -123,7 +123,8 @@ class RegressionTrainingVarsLime(Module):
                                  440: (4000,17000,getly(df,440,48)),
                                  }
             
-        self.sigma0 = 0.001
+        self.sigma0 = 0.001 # relative to energy
+        self.sigmaz0 = 0.5 # absolute in Z (cm)
         
     def beginJob(self):
         pass
@@ -153,11 +154,20 @@ class RegressionTrainingVarsLime(Module):
             clusters = Collection(event,"sc","nSc")
             for c in clusters:
                 etrue = -1
+                ztrue = -1
                 emin,emax,etrue0 = self.energy_range_map[hv]
                 if emin < c.integral < emax:
                     etrue = etrue0 #* np.random.normal(1,self.sigma0)
+                    if 5<z<48:
+                        ztrue = z #np.random.uniform(z-2,z+2)  #z+np.random.normal(0,self.sigmaz0)
+                    elif z<=5:
+                        ztrue = np.random.uniform(z-5,z+0.5)
+                    elif z>=48:
+                        ztrue = np.random.uniform(z-0.5,z+5)
+                    else:
+                        print ("Waring : z = %f not foreseen in measurement map ",z)
                 ret["sc_trueint"].append(etrue)
-                ret["sc_truez"].append(z)
+                ret["sc_truez"].append(ztrue)
                 ret["sc_hv"].append(hv)
         for V in self.vars:
             self.out.fillBranch(V,ret[V])

@@ -104,18 +104,29 @@ def getFriend(inputfile):
 
 def response_vsrun(inputfile,paramsfile,Z,panda=None):
     GBR = GBRLikelihoodTrainer(paramsfile)
-    eps=0.1
+    eps=3
     zSel = {'sc_truez': (Z-eps,Z+eps)}
     X,y = GBR.get_dataset(inputfile,getFriend(inputfile),loadPanda=panda,addCuts=zSel)
-    filename = "gbrLikelihood_q0.50.sav"
+    filename = "gbrLikelihood_%s_mse.sav" % GBR.target.replace('sc_','')
     model = joblib.load(filename)
     y_pred = model.predict(X)
     y_raw = X[:,GBR.rawyindex]
 
-    YoYt = np.divide(y_pred,y)
-    YrawoYt = np.divide(y_raw,y)
+    if GBR.target=='sc_trueint':
+        YoYt = np.divide(y_pred,y)
+        YrawoYt = np.divide(y_raw,y)
+        xmin,xmax=0.,2.
+        #print ("E/Et: ",YoYt)
+    elif GBR.target=='sc_truez':
+        YoYt = np.subtract(y_pred,y)
+        YrawoYt = np.ones(len(y))*1e6
+        xmin,xmax=-25.,25.
+        #print ("Z residuals: ",YoYt," (cm)")
+    else:
+        RuntimeError("Target %s not foreseen." % GBR.target)
 
-    h = ROOT.TH1F('h','',800,0,2)
+
+    h = ROOT.TH1F('h','',800,xmin,xmax)
     histos = {}
 
     histos['uncorr'] = h.Clone('h_uncorr')
@@ -142,17 +153,26 @@ def response2D(inputfile,paramsfile,panda=None):
 
     xy = X[:,xy_indices[0]:xy_indices[1]+1]
 
-    energy_2D = ROOT.TH3D('energy_2D','',144,0,2304,144,0,2304,200,0,2)
-    energy_1D = ROOT.TH2D('energy_1D','',20,0,2304/math.sqrt(2.),70,0,2)
     
-    filename = "gbrLikelihood_q0.50.sav"
+    filename = "gbrLikelihood_%s_mse.sav" % GBR.target.replace('sc_','')
     model = joblib.load(filename)
     y_pred = model.predict(X)
     y_raw = X[:,GBR.rawyindex]
 
-    YoYt = np.divide(y_pred,y)
-    YrawoYt = np.divide(y_raw,y)
-    
+    if GBR.target=='sc_trueint':
+        YoYt = np.divide(y_pred,y)
+        YrawoYt = np.divide(y_raw,y)
+        zmin,zmax=0,2
+    elif GBR.target=='sc_truez':
+        YoYt = np.subtract(y_pred,y)
+        YrawoYt = np.ones(len(y))*1e6
+        zmin,zmax=-25.,25.
+    else:
+        RuntimeError("Target %s not foreseen." % GBR.target)
+
+    energy_2D = ROOT.TH3D('energy_2D','',144,0,2304,144,0,2304,200,zmin,zmax)
+    energy_1D = ROOT.TH2D('energy_1D','',20,0,2304/math.sqrt(2.),70,zmin,zmax)
+
     energy_2Ds = {}
     energy_1Ds = {}
 
@@ -162,7 +182,7 @@ def response2D(inputfile,paramsfile,panda=None):
     energy_1Ds['uncorr'] = energy_1D.Clone('energy_1D_uncorr')
     energy_1Ds['regr'] = energy_1D.Clone('energy_1D_regr')
 
-    hresp = ROOT.TH1F('hresp','',50,0.,2.0)
+    hresp = ROOT.TH1F('hresp','',50,zmin,zmax)
     center = 2304/2.
     
     for i in range(len(y)):
@@ -177,7 +197,10 @@ def response2D(inputfile,paramsfile,panda=None):
     energy_2D_mode.GetXaxis().SetTitle("ix")
     energy_2D_mode.GetYaxis().SetTitle("iy")
     energy_2D_mode.GetZaxis().SetTitle("mode")
-    energy_2D_mode.GetZaxis().SetRangeUser(0.2,1.4)
+    if GBR.target=='sc_trueint':
+        energy_2D_mode.GetZaxis().SetRangeUser(0.2,1.4)
+    else:
+        energy_2D_mode.GetZaxis().SetRangeUser(-10,10) 
     
     energy_2D_modes = {}
     energy_2D_modes['uncorr'] = energy_2D_mode.Clone('energy_2D_mode_uncorr')
@@ -211,12 +234,12 @@ def response2D(inputfile,paramsfile,panda=None):
                         zbinmax = iz
                 energy_2D_modes[k].SetBinContent(ix,iy,h3D.GetZaxis().GetBinCenter(zbinmax))
         energy_2D_modes[k].Draw("colz") # text45")
-        c.SaveAs("energy_2D_{name}.png".format(name=k))
+        c.SaveAs("{target}_2D_{name}.png".format(target=GBR.target.replace('sc_',''),name=k))
 
     energy_2D_modes['ratio'] = energy_2D_modes['regr'].Clone('energy_2D_mode_ratio')
     energy_2D_modes['ratio'].Divide(energy_2D_modes['uncorr'])
     energy_2D_modes['ratio'].Draw("colz") # text45")
-    c.SaveAs("energy_2D_ratio.png")
+    c.SaveAs("%s_2D_ratio.png" % GBR.target.replace('sc_',''))
     
     
     # energy_1Ds['uncorr'].SetMarkerColor(ROOT.kBlack)
@@ -241,11 +264,16 @@ def makeResponseHistos(treeFile,params_txt,outfileHistos="response_histos.root",
             h.Write()                        
     outfile.Close()
 
-def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,color=ROOT.kRed+1):
+def fitResponseHisto(target,histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,color=ROOT.kRed+1):
 
     histo.Rebin(rebin)
     work = ROOT.RooWorkspace()
-    work.factory('Cruijff::cb(x[{xmin},{xmax}],mean[0.3,1.4],sigma[0.05,0.01,0.50],sigma,alphaL[0.1,0.01,10],alphaR[0.1,0.01,10])'.format(xmin=xmin,xmax=xmax))
+    if target=='sc_trueint':
+        work.factory('Cruijff::cb(x[{xmin},{xmax}],mean[0.3,1.4],sigma[0.05,0.01,0.50],sigma,alphaL[0.1,0.01,10],alphaR[0.1,0.01,10])'.format(xmin=xmin,xmax=xmax))
+    elif target=='sc_truez':
+        work.factory('Cruijff::cb(x[{xmin},{xmax}],mean[-10,10],sigma[5,1,15],sigma,alphaL[0.1,0.01,10],alphaR[0.1,0.01,10])'.format(xmin=xmin,xmax=xmax))
+    else:
+        RuntimeError("Target %s not foreseen" % target)
     work.Print()
     
     x = work.var('x')
@@ -277,7 +305,10 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
     frame.GetYaxis().SetLabelSize(0.045)
     frame.GetYaxis().SetLabelOffset(0.007)
     frame.GetYaxis().SetTitle("Events")
-    frame.GetXaxis().SetTitle("E/E_{true}")
+    if target=='sc_trueint':
+        frame.GetXaxis().SetTitle("E / E_{true}")
+    else:
+        frame.GetXaxis().SetTitle("Z - Z_{true} (cm)")        
     frame.GetXaxis().SetNdivisions(510)
 
     m = work.var('mean').getVal()
@@ -288,14 +319,20 @@ def fitResponseHisto(histo,xmin=0.3,xmax=1.3,rebin=4,marker=ROOT.kFullCircle,col
 
     return (frame,m,s,em,es)
 
-def fitAllResponses(inputfile="response_histos.root"):
+def fitAllResponses(inputfile="response_histos.root",target='sc_trueint'):
 
-    limits = {5 : (0.1,1.6),
-              15  : (0.3,1.5),
-              25  : (0.3,1.5),
-              36  : (0.3,1.5),
-              48  : (0.4,1.5),
-              }
+    if target=='sc_trueint':
+        limits = {5 : (0.1,1.6),
+                  15  : (0.3,1.5),
+                  25  : (0.3,1.5),
+                  36  : (0.3,1.5),
+                  48  : (0.4,1.5)}
+    elif target=='sc_truez':
+        limits = {5 : (-25,25),
+                  15  : (-25,25),
+                  25  : (-25,25),
+                  36  : (-25,25),
+                  48  : (-25,25)}
 
     dummy_uncorr = ROOT.TH1F("dummy_uncorr","",1,0,1)
     dummy_regr = ROOT.TH1F("dummy_regr","",1,0,1)
@@ -312,7 +349,8 @@ def fitAllResponses(inputfile="response_histos.root"):
     tf = ROOT.TFile(inputfile,"read")
     for i,dist in enumerate(Zsteps):
         c = getCanvas()
-        for corr in ["regr","uncorr"]:
+        corrs = ["regr","uncorr"] if target=='sc_trueint' else ['regr']
+        for corr in corrs:
             hname = "resp_{corr}_{dist}".format(corr=corr,dist=dist)
             histo = tf.Get(hname)
             xmin = limits[dist][0]; xmax=limits[dist][1]
@@ -322,21 +360,27 @@ def fitAllResponses(inputfile="response_histos.root"):
             else:
                 marker = ROOT.kFullCircle
                 linecol = ROOT.kBlue
-            (frame,mean,sigma,meanerr,sigmaerr)=fitResponseHisto(histo,xmin,xmax,8,marker,linecol)
+            (frame,mean,sigma,meanerr,sigmaerr)=fitResponseHisto(target,histo,xmin,xmax,8,marker,linecol)
             frame.Draw("same")
             results[(corr,dist)] = (mean,sigma,meanerr,sigmaerr)
             
-        responses = [dummy_uncorr,dummy_regr]
-        titles = ['E_{raw}','E_{regr}']
-        styles = ['pl','pl']
-        legend = doLegend(responses,titles,styles,corner="TL")    
+        if target=='sc_trueint':
+            responses = [dummy_uncorr,dummy_regr]
+            titles = ['E_{raw}','E_{regr}']
+            styles = ['pl','pl']
+            legend = doLegend(responses,titles,styles,corner="TL")
+        else:
+            responses = [dummy_regr]
+            titles = ['Z_{regr}']
+            styles = ['pl']
+            legend = doLegend(responses,titles,styles,corner="TL")
 
         doTinyCmsPrelim(hasExpo = False,textSize=0.04, options=None,doWide=False)
         for ext in ['pdf','png','root']:
-            c.SaveAs('respcomp_{dist}_fit.{ext}'.format(dist=dist,ext=ext))
+            c.SaveAs('respcomp_{target}_{dist}_fit.{ext}'.format(target=target,dist=dist,ext=ext))
     return results
 
-def graphVsR(typeInput='histo',histoFile="response_histos.root"):
+def graphVsR(typeInput='histo',histoFile="response_histos.root",target='sc_trueint'):
 
     resp_vs_z_uncorr = ROOT.TGraphErrors(len(Zsteps))
     reso_vs_z_uncorr = ROOT.TGraph(len(Zsteps))
@@ -346,14 +390,18 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     reso_vs_z_uncorr_fullrms = ROOT.TGraph(len(Zsteps))
     reso_vs_z_regr_fullrms = ROOT.TGraph(len(Zsteps))
 
-    resp_vs_z_uncorr.GetXaxis().SetTitle("z (cm)")
-    resp_vs_z_uncorr.GetYaxis().SetTitle("E/E_{true}")
-    resp_vs_z_uncorr.SetTitle("")
+    resp_vs_z_regr.GetXaxis().SetTitle("z (cm)")
+    reso_vs_z_regr.GetXaxis().SetTitle("z (cm)")    
+    resp_vs_z_regr.SetTitle("")
+    reso_vs_z_regr.SetTitle("")
+    if target=='sc_trueint':    
+        resp_vs_z_regr.GetYaxis().SetTitle("E / E_{true}")
+        reso_vs_z_regr.GetYaxis().SetTitle("E / E_{true} resolution")
+    else:
+        resp_vs_z_regr.GetYaxis().SetTitle("Z - Z_{true} (cm)")
+        reso_vs_z_regr.GetYaxis().SetTitle("Z resolution (cm)")
 
-    reso_vs_z_uncorr.GetXaxis().SetTitle("z (cm)")
-    reso_vs_z_uncorr.GetYaxis().SetTitle("E/E_{true} resolution")
-    reso_vs_z_uncorr.SetTitle("")
-
+    
     if typeInput=="histo":
         tf = ROOT.TFile(histoFile,"read")
         for i,dist in enumerate(Zsteps):
@@ -370,24 +418,29 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
         tf.Close()
 
     elif typeInput=="fit":
-        results = fitAllResponses()
+        results = fitAllResponses(target=target)
         tf = ROOT.TFile(histoFile,"read")
         for i,dist in enumerate(Zsteps):
 
-            mean,sigma,meanerr,sigmaerr = results[('uncorr',dist)]
-            resp_vs_z_uncorr.SetPoint(i,dist,mean)
-            resp_vs_z_uncorr.SetPointError(i,0,meanerr)
-            reso_vs_z_uncorr.SetPoint(i,dist,sigma/mean)
+            if target=='sc_trueint':
+                mean,sigma,meanerr,sigmaerr = results[('uncorr',dist)]
+                resp_vs_z_uncorr.SetPoint(i,dist,mean)
+                resp_vs_z_uncorr.SetPointError(i,0,meanerr)
+                reso_vs_z_uncorr.SetPoint(i,dist,sigma/mean)
+                huncorr = tf.Get("resp_uncorr_{dist}".format(dist=dist))
+                reso_vs_z_uncorr_fullrms.SetPoint(i,dist,huncorr.GetRMS()/huncorr.GetMean())
 
             mean,sigma,meanerr,sigmaerr = results[('regr',dist)]
             resp_vs_z_regr.SetPoint(i,dist,mean)
             resp_vs_z_regr.SetPointError(i,0,meanerr)
-            reso_vs_z_regr.SetPoint(i,dist,sigma/mean)
-
-            huncorr = tf.Get("resp_uncorr_{dist}".format(dist=dist))
             hregr   = tf.Get("resp_regr_{dist}".format(dist=dist))
-            reso_vs_z_uncorr_fullrms.SetPoint(i,dist,huncorr.GetRMS()/huncorr.GetMean())
-            reso_vs_z_regr_fullrms.SetPoint(i,dist,hregr.GetRMS()/hregr.GetMean())
+            if target=='sc_trueint':
+                reso_vs_z_regr.SetPoint(i,dist,sigma/mean)
+                reso_vs_z_regr_fullrms.SetPoint(i,dist,hregr.GetRMS()/hregr.GetMean())
+            else:
+                reso_vs_z_regr.SetPoint(i,dist,sigma)                
+                reso_vs_z_regr_fullrms.SetPoint(i,dist,hregr.GetRMS())
+
         tf.Close()
 
     c = getCanvas('c')
@@ -400,17 +453,26 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     resp_vs_z_uncorr.SetMarkerColor(ROOT.kRed)
     resp_vs_z_uncorr.SetLineColor(ROOT.kRed)
     resp_vs_z_regr.SetMarkerColor(ROOT.kBlack)
-    resp_vs_z_uncorr.Draw("Ape")
-    resp_vs_z_regr.Draw("pe")
+    resp_vs_z_regr.Draw("Ape")
+    if target=='sc_trueint':
+        resp_vs_z_uncorr.Draw("pe")
 
-    responses = [resp_vs_z_uncorr,resp_vs_z_regr]
-    titles = ['raw','regression']
-    styles = ['pl','pl']
+    if target=='sc_trueint':
+        responses = [resp_vs_z_uncorr,resp_vs_z_regr]
+        titles = ['raw','regression']
+        styles = ['pl','pl']
+    else:
+        responses = [resp_vs_z_regr]
+        titles = ['regression']
+        styles = ['pl']        
     
-    resp_vs_z_uncorr.GetYaxis().SetRangeUser(0.2,1.3)
+    if target=='sc_trueint':
+        resp_vs_z_regr.GetYaxis().SetRangeUser(0.2,1.3)
+    else:
+        resp_vs_z_regr.GetYaxis().SetRangeUser(-10,10)
     legend = doLegend(responses,titles,styles,corner="BR")    
     for ext in ['pdf','png']:
-        c.SaveAs("response.%s"%ext)
+        c.SaveAs("response_%s.%s"%(target.replace('sc_',''),ext))
 
     # resolution
     reso_vs_z_uncorr.SetMarkerStyle(ROOT.kFullCircle)
@@ -419,8 +481,9 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
     reso_vs_z_regr.SetMarkerColor(ROOT.kBlack)
     reso_vs_z_uncorr.SetMarkerSize(2)
     reso_vs_z_regr.SetMarkerSize(2)
-    reso_vs_z_uncorr.Draw("Ape")
-    reso_vs_z_regr.Draw("pe")
+    reso_vs_z_regr.Draw("Ape")
+    if target=='sc_trueint':
+        reso_vs_z_uncorr.Draw("pe")
     legCols = 1
     if typeInput=='fit':
         reso_vs_z_uncorr_fullrms.SetMarkerStyle(ROOT.kOpenSquare)
@@ -429,17 +492,26 @@ def graphVsR(typeInput='histo',histoFile="response_histos.root"):
         reso_vs_z_regr_fullrms.SetMarkerColor(ROOT.kBlack)
         reso_vs_z_uncorr_fullrms.SetMarkerSize(2)
         reso_vs_z_regr_fullrms.SetMarkerSize(2)
-        responses = [resp_vs_z_uncorr,resp_vs_z_regr,reso_vs_z_uncorr_fullrms,reso_vs_z_regr_fullrms]
-        titles = ['uncorrected (#sigma_{G})','regression (#sigma_{G})','uncorrected (rms)','regression (rms)']
-        styles = ['pl','pl','pl','pl']
-        reso_vs_z_uncorr_fullrms.Draw("pe")
+        if target=='sc_trueint':
+            responses = [resp_vs_z_uncorr,resp_vs_z_regr,reso_vs_z_uncorr_fullrms,reso_vs_z_regr_fullrms]
+            titles = ['uncorrected (#sigma_{G})','regression (#sigma_{G})','uncorrected (rms)','regression (rms)']
+            styles = ['pl','pl','pl','pl']
+            reso_vs_z_uncorr_fullrms.Draw("pe")
+        else:
+            responses = [resp_vs_z_regr,reso_vs_z_regr_fullrms]            
+            titles = ['regression (#sigma_{G})','regression (rms)']
+            styles = ['pl','pl']
+
         reso_vs_z_regr_fullrms.Draw("pe")
         legCols=2
-        
-    reso_vs_z_uncorr.GetYaxis().SetRangeUser(0.0,0.4)
+
+    if target=='sc_trueint':
+        reso_vs_z_regr.GetYaxis().SetRangeUser(0.0,0.4)
+    else:
+        reso_vs_z_regr.GetYaxis().SetRangeUser(0,15)
     legend = doLegend(responses,titles,styles,corner="TL",textSize=0.03,legWidth=0.8,nColumns=legCols)
     for ext in ['pdf','png']:
-        c.SaveAs("resolution.%s"%ext)
+        c.SaveAs("resolution_%s.%s"%(target.replace('sc_',''),ext))
 
             
 if __name__ == '__main__':
@@ -447,8 +519,8 @@ if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser(usage='%prog input.root params_gbrtrain.txt [opts] ')
     parser.add_option(        '--loadPanda', dest='loadPanda', default=None, type='string', help='file with regression data as panda dataframe to be loaded instead of the full ROOT files')
-#    parser.add_option(        '--truthmap', dest='truthmap', default="../postprocessing/data/fitm-zhvscans-ext.pkl", type='string', help='pickle file with the results of the fit: table with HV,z,LY,sigma(LY)')
+    parser.add_option(        '--target', dest='target', default="sc_trueint", type='string', help='target variable of the regression (can be sc_trueint for energy or sc_truez for z)')
     (options, args) = parser.parse_args()
 
     makeResponseHistos(args[0],args[1],panda=options.loadPanda)
-    graphVsR("fit")
+    graphVsR("fit",target=options.target)

@@ -12,7 +12,7 @@ if __name__ == "__main__":
 
     outdir = os.path.abspath(options.outdir)
     allfiles = os.listdir(outdir)
-    files = [f for f in allfiles if re.match('reco_run\d+_3D.root',f)]
+    files = [f for f in allfiles if re.match('reco_run\d+_3D(.root|_Friend.root)',f)]
 
     cmd = "cd {odir}; {cyput}; cd -" # the cd is needed, the cygno lib only checks the file name, the abspath confuses it
     cmds = []

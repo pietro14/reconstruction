@@ -1,0 +1,13 @@
+{
+'target'            : "sc_truez",
+'inputs'            : "sc_integral|sc_xmean|sc_ymean|sc_tgaussamp|sc_tgausssigma|sc_lgaussamp|sc_lgausssigma|sc_rms|sc_width|sc_tfullrms|sc_lfullrms",
+'inputsfriend'      : "sc_trueint|sc_truez|sc_hv",
+'regr_vars'         : "sc_xmean|sc_ymean|sc_width|sc_integral/sc_nhits|sc_tgausssigma|sc_lgausssigma|sc_tfullrms|sc_lfullrms|sc_rms",
+'tree_name'         : "Events",
+'n_estimators'      : 500,
+'max_depth'         : 3,
+'min_samples_split' : 7,
+'min_samples_leaf'  : 2,
+'learning_rate'     : 0.1,
+'verbose'           : 0,
+}
