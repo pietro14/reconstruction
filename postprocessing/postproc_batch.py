@@ -21,6 +21,7 @@ from framework.postprocessor import PostProcessor
 
 DEFAULT_MODULES = [#("examples.regressionTrainingVars_lime", "trueEnergy"),
                    ("examples.eventVars_lime", "regressedEnergy"),
+                   ("examples.eventVars_lime", "regressedZ"),
                    ]
 
 
@@ -149,7 +150,7 @@ if __name__ == "__main__":
             chunk = options.chunkSize
             if entries < chunk:
                 print("  ",os.path.basename(D),("  DATA" if data else "  MC")," single chunk")
-                jobs.append((short,treename,fname,entries,"_Friend_%s"%short,data,range(entries),-1,1))
+                jobs.append((short,treename,fname,entries,"_Friend",data,range(entries),-1,1))
             else:
                 nchunk = int(math.ceil(entries/float(chunk)))
                 print("  ",os.path.basename(D),("  DATA" if data else "  MC")," %d chunks" % nchunk)
