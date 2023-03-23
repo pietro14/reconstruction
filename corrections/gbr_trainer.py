@@ -79,6 +79,7 @@ def doLegend(histos,labels,styles,corner="TR",textSize=0.035,legWidth=0.18,legBo
 
 class GBRLikelihoodTrainer:
     def set_defaults(self,params):
+        self.target = params['target']
         self.tree_name = params['tree_name']
         self.var = params['inputs']
         self.varfriend = params['inputsfriend']
@@ -120,15 +121,19 @@ class GBRLikelihoodTrainer:
             if len(data_main.index)!=len(data_friend.index): RuntimeError("Number of entries in the main tree = %d and in the friend tree = %d don't match " %(len(data_main.index),len(data_friend.index)))
             if self.verbose: print ("---> Now attaching main and friend pandas...")
             data = pd.concat([data_main,data_friend],axis=1) # Panda dataframe
-            #data = data[ data['sc_integral'].map(len)>0 ]
             if self.verbose > 0:
                 print (" ~~~~~~~~~~~~~~ DATA BEFORE SELECTION ~~~~~~~~~~~~~~~~~~ ")
                 print (data)
                 print (" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
      
             if self.verbose: print ("---> Now calculating target variable and attaching to panda...")
-            data["target"] = data.apply(lambda row: row.sc_trueint, axis=1)
-     
+            if self.target=='sc_trueint':
+                data["target"] = data.apply(lambda row: row.sc_trueint, axis=1)
+            elif self.target=='sc_truez':
+                data["target"] = data.apply(lambda row: row.sc_truez, axis=1)
+            else:
+                RuntimeError("Target variable %s not foreseen. Either pass 'sc_trueint' or 'sc_truez'. Exiting." % self.target)
+                
             if savePanda:
                 if self.verbose: print ("---> Now saving selected clusters to panda into pikle file %s..." % savePanda)
                 data.to_pickle(savePanda)
@@ -138,6 +143,8 @@ class GBRLikelihoodTrainer:
         ### hardcoded, move to configuration
         if self.verbose: print ("---> Now applying selection to panda...")
         data_sel = data[(data['sc_trueint']>0)&(data['sc_integral']>1500)&(data['sc_rms']>8)&(data['sc_tgausssigma']*0.152>0.3)&(np.hypot(data['sc_xmean']-2304/2,data['sc_ymean']-2304/2)<900)]
+        #if self.target=='sc_truez':
+        #    data_sel = data_sel[(data_sel['sc_hv']==440)]
         if len(addCuts):
             for k,v in addCuts.items():
                 print ("Adding selection: %d < %s <= %d " % (v[0],k,v[1]))
@@ -159,7 +166,7 @@ class GBRLikelihoodTrainer:
 
         X = data_regr.to_numpy()[:,:-1]
         y = data_regr.to_numpy()[:,-1]
-        self.rawyindex = data_regr.columns.get_loc("sc_integral")
+        self.rawyindex = data_regr.columns.get_loc("sc_integral") if self.target=="sc_trueint" else -1 # for Z there is not a raw estimate
         return X,y
 
     def train_model(self,X,y,options):
@@ -189,8 +196,6 @@ class GBRLikelihoodTrainer:
         self.X_test = X_test
         self.y_test = y_test
         self.training = True
-        print ("X = ",X_test)
-        print ("predicted y = ",y_test)
 
     def plot_training(self):
         test_score = np.zeros((self.training_params['n_estimators'],), dtype=np.float64)
@@ -207,7 +212,8 @@ class GBRLikelihoodTrainer:
         plt.legend(loc='upper right')
         plt.xlabel('Boosting Iterations')
         plt.ylabel('Deviance')
-        plt.savefig('training.png',bbox_inches='tight', pad_inches=0)
+        for ext in ['pdf','png']:
+            plt.savefig('training_%s.%s'%(self.target.replace('sc_',''),ext),bbox_inches='tight', pad_inches=0)
       
         # plot variables importance
         feature_importance = self.models_["mse"].feature_importances_
@@ -226,12 +232,13 @@ class GBRLikelihoodTrainer:
         plt.boxplot(result.importances[sorted_idx].T,
                     vert=False, labels=np.array(self.variables())[sorted_idx])
         plt.title("Permutation Importance (test set)")
-        plt.savefig('variables_importance.png')
+        for ext in ['pdf','png']:
+            plt.savefig('variables_importance_%s.%s'%(self.target.replace('sc_',''),ext))
 
         
     def save_models(self,prefix):
         for k in self.models_:
-            filename = "{prefix}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),k=k)
+            filename = "{prefix}_{target}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),target=self.target.replace('sc_',''),k=k)
             print ("Saving model {k} in file {f}".format(k=k,f=filename))
             joblib.dump(self.models_[k],filename)
         print("Models saved.")
@@ -250,8 +257,12 @@ class GBRLikelihoodTrainer:
             X,y = self.get_dataset(recofile,options.friend,loadPanda=panda)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.95, random_state=13)
 
-        hist = ROOT.TH1F('hist','',50,0.,2)
-        hist.GetXaxis().SetTitle('E/E^{true}_{raw}')
+        xmin,xmax=(0,2) if self.target=="sc_trueint" else (-25,25)
+        hist = ROOT.TH1F('hist','',50,xmin,xmax)        
+        if self.target=="sc_trueint":
+            hist.GetXaxis().SetTitle('E / E_{true}')
+        else:
+            hist.GetXaxis().SetTitle('Z - Z_{true}')
         hist.GetYaxis().SetTitle('Events')
         
         c = getCanvas('c')
@@ -259,7 +270,7 @@ class GBRLikelihoodTrainer:
         maxy=-1
         alphas = ['mse'] if options.cvOnly==True else ['mse', 'q0.05', 'q0.50', 'q0.95']
         for k in alphas:
-            filename = "{prefix}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),k=k)
+            filename = "{prefix}_{target}_{k}.sav".format(prefix=prefix.split('.')[0].replace(" ",""),target=self.target.replace('sc_',''),k=k)
             print("Sanity check of the saved GBR model in the output file ",filename)
             model = joblib.load(filename)
             result = model.score(X_test, y_test)
@@ -269,17 +280,24 @@ class GBRLikelihoodTrainer:
             print ("True values = ",y_test)
             print ("Raw values = ",X_test[:,self.rawyindex])
             print ("Regressed values = ",y_pred)
-            YoYt = np.divide(y_pred,y_test) # Predicted Y over Ytrue
-            print ("Pred/True = ",YoYt)
+            if self.target=='sc_trueint':
+                YoYt = np.divide(y_pred,y_test) # Predicted Y over Ytrue
+                print ("Pred/True = ",YoYt)
+            else:
+                YoYt = np.subtract(y_pred,y_test) # Predicted Y - Ytrue
+                print ("Pred-True = ",YoYt)                
             fill_hist(hists[k],YoYt)
             maxy = max(maxy,hists[k].GetMaximum())
+
+        # for z there is not a raw estimate
+        if self.target=='sc_trueint':
+            hists["uncorr"] = hist.Clone('hist_uncorr')
+            YrawoYt = np.divide(X_test[:,self.rawyindex],y_test)
+            print ("Raw/True = ",YrawoYt)
+            fill_hist(hists["uncorr"],YrawoYt)
             
-        hists["uncorr"] = hist.Clone('hist_uncorr')
-        YrawoYt = np.divide(X_test[:,self.rawyindex],y_test)
-        print ("Raw/True = ",YrawoYt)
-        fill_hist(hists["uncorr"],YrawoYt)
-        labels = {'uncorr': "raw ({rms:1.2f}%)".format(rms=hists['uncorr'].GetRMS()),
-                  'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS())}
+        labels = {'mse': 'regr. mean ({rms:1.2f}%)'.format(rms=hists['mse'].GetRMS())}
+        if 'uncorr' in hists: labels['uncorr'] = "raw ({rms:1.2f}%)".format(rms=hists['uncorr'].GetRMS())
         if 'q0.50' in hists: labels['q0.50'] = 'regr. median ({rms:1.2f}%)'.format(rms=hists['q0.50'].GetRMS())
         colors = {'uncorr': ROOT.kRed, 'mse': ROOT.kCyan, 'q0.50': ROOT.kBlack}
         styles = {'uncorr': 3005, 'mse': 3004, 'q0.50': 0}
@@ -298,7 +316,8 @@ class GBRLikelihoodTrainer:
             arr_labels.append(labels[k])
             arr_styles.append('l')
         legend = doLegend(arr_hists,arr_labels,arr_styles,corner="TL")
-        c.SaveAs("energy.png")
+        for ext in ['pdf','png']: 
+            c.SaveAs("%s.%s"%(self.target.replace('sc_',''),ext))
         
         
 if __name__ == '__main__':
