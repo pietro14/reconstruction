@@ -72,11 +72,11 @@ if __name__ == '__main__':
     doFit = True
     HV1 = 420
 
-    results = pd.DataFrame(columns=['run','date','vgem1','vgem2','vgem3','nev','nclu','mean','meanerr','rms','fitm','fitmerr','fits','fitserr'])
+    results = pd.DataFrame(columns=['run','date','vgem1','vgem2','vgem3','nev','nclu','mean','meanerr','rms','fitm','fitmerr','fits','fitserr',    'meanr','meanrerr','rmsr','fitmr','fitmrerr','fitsr','fitsrerr'])
     
     if not options.plotOnly:
      
-        base_selection = "sc_integral<2e4 && sc_integral > 700 && 0.152*sc_length < 50 && sc_rms>6 &&  sc_tgausssigma/sc_lgausssigma>0.6 &&  sc_tgausssigma/sc_lgausssigma<1.1 && R(sc_xmean,sc_ymean)<800"
+        base_selection = "sc_integral<2e4 && sc_integral > 1500 && 0.152*sc_length < 50 && sc_rms>8 && sc_tgausssigma/sc_lgausssigma>0.6 &&  sc_tgausssigma/sc_lgausssigma<1.1 && sc_tgausssigma*0.152>0.3 && R(sc_xmean,sc_ymean)<900"
      
         tfo = ROOT.TFile.Open("ly-history-graph.root","recreate")
      
@@ -87,7 +87,9 @@ if __name__ == '__main__':
         
         tf = ROOT.TFile.Open(options.inputTree)
         tree = tf.Get("Events")
+        tree.AddFriend("Friends",options.inputTree.replace(".root","_Friend.root"))
         histo = ROOT.TH1F("histo","",500,1000,20000)
+        histor = ROOT.TH1F("histor","",500,1000,20000)
         dummy = ROOT.TH1F("dummy","",1,0,1)
         
         ir = 0
@@ -117,15 +119,17 @@ if __name__ == '__main__':
                 tdate.Print()
                 
                 histo.Reset()
+                histor.Reset()
                 dummy.Reset()
                 sel = "({base})*(run=={run})".format(base=base_selection,run=run)
                 runsel = "(run=={run})".format(run=run)
                 tree.Draw("sc_integral>>histo",sel)
+                tree.Draw("sc_qregr_integral>>histor",sel)
                 tree.Draw("0.5>>dummy",runsel)
-                mean = histo.GetMean()
-                meanErr = histo.GetMeanError()
-                rms = histo.GetRMS()
-                print ("run = ",run,"    mean = ",mean," rms = ",rms," nevents = ",dummy.Integral())
+                mean = histo.GetMean(); meanr = histor.GetMean()
+                meanErr = histo.GetMeanError(); meanrErr = histor.GetMeanError()
+                rms = histo.GetRMS(); rmsr = histor.GetRMS()
+                print ("run = %-20s, mean(raw) = %d(%d) rms(raw) = %d(%d)   nevents = %d"%(str(run),meanr,mean,rmsr,rms,dummy.Integral()))
 
                 rMean = rMeanError = rSigma = rSigmaError = -999
                 if doFit:
@@ -141,6 +145,18 @@ if __name__ == '__main__':
                     rSigma = f.GetParameter(2)
                     rSigmaError = f.GetParError(2)
 
+                    # fit the regressed integral distribution
+                    f.SetParameter(1,meanr);
+                    f.SetParLimits(1,meanr-2*rmsr,meanr+2*rmsr);
+                    f.SetParameter(2,rmsr/2.); # there is a tail
+                    fitr_xmin = meanr-rmsr
+                    fitr_xmax = meanr+rmsr
+                    fitRe = histor.Fit(f,'S','',fitr_xmin,fitr_xmax)
+                    rMeanr  = f.GetParameter(1)
+                    rMeanrError  = f.GetParError(1)
+                    rSigmar = f.GetParameter(2)
+                    rSigmarError = f.GetParError(2)
+                    
                     x = tdate.Convert() if timeAx else run
                     ret.SetPoint(ir, x, rMean)
                     ret.SetPointError(ir, 0, rMeanError)
@@ -152,7 +168,8 @@ if __name__ == '__main__':
 
                 entry = pd.DataFrame.from_dict({'run':[run],'date':[time],'vgem1':[vgem1],'vgem2':[vgem2],'vgem3':[vgem3],
                                                 'nev':[dummy.Integral()],'nclu':[histo.Integral()],'mean':[mean],'meanerr':[meanErr],'rms':[rms],
-                                                'fitm':[rMean],'fitmerr':[rMeanError],'fits':[rSigma],'fitserr':[rSigmaError]})
+                                                'fitm':[rMean],'fitmerr':[rMeanError],'fits':[rSigma],'fitserr':[rSigmaError],
+                                                'meanr':[meanr],'meanrerr':[meanrErr],'rmsr':[rmsr],'fitmr':[rMeanr],'fitmrerr':[rMeanrError],'fitsr':[rSigmar],'fitsrerr':[rSigmarError]})
                 results = pd.concat([results,entry], ignore_index=True)
                 
                 print ("r = ",ir)
@@ -269,13 +286,13 @@ if __name__ == '__main__':
                 print (data)
 
                 x = data['vgem1'].unique()
-                if (options.variable in ['fitm','mean']):
+                if (options.variable in ['fitm','mean','fitmr','meanr']):
                     y = [np.mean(data[data['vgem1']==v][options.variable].values) for v in x]
                     print ("y = ",y)
-                    ye = [np.mean(data[data['vgem1']==v]['meanerr' if options.variable=='mean' else 'fitmerr'].values) for v in x]
-                elif (options.variable in ['fits','rms']):
+                    ye = [np.mean(data[data['vgem1']==v][options.variable+'err'].values) for v in x]
+                elif (options.variable in ['fits','rms','fitsr','rmsr']):
                     y =  [np.mean(data[data['vgem1']==v][options.variable].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]
-                    ye = [np.mean(data[data['vgem1']==v]['fitserr'].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]                    
+                    ye = [np.mean(data[data['vgem1']==v]['fitserr' if options.variable in ['fits','rms'] else 'fitsrerr'].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]                    
                 elif options.variable=='nclu':
                     y = [np.sum(data[data['vgem1']==v]['nclu'].values)/np.sum(data[data['vgem1']==v]['nev'].values) for v in x]
                     print (y)
@@ -323,11 +340,11 @@ if __name__ == '__main__':
             for zp,gr in graphs.items():
                 gr.SetMarkerColor(colors[zp])
                 gr.SetLineColor(colors[zp])
-                if (options.variable in ['fitm','mean']):
+                if (options.variable in ['fitm','mean','fitmr','meanr']):
                     gr.GetYaxis().SetRangeUser(0,15e3)
                 elif (options.variable in ['nclu']):
                     gr.GetYaxis().SetRangeUser(0,3)
-                elif (options.variable in ['fits','rms']):
+                elif (options.variable in ['fits','rms','fitsr','rmsr']):
                     gr.GetYaxis().SetRangeUser(0,0.5)
                 else:
                     pass
@@ -336,7 +353,7 @@ if __name__ == '__main__':
                 ig+=1
 
             responses = [gr for gr in graphs.values()]
-            titles = [k for k in graphs.keys()]
+            titles = ["z = %d cm" % zmap[k] for k in graphs.keys()]
             styles = ['pl' for k in graphs.keys()]
             legend = doLegend(responses,titles,styles,corner="TL")
             
