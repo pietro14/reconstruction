@@ -269,13 +269,13 @@ if __name__ == '__main__':
                 print (data)
 
                 x = data['vgem1'].unique()
-                if (options.variable in ['fitm','mean']):
+                if (options.variable in ['fitm','mean','fitmr','meanr']):
                     y = [np.mean(data[data['vgem1']==v][options.variable].values) for v in x]
                     print ("y = ",y)
-                    ye = [np.mean(data[data['vgem1']==v]['meanerr' if options.variable=='mean' else 'fitmerr'].values) for v in x]
-                elif (options.variable in ['fits','rms']):
+                    ye = [np.mean(data[data['vgem1']==v][options.variable+'err'].values) for v in x]
+                elif (options.variable in ['fits','rms','fitsr','rmsr']):
                     y =  [np.mean(data[data['vgem1']==v][options.variable].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]
-                    ye = [np.mean(data[data['vgem1']==v]['fitserr'].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]                    
+                    ye = [np.mean(data[data['vgem1']==v]['fitserr' if options.variable in ['fits','rms'] else 'fitsrerr'].values)/np.mean(data[data['vgem1']==v]['fitm'].values) for v in x]                    
                 elif options.variable=='nclu':
                     y = [np.sum(data[data['vgem1']==v]['nclu'].values)/np.sum(data[data['vgem1']==v]['nev'].values) for v in x]
                     print (y)
@@ -323,11 +323,11 @@ if __name__ == '__main__':
             for zp,gr in graphs.items():
                 gr.SetMarkerColor(colors[zp])
                 gr.SetLineColor(colors[zp])
-                if (options.variable in ['fitm','mean']):
+                if (options.variable in ['fitm','mean','fitmr','meanr']):
                     gr.GetYaxis().SetRangeUser(0,15e3)
                 elif (options.variable in ['nclu']):
                     gr.GetYaxis().SetRangeUser(0,3)
-                elif (options.variable in ['fits','rms']):
+                elif (options.variable in ['fits','rms','fitsr','rmsr']):
                     gr.GetYaxis().SetRangeUser(0,0.5)
                 else:
                     pass
