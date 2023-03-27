@@ -353,7 +353,7 @@ if __name__ == '__main__':
                 ig+=1
 
             responses = [gr for gr in graphs.values()]
-            titles = [k for k in graphs.keys()]
+            titles = ["z = %d cm" % zmap[k] for k in graphs.keys()]
             styles = ['pl' for k in graphs.keys()]
             legend = doLegend(responses,titles,styles,corner="TL")
             
