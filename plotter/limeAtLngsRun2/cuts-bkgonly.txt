@@ -3,7 +3,7 @@ clusters : sc_integral > 0
 #runrange : (run>=1700 && run<=2300) || run>5000
 minenergy   : sc_integral > 0
 rms : sc_rms>6
-center : R(sc_xmean,sc_ymean)<800
+center : R(sc_xmean,sc_ymean)<900
 spikes : 0.152 * sc_tgausssigma > 0.3
 #short : 0.152 * sc_length < 80
 #highdensity : sc_integral/sc_nhits > 25
