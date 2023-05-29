@@ -13,6 +13,12 @@
 
 //// UTILITY FUNCTIONS NOT IN TFORMULA ALREADY
 
+float counts2photons(float counts) {
+  float QE=0.8;
+  float c2p_raw=0.21;
+  return c2p_raw/QE*counts;
+}
+
 float myratio(float num, float denom) {
   if(denom==0) return 0;
   return num/denom;
@@ -63,6 +69,13 @@ float calib_energy(double uncalib) {
   //float photon2kev = 0.0018266; // LNGS Run2 - at 420 initial low gain
   float photon2kev = 0.000481; // LNGS Run2 - golden runs for central z - position 3 of calibration
   return photon2kev * uncalib;
+}
+
+float eres(double central, double up, double dn) {
+  double sigmaup = fabs(up-central);
+  // double sigmadn = fabs(dn-central); // for the time being exclude sigma_dn which swhos a problem
+  double sigmadn=sigmaup;
+  return 0.5*(sigmaup+sigmadn);
 }
 
 float deltaR2(float eta1, float phi1, float eta2, float phi2) {
