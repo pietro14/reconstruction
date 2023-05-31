@@ -33,6 +33,22 @@ class AutoFillTreeProducer:
         self.outTree.branch('cmos_mean',     'F', title="average counts of the full CMOS sensor")
         self.outTree.branch('cmos_rms',      'F', title="RMS of the counts of the full CMOS sensor")
 
+    def createTimeVariables(self):
+        self.outTree.branch('t_DBSCAN', 'F', title="DBSCAN time")
+        self.outTree.branch('t_variables',     'F', title="Variables time")
+        self.outTree.branch('lp_len',     'F', title="# pixel")
+        
+        self.outTree.branch('t_pedsub',     'F', title="pedestal subtraction")
+        self.outTree.branch('t_saturation',     'F', title="saturation correction mode")
+        self.outTree.branch('t_zerosup',     'F', title="zero suppression")
+        self.outTree.branch('t_xycut',     'F', title="xy acceptance cut")
+        self.outTree.branch('t_rebin',     'F', title="rebinning")
+
+        self.outTree.branch('t_medianfilter',     'F', title="median filter")
+        self.outTree.branch('t_noisered',     'F', title="noise reductor")
+
+
+        
     def createClusterVariables(self,name='track'):
         chars = list(name)
         start = chars[0]; rest = chars[1:]
@@ -93,6 +109,20 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('cmos_integral',np.sum(pic))
         self.outTree.fillBranch('cmos_mean',np.mean(pic))
         self.outTree.fillBranch('cmos_rms',np.std(pic))
+
+    def fillTimeVariables(self, t_variables, t_DBSCAN, lp, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered):
+        self.outTree.fillBranch('t_DBSCAN', t_DBSCAN)
+        self.outTree.fillBranch('t_variables',t_variables)
+        self.outTree.fillBranch('lp_len',lp)
+
+        self.outTree.fillBranch('t_pedsub', t_pedsub)
+        self.outTree.fillBranch('t_saturation', t_saturation)
+        self.outTree.fillBranch('t_zerosup', t_zerosup)
+        self.outTree.fillBranch('t_xycut', t_xycut)
+        self.outTree.fillBranch('t_rebin', t_rebin)
+
+        self.outTree.fillBranch('t_medianfilter', t_medianfilter)
+        self.outTree.fillBranch('t_noisered', t_noisered) 
 
     def fillClusterVariables(self,clusters,name='track'):
         chars = list(name)
