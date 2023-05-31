@@ -326,6 +326,7 @@ class analysis:
                         run = int(m.group(1))
                         event = int(m.group(2))
                         obj = tf[key].values()
+                        #obj = np.rot90(obj)
                         camera=True
                     else:
                         camera=False
@@ -333,7 +334,7 @@ class analysis:
                     run = int(self.options.run)
                     if name.startswith('CAM'):
                         obj,_,_ = cy.daq_cam2array(mevent.banks[key])
-                        obj = np.rot90(obj,k=-1)
+                        obj = np.rot90(obj)
                         camera=True
                         numev += 1
                     else:
