@@ -57,6 +57,8 @@ class SnakesFactory:
         
         vmin=1
         vmax=5
+
+        lp, t_medianfilter, t_noisered, t_DBSCAN = 0, 0, 0, 0
         
         tip = self.options.tip
         
@@ -65,9 +67,16 @@ class SnakesFactory:
 
         t0 = time.perf_counter()
         filtimage = median_filter(self.image_fr_zs, size=2)
+        t1_med = time.perf_counter()
         edges = self.ct.arrrebin(filtimage,self.rebin)
         edcopy = edges.copy()
+        t0_noise = time.perf_counter()
         edcopyTight = tl.noisereductor(edcopy,rescale,self.options.min_neighbors_average)
+        t1_noise = time.perf_counter()
+
+        t_medianfilter = t1_med - t0
+        t_noisered = t1_noise - t0_noise
+
         
         # make the clustering with DBSCAN algo
         # this kills all macrobins with N photons < 1
@@ -99,7 +108,7 @@ class SnakesFactory:
 
         # clustering will crash if the vector of pixels is empty (it may happen after the zero-suppression + noise filtering)
         if len(X)==0:
-            return superclusters
+            return superclusters, lp_len, t_medianfilter, t_noisered, t_DBSCAN 
 
         if self.options.debug_mode:
             if self.options.flag_dbscan_seeds:
@@ -167,6 +176,8 @@ class SnakesFactory:
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"ddbscan clustering in {t2 - t1:0.4f} seconds")
 
+        t_DBSCAN = t2-t1
+        
         # Black removed and is used for noise instead.
         unique_labels = set(ddb.labels_[:,0])
 
@@ -265,7 +276,7 @@ class SnakesFactory:
                 plt.gcf().clear()
                 plt.close('all')
 
-        return superclusters
+        return superclusters,lp, t_medianfilter, t_noisered, t_DBSCAN
         
     def getTracks(self,plot=True):
         from skimage.transform import (hough_line, hough_line_peaks)
@@ -395,7 +406,7 @@ class SnakesProducer:
         # this plotting is only the pyplot representation.
         # Doesn't work on MacOS with multithreading for some reason... 
         if self.algo=='DBSCAN':
-            snakes = snfac.getClusters(plot=self.plotpy)
+            snakes, lp_len, t_medianfilter, t_noisered, t_DBSCAN = snfac.getClusters(plot=self.plotpy)
 
             # supercluster energy calibration for the saturation effect
             fileCalPar = open('modules_config/energyCalibrator.txt','r')
@@ -420,12 +431,18 @@ class SnakesProducer:
             snakes = snfac.getTracks(plot=self.plotpy)            
         t1 = time.perf_counter()
         if self.options.debug_mode: print(f"FULL RECO in {t1 - t0:0.4f} seconds")
-            
+
+        print(f"  1.1 preprocessing2 + DBSCAN in {t1 - t0:0.4f} seconds")
+                
         # print "Get light profiles..."
         snfac.calcProfiles(snakes,plot=self.plotpy)
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"cluster shapes in {t2 - t1:0.4f} seconds")
 
+
+        print(f"  1.2 calcolo variabili in {t2 - t1:0.4f} seconds")
+        t_variables = t2 - t1
+        
         # run the cosmic killer: it makes sense only on superclusters
         if self.run_cosmic_killer:
             for ik,killerCand in enumerate(snakes):
@@ -445,4 +462,4 @@ class SnakesProducer:
         if self.plot2D:       snfac.plotClusterFullResolution(snakes)
         if self.plotprofiles: snfac.plotProfiles(snakes)
 
-        return snakes
+        return snakes, t_DBSCAN, t_variables, lp_len, t_medianfilter, t_noisered

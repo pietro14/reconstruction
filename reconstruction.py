@@ -98,6 +98,7 @@ class analysis:
 
         if self.options.camera_mode:
             self.autotree.createCameraVariables()
+            self.autotree.createTimeVariables()
             self.autotree.createClusterVariables('sc')
             if self.options.cosmic_killer:
                 self.autotree.addCosmicKillerVariables('sc')
@@ -390,31 +391,60 @@ class analysis:
                         # zs on full image + saturation correction on full image
                         if self.options.saturation_corr:
                             #print("you are in saturation correction mode")
+                            t_pre0 = time.perf_counter()
                             img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                            t_pre1 = time.perf_counter()
                             img_fr_satcor = ctools.satur_corr(img_fr_sub) 
+                            t_pre2 = time.perf_counter()
                             img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                            t_pre3 = time.perf_counter()
                             img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
+                            t_pre4 = time.perf_counter()
                             img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
+                            t_pre5 = time.perf_counter()
                             
                         # skip saturation and set satcor =img_fr_sub 
                         else:
                             #print("you are in poor mode")
+                            t_pre0 = time.perf_counter()
                             img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                            t_pre1 = time.perf_counter()
                             img_fr_satcor = img_fr_sub  
+                            t_pre2 = time.perf_counter()
                             img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                            t_pre3 = time.perf_counter()
                             img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
+                            t_pre4 = time.perf_counter()
                             img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
+                            t_pre5 = time.perf_counter()
 
+                        t_pedsub = t_pre1 - t_pre0
+                        t_saturation = t_pre2 - t_pre1
+                        t_zerosup = t_pre3 - t_pre2
+                        t_xycut = t_pre4 - t_pre3
+                        t_rebin = t_pre5 - t_pre4
+                            
                         # Cluster reconstruction on 2D picture
                         algo = 'DBSCAN'
                         if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
                         snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
                         plotpy = self.options.jobs < 2 # for some reason on macOS this crashes in multicore
                         snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
+                        t_DBSCAN_0 = time.perf_counter()
                         snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
-                        snakes = snprod.run()
+                        t_DBSCAN_1 = time.perf_counter()
+                        print(f"DBSCAN creazione classe in {t_DBSCAN_1 - t_DBSCAN_0:0.4f} seconds")
+                        snakes, t_DBSCAN, t_variables, lp_len, t_medianfilter, t_noisered = snprod.run()
+                        t_DBSCAN_2 = time.perf_counter()
+                        print(f"1. DBSCAN run + calcolo variabili in {t_DBSCAN_2 - t_DBSCAN_1:0.4f} seconds")
                         self.autotree.fillCameraVariables(img_fr_zs)
+                        t_DBSCAN_3 = time.perf_counter()
+                        print(f"fillCameraVariables in {t_DBSCAN_3 - t_DBSCAN_2:0.4f} seconds")
                         self.autotree.fillClusterVariables(snakes,'sc')
+                        t_DBSCAN_4 = time.perf_counter()
+                        self.autotree.fillTimeVariables(t_variables, t_DBSCAN, lp_len, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered)
+                        print(f"fillClusterVariables in {t_DBSCAN_4 - t_DBSCAN_3:0.04f} seconds")
+                        print()
                         del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
          
                     # to be ported to uproot
@@ -483,8 +513,12 @@ if __name__ == '__main__':
     patt = re.compile('\S+_(\S+).txt')
     m = patt.match(args[0])
     detector = m.group(1)
-    utilities.setPedestalRun(options,detector)
-    
+    if run > 16798 :
+        utilities.setPedestalRun_v2(options,detector)
+    else:
+        utilities.setPedestalRun(options,detector)
+        
+        
     try:
         USER = os.environ['USER']
         flag_env = 0
@@ -565,6 +599,8 @@ if __name__ == '__main__':
     tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
     githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
     githash.Write()
+    total_time = ROOT.TNamed("total_time", str(t2-t1))
+    total_time.Write()
     tf.Close()
     
     if options.donotremove == False:

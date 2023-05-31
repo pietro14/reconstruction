@@ -237,8 +237,8 @@ class Cluster:
         # now compute the length along major axis, long profile, etc
         rxmin = min([h[0] for h in rot_hits]); rxmax = max([h[0] for h in rot_hits])
         rymin = min([h[1] for h in rot_hits]); rymax = max([h[1] for h in rot_hits])
-        xedg = utilities.dynamicProfileBins(rot_hits,'x',relError=0.2)
-        yedg = utilities.dynamicProfileBins(rot_hits,'y',relError=0.3)
+        xedg = utilities.dynamicProfileBins_v2(rot_hits,'x',relError=0.2)
+        yedg = utilities.dynamicProfileBins_v2(rot_hits,'y',relError=0.3)
         xedg = [(x-int(rxmin)) for x in xedg]
         yedg = [(y-int(rymin)) for y in yedg]
 

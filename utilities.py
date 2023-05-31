@@ -36,6 +36,41 @@ class utils:
         xedges.append(int(xmax))
         return xedges
 
+
+    def dynamicProfileBins_v2(self,hits,coord='x',relError=0.1):
+        import numpy as np
+        hits = np.array(hits)
+
+        minPixels = max(1,1/relError/relError)
+        index = 0 if coord=='x' else 1
+        h = hits.T[index].astype(int)
+        xmin=min(h)
+        xmax=max(h)
+        x=xmin
+        xedges=[x]
+        integral=0
+
+        xunique, xcounts = np.unique(h,return_counts=True)
+
+        if xmin>=0:
+            xrange = list(range(0, xmax+1))
+            c = np.zeros(len(xrange),dtype = int)
+            c[xunique] = xcounts
+            c = c[xmin:-1]
+        else:
+            xrange = list(range(0, (xmax+1)-xmin))
+            c = np.zeros(len(xrange),dtype = int)
+            c[xunique-xmin] = xcounts
+
+        for ind, x in enumerate(range(xmin,xmax)):
+            if integral<minPixels:
+                integral += c[ind]
+            else:
+                xedges.append(x)
+                integral=0
+        xedges.append(xmax)
+        return xedges
+
     def rotate_around_point(self, hit, dir, pivot, inverse=False):
         x,y = hit[:-1]
         ox, oy = pivot
@@ -264,6 +299,27 @@ class utils:
             assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(options.run,runlog))
         setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
 
+
+    def setPedestalRun_v2(self,options,detector):
+        import pandas as pd
+        if not hasattr(options,"pedrun"):
+            runlog='runlog_%s_auto.csv' % (detector)
+
+ 
+
+            df = pd.read_csv('pedestals/%s'%runlog)
+            dffilter = ((df["number_of_events"] >= 100) & (df["pedestal_run"] == 1) & (df["run_number"] <= int(options.run)) & (df["HV_STATE"] == 0))
+            runkey = df.run_number[dffilter].values.tolist()[-1]
+            comment = df.run_description[dffilter].values.tolist()[-1]
+            nevents = df.number_of_events[dffilter].values.tolist()[-1]
+            options.pedrun = int(runkey)
+            if runkey:
+                print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
+            else:
+                print("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!" % (options.run, runlog))
+        setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+
+        
     def peak_memory_usage(self):
         """Return peak memory usage in MB"""
         mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
