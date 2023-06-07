@@ -432,15 +432,16 @@ class SnakesProducer:
         t1 = time.perf_counter()
         if self.options.debug_mode: print(f"FULL RECO in {t1 - t0:0.4f} seconds")
 
-        print(f"  1.1 preprocessing2 + DBSCAN in {t1 - t0:0.4f} seconds")
+        if self.options.debug_mode:
+            print(f"  1.1 preprocessing2 + DBSCAN in {t1 - t0:0.4f} seconds")
                 
         # print "Get light profiles..."
         snfac.calcProfiles(snakes,plot=self.plotpy)
         t2 = time.perf_counter()
         if self.options.debug_mode: print(f"cluster shapes in {t2 - t1:0.4f} seconds")
 
-
-        print(f"  1.2 calcolo variabili in {t2 - t1:0.4f} seconds")
+        if self.options.debug_mode:
+            print(f"  1.2 variable calculation in {t2 - t1:0.4f} seconds")
         t_variables = t2 - t1
         
         # run the cosmic killer: it makes sense only on superclusters

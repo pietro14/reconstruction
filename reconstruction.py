@@ -434,18 +434,20 @@ class analysis:
                         t_DBSCAN_0 = time.perf_counter()
                         snprod = SnakesProducer(snprod_inputs,snprod_params,self.options,self.cg)
                         t_DBSCAN_1 = time.perf_counter()
-                        print(f"DBSCAN creazione classe in {t_DBSCAN_1 - t_DBSCAN_0:0.4f} seconds")
                         snakes, t_DBSCAN, t_variables, lp_len, t_medianfilter, t_noisered = snprod.run()
                         t_DBSCAN_2 = time.perf_counter()
-                        print(f"1. DBSCAN run + calcolo variabili in {t_DBSCAN_2 - t_DBSCAN_1:0.4f} seconds")
+                        if options.debug_mode == 1:
+                            print(f"1. DBSCAN run + variables calculation in {t_DBSCAN_2 - t_DBSCAN_1:0.4f} seconds")
                         self.autotree.fillCameraVariables(img_fr_zs)
                         t_DBSCAN_3 = time.perf_counter()
-                        print(f"fillCameraVariables in {t_DBSCAN_3 - t_DBSCAN_2:0.4f} seconds")
+                        if options.debug_mode == 1:
+                            print(f"fillCameraVariables in {t_DBSCAN_3 - t_DBSCAN_2:0.4f} seconds")
                         self.autotree.fillClusterVariables(snakes,'sc')
                         t_DBSCAN_4 = time.perf_counter()
                         self.autotree.fillTimeVariables(t_variables, t_DBSCAN, lp_len, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered)
-                        print(f"fillClusterVariables in {t_DBSCAN_4 - t_DBSCAN_3:0.04f} seconds")
-                        print()
+                        if options.debug_mode == 1:
+                            print(f"fillClusterVariables in {t_DBSCAN_4 - t_DBSCAN_3:0.04f} seconds")
+                            print()
                         del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
          
                     # to be ported to uproot
@@ -498,7 +500,7 @@ if __name__ == '__main__':
     
     f = open(args[0], "r")
     params = eval(f.read())
-    
+
     for k,v in params.items():
         setattr(options,k,v)
 
@@ -594,7 +596,8 @@ if __name__ == '__main__':
         evrange=(-1,firstEvent,lastEvent)
         ana(evrange)
     t2 = time.perf_counter()
-    print(f'Reconstruction Code Took: {t2 - t1} seconds')
+    if options.debug_mode == 1:
+        print(f'Reconstruction Code Took: {t2 - t1} seconds')
 
     # now add the git commit hash to track the version in the ROOT file
     tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
