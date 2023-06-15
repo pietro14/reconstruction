@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import uproot
 import midas.file_reader
+import h5py
 import cygno as cy
 import os
 
@@ -73,6 +74,10 @@ def swift_read_root_file(tmpname):
     f  = uproot.open(tmpname)
     return f
 
+def swift_read_h5_file(tmpname):
+    f  = h5py.File(tmpname, 'r')
+    return f
+
 def swift_rm_root_file(tmpname):
     import os
     os.remove(tmpname)
@@ -90,11 +95,15 @@ def checkfiletmp(run,tier,tmp=None):
          os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
          if tier=='root':
              return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
+         elif tier=='h5':
+             return os.path.isfile("%s/%s/histograms_Run%05d.h5" % (tmpdir,USER,run))
          else:
              return os.path.isfile("%s/%s/run%05d.mid.gz" % (tmpdir,USER,run))
     else:
         if tier=='root':
             return os.path.isfile("%s/histograms_Run%05d.root" % (tmpdir,run))
+        elif tier=='h5':
+            return os.path.isfile("%s/histograms_Run%05d.h5" % (tmpdir,run))
         else:
             return os.path.isfile("%s/run%05d.mid.gz" % (tmpdir,run))
 
