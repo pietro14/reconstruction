@@ -117,8 +117,8 @@ class analysis:
             pics = [k for k in tf.keys() if 'pic' in k]
             return len(pics)
         elif options.rawdata_tier == 'h5':
-            hf = sw.swift_read_h5_file(self.tmpname)
-            pics = [k for k in hf.keys() if 'pic' in k]
+            tf = sw.swift_read_h5_file(self.tmpname)
+            pics = [k for k in tf.keys() if 'pic' in k]
             print("n events:", len(pics))
             return len(pics)
         else:
@@ -309,9 +309,8 @@ class analysis:
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
         elif self.options.rawdata_tier == 'h5':
-            hf = sw.swift_read_h5_file(self.tmpname)
-            keys = hf.keys()
-            print(keys)
+            tf = sw.swift_read_h5_file(self.tmpname)
+            keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
 
         else:
@@ -349,10 +348,7 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        print(key)
-                        print(hf[key])
-                        obj = np.array(hf[key])
-                        print(obj.shape)
+                        obj = np.array(tf[key])
                         #obj = np.rot90(obj)
                         camera=True
                     else:

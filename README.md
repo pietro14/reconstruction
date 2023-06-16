@@ -28,23 +28,19 @@ or *histograms_Run01515.root* if it was already a root file.
 
 
 
-## Running the analysis code on MC data (updated on December 2021):
-Firstly, create pedestal map (example with pedestal run 4159):
-1. set `justPedestal` to `True` in `configFile_MC.txt`
-2. add this line to `pedestals/pedruns_MC.txt`: `(4159, 4159) :   4159,`
-3. copy pedestal root file (`histograms_Run04159.root`) to `/tmp/<username>`  
-4. create pedmap with: `python reconstruction.py configFile_MC.txt -r 4159`
+## Running the analysis code on MC data (updated on June 2023):
+Firstly, create pedestal map (example with pedestal run 4904 of LNGS):
+1. set `justPedestal` to `True` in `configFile_LNGS.txt`
+2. create pedmap with: `python3 reconstruction.py configFile_LNGS.txt -r 4904`
  
-Now, you should have the file `pedestals/pedmap_run4159_rebin1.root`
+Now, you should have the file `pedestals/pedmap_run4904_rebin1.root`
 
-Secondly, reconstruct digitized images (example with 3 root input files):
-1. set `justPedestal` to `False` and `debug_mode` to `0` in `configFile_MC.txt`
-2. rename the 3 root input files: `histograms_Run00001.root`, `histograms_Run00002.root` and `histograms_Run00003.root` 
-3. create the directory `./input` and copy the 3 root input files in it
-4. add to `configFile_MC.txt`: `'tmpdir'  : './input/',`
-5. set right pedestal for run 1 to 3 in `pedestals/pedruns_MC.txt`: `(1,3) :   4159,`
-6. run in batch: `python scripts/submit_batch.py --outdir out/ --cfg configFile_MC.txt $(pwd) '[1-3]'`
+Then, reconstruct digitized (simulated) images:
+1. set `justPedestal` to `False` (and `debug_mode` to `0`) in `configFile_MC.txt`
+2. if needed, create the file `pedestals/runlog_MC.csv` with the script `scripts/make_runlog_tmp.py`. If the pedestal run is 4904, the simulated runs must be named with higher run numbers (4905, 4906 ...)
+3. move the simulated runs in the input directory `/path/to/inputdir/` and recostruct them with:
 
+`python3 reconstruction.py configFile_MC.txt -r 4905 -t /path/to/inputdir/`
 
 
 
