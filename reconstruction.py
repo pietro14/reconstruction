@@ -10,6 +10,8 @@ ROOT.gROOT.SetBatch(True)
 import uproot
 from cameraChannel import cameraTools, cameraGeometry
 import midas.file_reader
+import h5py
+
 
 from snakes import SnakesProducer
 from output import OutputTree
@@ -113,6 +115,11 @@ class analysis:
         if options.rawdata_tier == 'root':
             tf = sw.swift_read_root_file(self.tmpname)
             pics = [k for k in tf.keys() if 'pic' in k]
+            return len(pics)
+        elif options.rawdata_tier == 'h5':
+            tf = sw.swift_read_h5_file(self.tmpname)
+            pics = [k for k in tf.keys() if 'pic' in k]
+            print("n events:", len(pics))
             return len(pics)
         else:
             run,tmpdir,tag = self.tmpname
@@ -301,6 +308,11 @@ class analysis:
             tf = sw.swift_read_root_file(self.tmpname)
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
+        elif self.options.rawdata_tier == 'h5':
+            tf = sw.swift_read_h5_file(self.tmpname)
+            keys = tf.keys()
+            mf = [0] # dummy array to make a common loop with MIDAS case
+
         else:
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
@@ -330,6 +342,18 @@ class analysis:
                         camera=True
                     else:
                         camera=False
+                elif self.options.rawdata_tier == 'h5':
+                    if 'pic' in name:
+                        patt = re.compile('\S+run(\d+)_ev(\d+)')
+                        m = patt.match(name)
+                        run = int(m.group(1))
+                        event = int(m.group(2))
+                        obj = np.array(tf[key])
+                        #obj = np.rot90(obj)
+                        camera=True
+                    else:
+                        camera=False
+
                 elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
                     if name.startswith('CAM'):
@@ -537,6 +561,9 @@ if __name__ == '__main__':
         if options.rawdata_tier=='root':
             prefix = 'histograms_Run'
             postfix = 'root'
+        elif options.rawdata_tier=='h5':
+            prefix = 'histograms_Run'
+            postfix = 'h5'
         else:
             prefix = 'run'
             postfix = 'mid.gz'
