@@ -208,6 +208,7 @@ def response2D(inputfile,paramsfile,panda=None):
 
     ROOT.gStyle.SetPaintTextFormat("1.2f");
 
+    otumap = ROOT.TFile.Open('response2D.root','recreate')
     c = getCanvas('c')
     for k,h3D in energy_2Ds.items():
         for ix in range(1,h3D.GetNbinsX()+1):
@@ -234,13 +235,18 @@ def response2D(inputfile,paramsfile,panda=None):
                         zbinmax = iz
                 energy_2D_modes[k].SetBinContent(ix,iy,h3D.GetZaxis().GetBinCenter(zbinmax))
         energy_2D_modes[k].Draw("colz") # text45")
-        c.SaveAs("{target}_2D_{name}.png".format(target=GBR.target.replace('sc_',''),name=k))
+        for ext in ['png','pdf']:
+            c.SaveAs("{target}_2D_{name}.{ext}".format(target=GBR.target.replace('sc_',''),name=k),ext=ext)
 
     energy_2D_modes['ratio'] = energy_2D_modes['regr'].Clone('energy_2D_mode_ratio')
     energy_2D_modes['ratio'].Divide(energy_2D_modes['uncorr'])
     energy_2D_modes['ratio'].Draw("colz") # text45")
-    c.SaveAs("%s_2D_ratio.png" % GBR.target.replace('sc_',''))
-    
+    for ext in ['png','pdf']:
+        c.SaveAs("%s_2D_ratio.png" % GBR.target.replace('sc_',''),ext=ext)
+
+    outmap.cd()
+    energy_2D_modes['ratio'].Write()
+    outmap.Close()
     
     # energy_1Ds['uncorr'].SetMarkerColor(ROOT.kBlack)
     # energy_1Ds['regr'].SetMarkerColor(ROOT.kRed)
@@ -523,4 +529,4 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
 
     makeResponseHistos(args[0],args[1],panda=options.loadPanda)
-    graphVsR("fit",target=options.target)
+    #graphVsR("fit",target=options.target)
