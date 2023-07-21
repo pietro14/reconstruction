@@ -332,49 +332,46 @@ class utils:
             factor_mb = 1 / (1024 * 1024)
         return mem * factor_mb
     
-    def conversion_env_variables(self, dslow, odb, i = 0, j = 0):
-
-        """
-        if i == 'P1UIn5':
-            print(odb.data['History']['Display']['GasSystem']['humidity']['Variables'])
-            print(odb.data['History']['Display']['GasSystem']['humidity']['Formula'])
-            conversion = odb.data['History']['Display']['GasSystem']['humidity']['Formula'][1]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-        """
-        if i == 'P1UIn1':
-            conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][0]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P0IIn0':
-            conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][1]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P0IIn5':
-            conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P0IIn3':
-            conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P3IIn0':
-            conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][0]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P3IIn1':
-            conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][1]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P3IIn2':
-            conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][2]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P3IIn3':
-            conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][3]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-            
-        return dslow
     
+    def conversion_env_variables(self, dslow, odb, i=0, j=0):
+        try:
+            if i == 'P1UIn1':
+                conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][0]
+                dslow[i][j] = eval(conversion.replace('x', str(dslow[i][j])))
+
+            if i == 'P0IIn0':
+                conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][1]
+                dslow[i][j] = eval(conversion.replace('x', str(dslow[i][j])))
+
+            if i == 'P0IIn5':
+                conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
+                dslow[i][j] = eval(conversion.replace('x', str(dslow[i][j])))
+
+            if i == 'P0IIn3':
+                conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
+                dslow[i][j] = eval(conversion.replace('x', str(dslow[i][j])))
+
+            if i == 'P3IIn0':
+                conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][0]
+                dslow[i][j] = eval(conversion.replace('x', str(dslow[i][j])))
+
+            if i == 'P3IIn1':
+                conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][1]
+                dslow[i][j] = eval(conversion.replace('x', str(dslow[i][j])))
+
+            if i == 'P3IIn2':
+                conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][2]
+                dslow[i][j] = eval(conversion.replace('x', str(dslow[i][j])))
+
+            if i == 'P3IIn3':
+                conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][3]
+                dslow[i][j] = eval(conversion.replace('x', str(dslow[i][j])))
+
+        except Exception as e:
+            print(f"An error occurred while reading environment variable: {e}")
+
+        return dslow
+
     def read_env_variables(self, bank, dslow, odb, j=0):
         import midas.file_reader
         from datetime import datetime
