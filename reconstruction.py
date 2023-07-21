@@ -449,7 +449,7 @@ class analysis:
                     if self.options.pmt_mode:
                         if name.startswith('DGH0'):
 
-                            header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
+                            header=cy.daq_dgz_full2header(bank, verbose=False)
                             SIC = header.SIC
                             sample_rate = header.sampling_rate
 
