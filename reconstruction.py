@@ -449,7 +449,7 @@ class analysis:
                     if self.options.pmt_mode:
                         if name.startswith('DGH0'):
 
-                            header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
+                            header=cy.daq_dgz_full2header(bank, verbose=False)
                             SIC = header.SIC
                             sample_rate = header.sampling_rate
 
@@ -943,10 +943,12 @@ if __name__ == '__main__':
         print(f'Reconstruction Code Took: {t2 - t1} seconds')
 
     # now add the git commit hash to track the version in the ROOT file
-    # tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
-    # githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
-    # githash.Write()
-    # tf.Close()
+    tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
+    githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
+    githash.Write()
+    total_time = ROOT.TNamed("total_time", str(t2-t1))
+    total_time.Write()
+    tf.Close()
     
     if options.donotremove == False:
         sw.swift_rm_root_file(options.tmpname)
