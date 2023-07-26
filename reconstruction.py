@@ -335,7 +335,7 @@ class analysis:
                 for i in dslow.keys():
                     dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
                 self.autotree.fillEnvVariables(dslow.take([0]))
-                print(dslow)
+                #print(dslow)
                 j = 1
         
         for mevent in mf:
@@ -392,7 +392,7 @@ class analysis:
                         #print(dslow)
                         self.autotree.fillEnvVariables(dslow.take([j]))
                         j = j+1
-                        print(dslow)
+                        #print(dslow)
                         
                     
                     else:
