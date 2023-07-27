@@ -27,6 +27,21 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('pmt_hm',peakFinder.getHMs())
         self.outTree.fillBranch('pmt_risetime',peakFinder.getTimes('rise'))
         self.outTree.fillBranch('pmt_falltime',peakFinder.getTimes('fall'))
+        
+    def createEnvVariables(self):
+        self.outTree.branch('Lime_pressure', 'F', title="Lime pressure")
+        self.outTree.branch('Atm_pressure', 'F', title="Atmosperic pressure")
+        self.outTree.branch('Lime_temperature', 'F', title="Lime temperature")
+        self.outTree.branch('Atm_temperature', 'F', title="Atmosheric temperature")
+        self.outTree.branch('Humidity', 'F', title="Humidity")
+        
+
+    def fillEnvVariables(self, dslow):
+        self.outTree.fillBranch('Lime_pressure', dslow.P0IIn5)        
+        self.outTree.fillBranch('Atm_pressure', dslow.P0IIn3)
+        self.outTree.fillBranch('Lime_temperature', dslow.P0IIn0)
+        self.outTree.fillBranch('Atm_temperature', dslow.P1UIn1)
+        self.outTree.fillBranch('Humidity', dslow.P1UIn5*0.0375*1000-37.7)
 
     def createCameraVariables(self):
         self.outTree.branch('cmos_integral', 'F', title="integral counts of the full CMOS sensor")
