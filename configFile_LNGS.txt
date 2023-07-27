@@ -44,7 +44,7 @@
 'excImages'             : [], #list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy (not true anymore)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
 
-'scfullinfo'            : False,			   # If True some the supercluster pixels info will be saved
+'scfullinfo'            : True, 			   # If True some the supercluster pixels info will be saved
 'save_MC_data'          : False,			   # If True save the MC informations
 
 'tip'                   : '3D',
