@@ -130,7 +130,7 @@ if __name__ == "__main__":
             with open(options.runlog,"r") as csvfile:
                 csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
                 next(csvreader) # skips header
-                existing_runs_list = [(int(row[0]),[row[1],row[20]]) for row in list(csvreader)]
+                existing_runs_list = [(int(row[0]),[row[1],row[-12]]) for row in list(csvreader)]
             existing_runs = dict(existing_runs_list)
             if run not in existing_runs.keys():
                 print ("\t=> Run %d not in %s runlog, so skipping it" % (run,options.runlog))
