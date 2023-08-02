@@ -291,8 +291,12 @@ class utils:
                 next(csvreader)
                 for row in reversed(list(csvreader)):
                     runkey,runtype,comment = row[:3]
+                    if row[-12].strip()!='': # >= run 3
+                        pedestal_flag = int(row[-12]) # count from the end, because the field [1] is a txt run description that sometimes has ","...
+                    else:
+                        pedestal_flag = (":PED:" in runtype)
                     nevents = int(row[-2]) if str(row[-2]).strip()!="NULL" else 0
-                    if int(runkey)<=int(options.run) and (":PED:" in runtype) and nevents>=100:
+                    if int(runkey)<=int(options.run) and pedestal_flag and nevents>=100:
                         options.pedrun = int(runkey)
                         print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
                         break
