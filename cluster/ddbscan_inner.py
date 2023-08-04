@@ -120,13 +120,22 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
             x = data[labels==label_num][:,0]
             y = data[labels==label_num][:,1]
             if (np.median(np.abs(y - np.median(y))) == 0):
-                ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
-                ransac.fit(np.expand_dims(x, axis=1), y)
+                try:
+                    ransac = RANSACRegressor(min_samples=0.8, residual_threshold = 0.1)
+                    ransac.fit(np.expand_dims(x, axis=1), y)
+                    accuracy = sum(ransac.inlier_mask_)/len(y)
+                except ValueError as e:
+                    print("RANSAC first attempt error (MAD = 0):", e)
+                    accuracy = 0
             else:
-                ransac = RANSACRegressor(min_samples=0.8)
-                ransac.fit(np.expand_dims(x, axis=1), y)
-            
-            accuracy = sum(ransac.inlier_mask_)/len(y)
+                try:
+                    ransac = RANSACRegressor(min_samples=0.8)
+                    ransac.fit(np.expand_dims(x, axis=1), y)
+                    accuracy = sum(ransac.inlier_mask_)/len(y)
+                except ValueError as e:
+                    print("RANSAC first attempt error (MAD > 0):", e)
+                    accuracy = 0
+
             if debug:
                 print("-----> accuracy = ",accuracy)
             
@@ -136,14 +145,22 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
                 y_rot = x * np.sin(np.pi/4) + (y * np.sin(np.pi/4)) 
                 
                 if (np.median(np.abs(y_rot - np.median(y_rot))) == 0):
-                    ransac = RANSACRegressor(min_samples=0.5, residual_threshold = 0.1)
-                    ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
+                    try:
+                        ransac = RANSACRegressor(min_samples=0.5, residual_threshold = 0.1)
+                        ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
+                        accuracy = sum(ransac.inlier_mask_)/len(y_rot)
+                    except ValueError as e:
+                        print("RANSAC after rotation error (MAD = 0):", e)
+                        accuracy = 0
                 else:
-                    ransac = RANSACRegressor(min_samples=0.5)
-                    ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
-
-                accuracy = sum(ransac.inlier_mask_)/len(y_rot)
-                
+                    try:
+                        ransac = RANSACRegressor(min_samples=0.5)
+                        ransac.fit(np.expand_dims(x_rot, axis=1), y_rot)
+                        accuracy = sum(ransac.inlier_mask_)/len(y_rot)
+                    except ValueError as e:
+                        print("RANSAC after rotation error (MAD > 0):", e)
+                        accuracy = 0
+                        
                 if debug:
                     print("-----> accuracy after rotation = ",accuracy)
             
