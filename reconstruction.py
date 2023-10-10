@@ -574,7 +574,12 @@ if __name__ == '__main__':
     patt = re.compile('\S+_(\S+).txt')
     m = patt.match(args[0])
     detector = m.group(1)
-    if run > 16798 :
+    if detector == 'LNF':			#LNGS is used as a default
+       if run > 10950 :
+           utilities.setPedestalRun_v2(options,detector)
+       else:
+           utilities.setPedestalRun(options,detector)
+    elif run > 16798 :
         utilities.setPedestalRun_v2(options,detector)
     else:
         utilities.setPedestalRun(options,detector)
