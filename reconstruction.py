@@ -130,7 +130,7 @@ class analysis:
             self.autotree.createCameraVariables()
             self.autotree.createTimeVariables()
             self.autotree.createClusterVariables('sc')
-            self.autotree.createEnvVariables()
+            if options.environment_variables: self.autotree.createEnvVariables()
             if self.options.cosmic_killer:
                 self.autotree.addCosmicKillerVariables('sc')
         
@@ -371,18 +371,21 @@ class analysis:
 
         numev = -1
         event=-1
-        if  options.rawdata_tier == 'midas': mf.jump_to_start()
+        if  options.rawdata_tier == 'midas': 
+            mf.jump_to_start()
+            dslow = pd.DataFrame()
+            if options.environment_variables:
         
-        odb = cy.get_bor_odb(mf)
-        header_environment = odb.data['Equipment']['Environment']['Settings']['Names Input']
-        value_variables = odb.data['Equipment']['Environment']['Variables']
-        dslow = pd.DataFrame(columns = header_environment)
-        dslow.loc[len(dslow)] = value_variables['Input']
-        for i in dslow.keys():
-            dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
-        self.autotree.fillEnvVariables(dslow.take([0]))
-        print(dslow)
-        j = 1
+                odb = cy.get_bor_odb(mf)
+                header_environment = odb.data['Equipment']['Environment']['Settings']['Names Input']
+                value_variables = odb.data['Equipment']['Environment']['Variables']
+                dslow = pd.DataFrame(columns = header_environment)
+                dslow.loc[len(dslow)] = value_variables['Input']
+                for i in dslow.keys():
+                    dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
+                self.autotree.fillEnvVariables(dslow.take([0]))
+                #print(dslow)
+                j = 1
         
         for mevent in mf:
             if self.options.rawdata_tier == 'midas':
@@ -425,7 +428,7 @@ class analysis:
                     run = int(self.options.run)
                     if bank_name=='CAM0':
                         obj,_,_ = cy.daq_cam2array(bank, dslow)
-                        obj = np.rot90(obj,k=-1)
+                        obj = np.rot90(obj)
                     
                     
                     #if name.startswith('CAM'):
@@ -434,11 +437,12 @@ class analysis:
                         camera=True
                         numev += 1
                     
-                    elif bank_name=='INPT': # SLOW channels array
+                    elif bank_name=='INPT' and options.environment_variables: # SLOW channels array
                         dslow = utilities.read_env_variables(bank, dslow, odb, j=j)
                         #print(dslow)
                         self.autotree.fillEnvVariables(dslow.take([j]))
                         j = j+1
+                        #print(dslow)
                         
                     
                     else:
