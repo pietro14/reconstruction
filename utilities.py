@@ -289,14 +289,14 @@ class utils:
                 csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
                 # This skips the first row (header) of the CSV file.
                 next(csvreader)
-                if detector == "LNF":
-                    n_ev_col = -1 
-                else:
-                    n_ev_col = -2
                 for row in reversed(list(csvreader)):
                     runkey,runtype,comment = row[:3]
-                    nevents = int(row[n_ev_col]) if str(row[n_ev_col]).strip()!="NULL" else 0
-                    if int(runkey)<=int(options.run) and (":PED:" in runtype) and nevents>=100:
+                    if row[-12].strip()!='': # >= run 3
+                        pedestal_flag = int(row[-12]) # count from the end, because the field [1] is a txt run description that sometimes has ","...
+                    else:
+                        pedestal_flag = (":PED:" in runtype)
+                    nevents = int(row[-2]) if str(row[-2]).strip()!="NULL" else 0
+                    if int(runkey)<=int(options.run) and pedestal_flag and nevents>=100:
                         options.pedrun = int(runkey)
                         print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
                         break
@@ -356,7 +356,7 @@ class utils:
         if i == 'P0IIn3':
             conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
             dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
+        """             
         if i == 'P3IIn0':
             conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][0]
             dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
@@ -372,7 +372,7 @@ class utils:
         if i == 'P3IIn3':
             conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][3]
             dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-            
+        """    
         return dslow
     
     def read_env_variables(self, bank, dslow, odb, j=0):
@@ -426,3 +426,4 @@ if __name__ == "__main__":
         ut.plotVignetteMap("vignette_run05890.root","summap_lime")
 
         
+
