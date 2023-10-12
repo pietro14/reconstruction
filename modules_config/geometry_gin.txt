@@ -1,7 +1,7 @@
 {
 # GIN
 'name'        : 'gin',
-'pixelwidth'  : 0.046,  # mm
+'pixelwidth'  : 0.05,  # mm
 'npixx'       : 2304,
 'vignette'    : 'data/vignette_runs03930to03932.root',
 'xmin'        : 0,

@@ -31,7 +31,7 @@
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
 'rebin'                 : 4,
-'nsigma'                : 1.3,
+'nsigma'                : 0.8,
 'min_neighbors_average' : 1.3,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'cimax'                 : 5000,                    # Upper threshold (keep very high not to kill large signals)
 'justPedestal'          : False,
