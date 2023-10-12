@@ -3,11 +3,11 @@
 'rawdata_tier' : 'midas',
 
 # DETECTOR
-'geometry'  : 'lime',
+'geometry'  : 'gin',
 
 # DEBUG plots
-'debug_mode'            : 0,
-'ev'                    : 25,
+'debug_mode'            : 1,
+'ev'                    : 27,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -37,7 +37,7 @@
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
-'tag'                   : 'Data',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
+'tag'                   : 'LNF',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
 'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
 'environment_variables' : False,                    # if True the environment variables are added to the Tree
 
