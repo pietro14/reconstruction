@@ -128,7 +128,7 @@ class analysis:
 
         if self.options.camera_mode:
             self.autotree.createCameraVariables()
-            self.autotree.createTimeVariables()
+            self.autotree.createTimeCameraVariables()
             self.autotree.createClusterVariables('sc')
             if options.environment_variables: self.autotree.createEnvVariables()
             if self.options.cosmic_killer:
@@ -139,6 +139,8 @@ class analysis:
             # self.autotree.createPMTVariables_singleTree(self.pmt_params)          ## Function for fillling the tree all in the same way. Check 'treeVars.py' for more details
             self.autotree_pmt.createPMTVariables_multipleTrees(self.pmt_params)     ## Individual waveform
             self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)       ## Average Waveform
+            self.autotree_pmt.createTimePMTVariables_multipleTrees()
+            self.autotree_pmt_avg.createTimePMTVariables_average()
 
     def endJob(self):
         self.outTree.write()
@@ -576,7 +578,7 @@ class analysis:
                             print(f"fillCameraVariables in {t_DBSCAN_3 - t_DBSCAN_2:0.4f} seconds")
                         self.autotree.fillClusterVariables(snakes,'sc')
                         t_DBSCAN_4 = time.perf_counter()
-                        self.autotree.fillTimeVariables(t_variables, t_DBSCAN, lp_len, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered)
+                        self.autotree.fillTimeCameraVariables(t_variables, t_DBSCAN, lp_len, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered)
                         if options.debug_mode == 1:
                             print(f"fillClusterVariables in {t_DBSCAN_4 - t_DBSCAN_3:0.04f} seconds")
                             print()
@@ -593,7 +595,8 @@ class analysis:
                         # waveforms = []
 
                         # Fast waveforms
-                        print("number of fast triggers: {}".format(nTriggers_f))
+                        if options.debug_mode == 1:
+                            print("Number of fast triggers: {}".format(nTriggers_f))
                         for trg in range(nTriggers_f):    
 
                             insideGE = 0
@@ -626,10 +629,17 @@ class analysis:
                                 indx = trg * nChannels_f + ch
                                 waveform_info = { 'run' : run, 'event': event, 'channel' : ch, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
 
+                                t0 = time.perf_counter()
+
                                 fast_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
                                 fast_waveform.__repr__()
 
+                                t1 = time.perf_counter()
+                                t_waveforms = t1 - t0
+
                                 self.autotree_pmt.fillPMTVariables_multipleTrees(fast_waveform) 
+                                self.autotree_pmt.fillTimePMTVariables_multipleTrees(t_waveforms)
+
                                 self.outTree_pmt.fill()
 
                                 #####################################
@@ -677,8 +687,14 @@ class analysis:
                                         # if plot_weighted_fast_wfs is True: sing_weig_avg_fast_wf[k] = tuple(demo_wf)
 
                                     waveform_info_fast_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "fast"}
+
+                                    t0 = time.perf_counter()
                                     fast_waveform_wei_avg = PMTreco(waveform_info_fast_wei_avg, weight_average_wf, self.pmt_params)
+                                    t1 = time.perf_counter()
+                                    t_waveforms = t1 - t0 
+
                                     self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_wei_avg)
+                                    self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
                                     #fast_waveform_wei_avg.__repr__()
                                     self.outTree_pmt_avg.fill()
 
@@ -700,6 +716,8 @@ class analysis:
                                 del fast_waveform
                         
                         # Slow waveforms
+                        if options.debug_mode == 1:
+                            print("Number of slow triggers: {}".format(nTriggers_s))
                         for trg in range(nTriggers_s):    
 
                             insideGE = 0
@@ -731,10 +749,16 @@ class analysis:
                                 indx = trg * nChannels_s + ch
                                 waveform_info = { 'run' : run, 'event': event, 'channel' : ch, 'trigger' : trg , 'GE' : insideGE , 'sampling' : "slow", 'TTT' : (TTTs_s[trg]*8.5/1000./1000.)}
                                 
+                                t0 = time.perf_counter()
+
                                 slow_waveform = PMTreco(waveform_info, waveform_s[indx], self.pmt_params)
                                 slow_waveform.__repr__()
 
+                                t1 = time.perf_counter()
+                                t_waveforms = t1 - t0
+
                                 self.autotree_pmt.fillPMTVariables_multipleTrees(slow_waveform) 
+                                self.autotree_pmt.fillTimePMTVariables_multipleTrees(t_waveforms)
                                 self.outTree_pmt.fill()
 
                                 ###########################################
@@ -778,8 +802,14 @@ class analysis:
                                         # if plot_weighted_slow_wfs is True: sing_weig_avg_slow_wf[k] = tuple(demo_wf)
 
                                     waveform_info_slow_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "slow"}
+
+                                    t0 = time.perf_counter()
                                     slow_waveform_wei_avg = PMTreco(waveform_info_slow_wei_avg, weight_average_wf, self.pmt_params)
+                                    t1 = time.perf_counter()
+                                    t_waveforms = t1 - t0 
+
                                     self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_wei_avg)
+                                    self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
                                     #slow_waveform_wei_avg.__repr__()
                                     self.outTree_pmt_avg.fill()
 

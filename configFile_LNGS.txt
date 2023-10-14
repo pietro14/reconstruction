@@ -19,7 +19,7 @@
 'flag_dbscan_seeds'     : 1,
 'flag_stats'            : 0,
 
-'camera_mode'            : 1,
+'camera_mode'            : 0,
 
 # Parameters of the plots
 'cmapcolor'             : 'gray',
@@ -39,7 +39,7 @@
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
 'tag'                   : 'LNGS',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
 'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
-'environment_variables' : True,                    # if True the environment variables are added to the Tree
+'environment_variables' : False,                    # if True the environment variables are added to the Tree
 
 'excImages'             : [], #list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy (not true anymore)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
@@ -57,7 +57,7 @@
 'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 0,
+'pmt_mode'              : 1,
 
 'threshold'             : 0,			## Not used
 'height_RMS'		    : 5,			## 5 * RMS
@@ -67,7 +67,7 @@
 'width'                 : 5,
 'resample'              : 5,			## Number of samples used for moving average
 'pmt_plotpy'            : False,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
-'pmt_wf_in_tree'        : False,			## saves full X and Y arrays in tree branches. 
+'pmt_wf_in_tree'        : True,			## saves full X and Y arrays in tree branches. 
 'digitizer_tag'			:'LNGS',			## use LNGS for underground data; LNF for PMT specific data at LNF
-'pmt_verbose'			: 2			## '0' for no output; '3' for full output.			
+'pmt_verbose'			: 0			## '0' for no output; '3' for full output.			
 }

@@ -245,7 +245,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('cmos_mean',     'F', title="average counts of the full CMOS sensor")
         self.outTree.branch('cmos_rms',      'F', title="RMS of the counts of the full CMOS sensor")
 
-    def createTimeVariables(self):
+    def createTimeCameraVariables(self):
         self.outTree.branch('t_DBSCAN', 'F', title="DBSCAN time")
         self.outTree.branch('t_variables',     'F', title="Variables time")
         self.outTree.branch('lp_len',     'F', title="# pixel")
@@ -259,6 +259,11 @@ class AutoFillTreeProducer:
         self.outTree.branch('t_medianfilter',     'F', title="median filter")
         self.outTree.branch('t_noisered',     'F', title="noise reductor")
 
+    def createTimePMTVariables_multipleTrees(self):
+        self.outTree.branch('t_waveforms', 'F', title="waveforms time")
+
+    def createTimePMTVariables_average(self):
+        self.outTree.branch('t_waveforms', 'F', title="waveforms time")
 
         
     def createClusterVariables(self,name='track'):
@@ -322,7 +327,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('cmos_mean',np.mean(pic))
         self.outTree.fillBranch('cmos_rms',np.std(pic))
 
-    def fillTimeVariables(self, t_variables, t_DBSCAN, lp, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered):
+    def fillTimeCameraVariables(self, t_variables, t_DBSCAN, lp, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered):
         self.outTree.fillBranch('t_DBSCAN', t_DBSCAN)
         self.outTree.fillBranch('t_variables',t_variables)
         self.outTree.fillBranch('lp_len',lp)
@@ -335,6 +340,12 @@ class AutoFillTreeProducer:
 
         self.outTree.fillBranch('t_medianfilter', t_medianfilter)
         self.outTree.fillBranch('t_noisered', t_noisered) 
+
+    def fillTimePMTVariables_multipleTrees(self, t_waveforms):
+        self.outTree.fillBranch('t_waveforms', t_waveforms)
+
+    def fillTimePMTVariables_average(self, t_waveforms):
+        self.outTree.fillBranch('t_waveforms', t_waveforms)
 
     def fillClusterVariables(self,clusters,name='track'):
         chars = list(name)

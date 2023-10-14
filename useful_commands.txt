@@ -1,5 +1,0 @@
-# Basic version
-python3 pmt_reconstruction.py configFile_LNGS.txt -j1 --max-entries 20 -r 12000
-
-# With some options
-python3 pmt_reconstruction.py configFile_LNGS.txt -j1 --max-entries 20 -r 12170 --tmp ./ --outdir ./outputs
