@@ -19,7 +19,7 @@
 'flag_dbscan_seeds'     : 1,
 'flag_stats'            : 0,
 
-'camera_mode'            : 0,
+'camera_mode'            : 1,
 
 # Parameters of the plots
 'cmapcolor'             : 'gray',
