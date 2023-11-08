@@ -371,8 +371,8 @@ class analysis:
                     channels_offsets = 0
                     mf.jump_to_start()
 
-        numev = -1
-        event=-1
+        numev = 0
+        event=0
         if  options.rawdata_tier == 'midas': 
             mf.jump_to_start()
             dslow = pd.DataFrame()
@@ -437,7 +437,6 @@ class analysis:
                     #    obj,_,_ = cy.daq_cam2array(mevent.banks[key])
                     #    obj = np.rot90(obj)
                         camera=True
-                        numev += 1
                     
                     elif bank_name=='INPT' and options.environment_variables: # SLOW channels array
                         dslow = utilities.read_env_variables(bank, dslow, odb, j=j)
@@ -850,7 +849,9 @@ class analysis:
                 
                 if pmt==True:
                     del waveform_f, waveform_s, header
-                        
+
+            if camera == True or pmt == True:
+                         numev += 1
         gc.collect()
                     
         ROOT.gErrorIgnoreLevel = savErrorLevel
@@ -889,7 +890,8 @@ if __name__ == '__main__':
     patt = re.compile('\S+_(\S+).txt')
     m = patt.match(args[0])
     detector = m.group(1)
-    if run > 16798 :
+    #if run > 16798 :
+    if run > 9999999 :
         utilities.setPedestalRun_v2(options,detector)
     else:
         utilities.setPedestalRun(options,detector)
