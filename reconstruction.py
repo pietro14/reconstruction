@@ -345,10 +345,8 @@ class analysis:
                 else:
                     keys = mevent.banks.keys()
                     
-            for bank_name, bank in mevent.banks.items():
-                name=bank_name
-            #for iobj,key in enumerate(keys):
-                #name=key
+            for iobj,key in enumerate(keys):
+                name=key
                 camera = False
 
                 if self.options.rawdata_tier == 'root':
@@ -376,14 +374,9 @@ class analysis:
 
                 elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
-                    if bank_name=='CAM0':
-                        obj,_,_ = cy.daq_cam2array(bank, dslow)
+                    if name.startswith('CAM'):
+                        obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
                         obj = np.rot90(obj)
-                    
-                    
-                    #if name.startswith('CAM'):
-                    #    obj,_,_ = cy.daq_cam2array(mevent.banks[key])
-                    #    obj = np.rot90(obj)
                         camera=True
                         numev += 1
                     
@@ -574,7 +567,12 @@ if __name__ == '__main__':
     patt = re.compile('\S+_(\S+).txt')
     m = patt.match(args[0])
     detector = m.group(1)
-    if run > 16798 :
+    if detector == 'LNF':			#LNGS is used as a default
+       if run > 10950 :
+           utilities.setPedestalRun_v2(options,detector)
+       else:
+           utilities.setPedestalRun(options,detector)
+    elif run > 16798 :
         utilities.setPedestalRun_v2(options,detector)
     else:
         utilities.setPedestalRun(options,detector)
@@ -651,7 +649,7 @@ if __name__ == '__main__':
         if flag_env == 0:
             os.system('hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         else:
-            os.system('usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
+            os.system('/usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         os.system('rm {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
     else:
         evrange=(-1,firstEvent,lastEvent)
