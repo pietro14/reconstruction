@@ -345,10 +345,8 @@ class analysis:
                 else:
                     keys = mevent.banks.keys()
                     
-            for bank_name, bank in mevent.banks.items():
-                name=bank_name
-            #for iobj,key in enumerate(keys):
-                #name=key
+            for iobj,key in enumerate(keys):
+                name=key
                 camera = False
 
                 if self.options.rawdata_tier == 'root':
@@ -376,14 +374,9 @@ class analysis:
 
                 elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
-                    if bank_name=='CAM0':
-                        obj,_,_ = cy.daq_cam2array(bank, dslow)
+                    if name.startswith('CAM'):
+                        obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
                         obj = np.rot90(obj)
-                    
-                    
-                    #if name.startswith('CAM'):
-                    #    obj,_,_ = cy.daq_cam2array(mevent.banks[key])
-                    #    obj = np.rot90(obj)
                         camera=True
                         numev += 1
                     
