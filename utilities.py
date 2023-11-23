@@ -282,32 +282,33 @@ class utils:
         plt.gca().invert_yaxis()
         plt.savefig('%s.pdf' % name)
         
-    def setPedestalRun(self,options,detector):
-        if not hasattr(options,"pedrun"):
-            runlog='runlog_%s.csv' % (detector)
-            with open("pedestals/%s"%runlog,"r") as csvfile:
-                csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-                # This skips the first row (header) of the CSV file.
-                next(csvreader)
-                for row in reversed(list(csvreader)):
-                    runkey,runtype,comment = row[:3]
-                    if row[-12].strip()!='': # >= run 3
-                        pedestal_flag = int(row[-12]) # count from the end, because the field [1] is a txt run description that sometimes has ","...
-                    else:
-                        pedestal_flag = (":PED:" in runtype)
-                    nevents = int(row[-2]) if str(row[-2]).strip()!="NULL" else 0
-                    if int(runkey)<=int(options.run) and pedestal_flag and nevents>=100:
-                        options.pedrun = int(runkey)
-                        print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
-                        break
-            assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(options.run,runlog))
-        setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+        
+   # def setPedestalRun_v1(self,options):
+   #     if not hasattr(options,"pedrun"):
+   #         runlog='runlog_%s.csv' % (options.tag)
+   #         with open("pedestals/%s"%runlog,"r") as csvfile:
+   #             csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+   #             # This skips the first row (header) of the CSV file.
+   #             next(csvreader)
+   #             for row in reversed(list(csvreader)):
+   #                 runkey,runtype,comment = row[:3]
+   #                 if row[-12].strip()!='': # >= run 3
+   #                     pedestal_flag = int(row[-12]) # count from the end, because the field [1] is a txt run description that sometimes has ","...
+   #                 else:
+   #                     pedestal_flag = (":PED:" in runtype)
+   #                 nevents = int(row[-2]) if (str(row[-2]).strip() not in ["NULL",'']) else 0
+   #                 if int(runkey)<=int(options.run) and pedestal_flag and nevents>=100:
+   #                     options.pedrun = int(runkey)
+   #                     print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
+   #                     break
+   #         assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(options.run,runlog))
+   #     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
 
 
-    def setPedestalRun_v2(self,options,detector):
+    def setPedestalRun_v2(self,options):
         import pandas as pd
         if not hasattr(options,"pedrun"):
-            runlog='runlog_%s_auto.csv' % (detector)
+            runlog='runlog_%s_auto.csv' % (options.tag)
 
  
 
@@ -321,9 +322,32 @@ class utils:
                 print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
             else:
                 print("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!" % (options.run, runlog))
-        setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
-
+        setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))        
         
+        
+    def setPedestalRun(self,options):
+        run = int(options.run)
+        if (options.tag=='LNF' and run>10093) or (options.tag=='LNGS' and run>16798) or (options.tag=='MAN' and run>11166):
+           self.setPedestalRun_v2(options)
+        #elif (options.tag=='LNGS' and run>936 and run<16798):
+        #   self.setPedestalRun_v1(options)
+        else:
+           if not hasattr(options,"pedrun"):
+              pedname= 'pedruns_%s.txt' % (options.tag.split('$')[0])
+              pf = open("pedestals/"+pedname,"r")
+              peddic = eval(pf.read())
+              options.pedrun = -1
+              for runrange,ped in peddic.items():
+                 if int(runrange[0])<=run<=int(runrange[1]):
+                     options.pedrun = int(ped)
+                     print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
+                     break
+              assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/",pedname," Check the dictionary inside it!")
+               
+           setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+        return 
+    
+
     def peak_memory_usage(self):
         """Return peak memory usage in MB"""
         mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss

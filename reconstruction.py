@@ -198,7 +198,7 @@ class analysis:
                         pedsum = np.add(pedsum,arr)
                         numev += 1
         else:
-            print ("keys = ",keys)
+            #print ("keys = ",keys)
             for i,name in enumerate(keys):
                 if 'pic' in name:
                     patt = re.compile('\S+run(\d+)_ev(\d+)')
@@ -380,8 +380,8 @@ class analysis:
                         camera=True
                         numev += 1
                     
-                    elif bank_name=='INPT' and options.environment_variables: # SLOW channels array
-                        dslow = utilities.read_env_variables(bank, dslow, odb, j=j)
+                    elif name.startswith('INPT') and options.environment_variables: # SLOW channels array
+                        dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j=j)
                         #print(dslow)
                         self.autotree.fillEnvVariables(dslow.take([j]))
                         j = j+1
@@ -401,7 +401,7 @@ class analysis:
                 if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
                 if justSkip:
                     continue
-                
+
                 if camera==True:
                     print("Processing Run: ",run,"- Event ",event,"...")
                     
@@ -521,11 +521,11 @@ class analysis:
                             
                     #         peaksfinder = pkprod.run()
                     #         self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
-         
+                    
                     if self.options.camera_mode:
                         if camera==True:
-                            self.outTree.fill()
-                            
+                            self.outTree.fill()                                                       
+                                                        
                     if camera==True:
                         del obj
                         
@@ -564,19 +564,7 @@ if __name__ == '__main__':
     else:
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
     
-    patt = re.compile('\S+_(\S+).txt')
-    m = patt.match(args[0])
-    detector = m.group(1)
-    if detector == 'LNF':			#LNGS is used as a default
-       if run > 10950 :
-           utilities.setPedestalRun_v2(options,detector)
-       else:
-           utilities.setPedestalRun(options,detector)
-    elif run > 16798 :
-        utilities.setPedestalRun_v2(options,detector)
-    else:
-        utilities.setPedestalRun(options,detector)
-        
+    utilities.setPedestalRun(options)        
         
     try:
         USER = os.environ['USER']
@@ -586,7 +574,7 @@ if __name__ == '__main__':
         USER = os.environ['JUPYTERHUB_USER']
     #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
-    tmpdir = '/tmp/'
+    tmpdir = '/tmp'
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER) if not options.tmpdir else options.tmpdir+"/"
     if sw.checkfiletmp(int(options.run),options.rawdata_tier,tmpdir):
@@ -602,14 +590,15 @@ if __name__ == '__main__':
         options.tmpname = "%s/%s%05d.%s" % (tmpdir,prefix,int(options.run),postfix)
     else:
         if options.rawdata_tier == 'root':
-            print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-            options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),tmpdir)
+            file_url = sw.swift_root_file(options.tag, int(options.run))
+            print ('Downloading file: ' + file_url)
+            options.tmpname = sw.swift_download_root_file(file_url,int(options.run),tmpdir)
         else:
             print ('Downloading MIDAS.gz file for run ' + options.run)
     # in case of MIDAS, download function checks the existence and in case it is absent, dowloads it. If present, opens it
     if options.rawdata_tier == 'midas':
         ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
-        options.tmpname = [int(options.run),tmpdir,options.tag]
+        options.tmpname = [int(options.run),tmpdir,options.tag]		#This line needs to be corrected if MC data will be in midas format. Not foreseen at all
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
@@ -633,6 +622,7 @@ if __name__ == '__main__':
     t1 = time.perf_counter()
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
     lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
+    
     print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
     base = options.outFile.split('.')[0]
     if nThreads>1:
