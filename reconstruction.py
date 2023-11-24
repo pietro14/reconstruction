@@ -556,7 +556,8 @@ if __name__ == '__main__':
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
     parser.add_option('-d', '--outdir', dest='outdir', default='.', type='string', help='Directory where to save the output file')
-    
+    parser.add_option(      '--git', dest='githash', default=None, type='string', help='git hash of the version of the reco code in use which you may want to give manually')
+        
     (options, args) = parser.parse_args()
     
     f = open(args[0], "r")
@@ -662,8 +663,15 @@ if __name__ == '__main__':
         print(f'Total time the Code Took: {t2 - t0} seconds')
     # now add the git commit hash to track the version in the ROOT file
     tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
-    githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
-    githash.Write()
+    if options.githash != None:
+       githash=ROOT.TNamed("gitHash",options.githash)
+       githash.Write()       
+    else:
+       try:
+          githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace("\\n'","").replace("b'",""))
+          githash.Write()
+       except:
+          print('No githash provided nor githash found (no .git folder?)') 
     total_time = ROOT.TNamed("total_time", str(t2-t1))
     total_time.Write()
     tf.Close()
