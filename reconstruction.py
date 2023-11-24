@@ -124,20 +124,30 @@ class analysis:
             pics = [k for k in tf.keys() if 'pic' in k]
             print("n events:", len(pics))
             return len(pics)
-        else:
-            run,tmpdir,tag = self.tmpname
-            mf = sw.swift_download_midas_file(run,tmpdir,tag)
-            evs =0
-            for mevent in mf:
-                if mevent.header.is_midas_internal_event():
-                    continue
-                else:
-                    keys = mevent.banks.keys()
-                for iobj,key in enumerate(keys):
-                    name=key
-                    if name.startswith('CAM'):
-                        evs += 1
-            return evs
+            
+        runlog='runlog_%s_auto.csv' % (options.tag)
+        df = pd.read_csv('pedestals/%s'%runlog)
+        if df.run_number.isin({int(options.run)}).any():
+           dffilter = df["run_number"] == int(options.run)
+           try:
+              evs = int(df.number_of_events[dffilter].values.tolist()[0])
+              return evs
+           except ValueError:
+              print('Probably number of events line in data frame is empty. Opening and counting the file events\n')
+     
+        run,tmpdir,tag = self.tmpname
+        mf = sw.swift_download_midas_file(run,tmpdir,tag)
+        evs =0
+        for mevent in mf:
+            if mevent.header.is_midas_internal_event():
+               continue
+            else:
+                keys = mevent.banks.keys()
+            for iobj,key in enumerate(keys):
+                name=key
+                if name.startswith('CAM'):
+                    evs += 1
+        return evs
 
     def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
@@ -535,7 +545,7 @@ class analysis:
                 
 if __name__ == '__main__':
     from optparse import OptionParser
-    
+    t0 = time.perf_counter()
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
@@ -649,7 +659,7 @@ if __name__ == '__main__':
     t2 = time.perf_counter()
     if options.debug_mode == 1:
         print(f'Reconstruction Code Took: {t2 - t1} seconds')
-
+        print(f'Total time the Code Took: {t2 - t0} seconds')
     # now add the git commit hash to track the version in the ROOT file
     tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
     githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
