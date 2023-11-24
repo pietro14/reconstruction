@@ -545,7 +545,7 @@ if __name__ == '__main__':
     parser.add_option('-t',  '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
-    parser.add_option('-d', '--outdir', dest='outdir', default='./', type='string', help='Directory where to save the output file')
+    parser.add_option('-d', '--outdir', dest='outdir', default='.', type='string', help='Directory where to save the output file')
     
     (options, args) = parser.parse_args()
     
@@ -608,8 +608,9 @@ if __name__ == '__main__':
 
     ana = analysis(options)
     nev = ana.getNEvents(options)
-    print("This run has ",nev," events.")
-    print("Will save plots to ",options.plotDir)
+    print("\nThis run has ",nev," events.")
+    if options.debug_mode == 1: print('DEBUG mode activated. Only event',options.ev,'will be analysed')
+    print("I Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
     nThreads = 1
@@ -622,6 +623,7 @@ if __name__ == '__main__':
     t1 = time.perf_counter()
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
     lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
+    if options.debug_mode == 1: lastEvent = min(nev,int(options.ev))
     
     print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
     base = options.outFile.split('.')[0]
