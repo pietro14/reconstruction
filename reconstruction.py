@@ -124,20 +124,30 @@ class analysis:
             pics = [k for k in tf.keys() if 'pic' in k]
             print("n events:", len(pics))
             return len(pics)
-        else:
-            run,tmpdir,tag = self.tmpname
-            mf = sw.swift_download_midas_file(run,tmpdir,tag)
-            evs =0
-            for mevent in mf:
-                if mevent.header.is_midas_internal_event():
-                    continue
-                else:
-                    keys = mevent.banks.keys()
-                for iobj,key in enumerate(keys):
-                    name=key
-                    if name.startswith('CAM'):
-                        evs += 1
-            return evs
+            
+        runlog='runlog_%s_auto.csv' % (options.tag)
+        df = pd.read_csv('pedestals/%s'%runlog)
+        if df.run_number.isin({int(options.run)}).any():
+           dffilter = df["run_number"] == int(options.run)
+           try:
+              evs = int(df.number_of_events[dffilter].values.tolist()[0])
+              return evs
+           except ValueError:
+              print('Probably number of events line in data frame is empty. Opening and counting the file events\n')
+     
+        run,tmpdir,tag = self.tmpname
+        mf = sw.swift_download_midas_file(run,tmpdir,tag)
+        evs =0
+        for mevent in mf:
+            if mevent.header.is_midas_internal_event():
+               continue
+            else:
+                keys = mevent.banks.keys()
+            for iobj,key in enumerate(keys):
+                name=key
+                if name.startswith('CAM'):
+                    evs += 1
+        return evs
 
     def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
@@ -198,7 +208,7 @@ class analysis:
                         pedsum = np.add(pedsum,arr)
                         numev += 1
         else:
-            print ("keys = ",keys)
+            #print ("keys = ",keys)
             for i,name in enumerate(keys):
                 if 'pic' in name:
                     patt = re.compile('\S+run(\d+)_ev(\d+)')
@@ -380,13 +390,15 @@ class analysis:
                         camera=True
                         numev += 1
                     
-                    elif bank_name=='INPT' and options.environment_variables: # SLOW channels array
-                        dslow = utilities.read_env_variables(bank, dslow, odb, j=j)
-                        #print(dslow)
-                        self.autotree.fillEnvVariables(dslow.take([j]))
-                        j = j+1
-                        #print(dslow)
-                        
+                    elif name.startswith('INPT') and options.environment_variables: # SLOW channels array
+                        try:
+                           dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j=j)
+                           #print(dslow)
+                           self.autotree.fillEnvVariables(dslow.take([j]))
+                           j = j+1
+                           #print(dslow)
+                        except:
+                           print("WARNING: INPT bank is not as expected.")
                     
                     else:
                         camera=False
@@ -401,7 +413,7 @@ class analysis:
                 if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
                 if justSkip:
                     continue
-                
+
                 if camera==True:
                     print("Processing Run: ",run,"- Event ",event,"...")
                     
@@ -521,11 +533,11 @@ class analysis:
                             
                     #         peaksfinder = pkprod.run()
                     #         self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
-         
+                    
                     if self.options.camera_mode:
                         if camera==True:
-                            self.outTree.fill()
-                            
+                            self.outTree.fill()                                                       
+                                                        
                     if camera==True:
                         del obj
                         
@@ -535,7 +547,7 @@ class analysis:
                 
 if __name__ == '__main__':
     from optparse import OptionParser
-    
+    t0 = time.perf_counter()
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
@@ -545,8 +557,9 @@ if __name__ == '__main__':
     parser.add_option('-t',  '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
-    parser.add_option('-d', '--outdir', dest='outdir', default='./', type='string', help='Directory where to save the output file')
-    
+    parser.add_option('-d', '--outdir', dest='outdir', default='.', type='string', help='Directory where to save the output file')
+    parser.add_option(      '--git', dest='githash', default=None, type='string', help='git hash of the version of the reco code in use which you may want to give manually')
+        
     (options, args) = parser.parse_args()
     
     f = open(args[0], "r")
@@ -564,19 +577,7 @@ if __name__ == '__main__':
     else:
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
     
-    patt = re.compile('\S+_(\S+).txt')
-    m = patt.match(args[0])
-    detector = m.group(1)
-    if detector == 'LNF':			#LNGS is used as a default
-       if run > 10950 :
-           utilities.setPedestalRun_v2(options,detector)
-       else:
-           utilities.setPedestalRun(options,detector)
-    elif run > 16798 :
-        utilities.setPedestalRun_v2(options,detector)
-    else:
-        utilities.setPedestalRun(options,detector)
-        
+    utilities.setPedestalRun(options)        
         
     try:
         USER = os.environ['USER']
@@ -586,7 +587,7 @@ if __name__ == '__main__':
         USER = os.environ['JUPYTERHUB_USER']
     #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
-    tmpdir = '/tmp/'
+    tmpdir = '/tmp'
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER) if not options.tmpdir else options.tmpdir+"/"
     if sw.checkfiletmp(int(options.run),options.rawdata_tier,tmpdir):
@@ -602,14 +603,15 @@ if __name__ == '__main__':
         options.tmpname = "%s/%s%05d.%s" % (tmpdir,prefix,int(options.run),postfix)
     else:
         if options.rawdata_tier == 'root':
-            print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-            options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),tmpdir)
+            file_url = sw.swift_root_file(options.tag, int(options.run))
+            print ('Downloading file: ' + file_url)
+            options.tmpname = sw.swift_download_root_file(file_url,int(options.run),tmpdir)
         else:
             print ('Downloading MIDAS.gz file for run ' + options.run)
     # in case of MIDAS, download function checks the existence and in case it is absent, dowloads it. If present, opens it
     if options.rawdata_tier == 'midas':
         ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
-        options.tmpname = [int(options.run),tmpdir,options.tag]
+        options.tmpname = [int(options.run),tmpdir,options.tag]		#This line needs to be corrected if MC data will be in midas format. Not foreseen at all
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
@@ -619,8 +621,9 @@ if __name__ == '__main__':
 
     ana = analysis(options)
     nev = ana.getNEvents(options)
-    print("This run has ",nev," events.")
-    print("Will save plots to ",options.plotDir)
+    print("\nThis run has ",nev," events.")
+    if options.debug_mode == 1: print('DEBUG mode activated. Only event',options.ev,'will be analysed')
+    print("I Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
     nThreads = 1
@@ -633,6 +636,8 @@ if __name__ == '__main__':
     t1 = time.perf_counter()
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
     lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
+    if options.debug_mode == 1: lastEvent = min(nev,int(options.ev))
+    
     print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
     base = options.outFile.split('.')[0]
     if nThreads>1:
@@ -657,11 +662,18 @@ if __name__ == '__main__':
     t2 = time.perf_counter()
     if options.debug_mode == 1:
         print(f'Reconstruction Code Took: {t2 - t1} seconds')
-
+        print(f'Total time the Code Took: {t2 - t0} seconds')
     # now add the git commit hash to track the version in the ROOT file
     tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
-    githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
-    githash.Write()
+    if options.githash != None:
+       githash=ROOT.TNamed("gitHash",options.githash)
+       githash.Write()       
+    else:
+       try:
+          githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace("\\n'","").replace("b'",""))
+          githash.Write()
+       except:
+          print('No githash provided nor githash found (no .git folder?)') 
     total_time = ROOT.TNamed("total_time", str(t2-t1))
     total_time.Write()
     tf.Close()
