@@ -125,6 +125,8 @@ class analysis:
             print("n events:", len(pics))
             return len(pics)
             
+        run,tmpdir,tag = self.tmpname
+        mf = sw.swift_download_midas_file(run,tmpdir,tag)     #you download the file here so that in multithread does not confuse if it downloaded or not
         runlog='runlog_%s_auto.csv' % (options.tag)
         df = pd.read_csv('pedestals/%s'%runlog)
         if df.run_number.isin({int(options.run)}).any():
@@ -135,8 +137,6 @@ class analysis:
            except ValueError:
               print('Probably number of events line in data frame is empty. Opening and counting the file events\n')
      
-        run,tmpdir,tag = self.tmpname
-        mf = sw.swift_download_midas_file(run,tmpdir,tag)
         evs =0
         for mevent in mf:
             if mevent.header.is_midas_internal_event():
