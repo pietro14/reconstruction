@@ -34,6 +34,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('Lime_temperature', 'F', title="Lime temperature")
         self.outTree.branch('Atm_temperature', 'F', title="Atmosheric temperature")
         self.outTree.branch('Humidity', 'F', title="Humidity")
+        self.outTree.branch('Mixture_Density', 'F', title="Mixture_Density")
         
 
     def fillEnvVariables(self, dslow):
@@ -42,6 +43,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('Lime_temperature', dslow.P0IIn0)
         self.outTree.fillBranch('Atm_temperature', dslow.P1UIn1)
         self.outTree.fillBranch('Humidity', dslow.P1UIn5*0.0375*1000-37.7)
+        self.outTree.fillBranch('Mixture_Density', dslow.P3IIn6)
 
     def createCameraVariables(self):
         self.outTree.branch('cmos_integral', 'F', title="integral counts of the full CMOS sensor")

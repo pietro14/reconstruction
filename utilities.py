@@ -380,6 +380,13 @@ class utils:
         if i == 'P0IIn3':
             conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
             dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+        
+        try:
+            if i == 'P3IIn6':
+                conversion = odb.data['History']['Display']['GasSystem']['Mixture Density']['Formula'][1]
+                dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+        except:
+            print('Warning: no mixture density')
      
         return dslow
     
