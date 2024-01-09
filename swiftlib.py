@@ -57,7 +57,7 @@ def swift_download_root_file(url,run,tmp=None,justName=False):
     except:
         try:
           USER = os.environ['JUPYTERHUB_USER']
-        except
+        except:
           USER = "autoreco"
     tmpdir = tmp if tmp else '/tmp/'
     if tmpdir == '/tmp/':
@@ -89,7 +89,7 @@ def checkfiletmp(run,tier,tmp=None):
     except:
         try:
           USER = os.environ['JUPYTERHUB_USER']
-        except
+        except:
           USER = "autoreco"
     tmpdir = tmp if tmp else '/tmp/'
          
