@@ -343,8 +343,14 @@ class analysis:
                 dslow = pd.DataFrame(columns = header_environment)
                 dslow.loc[len(dslow)] = value_variables['Input']
                 for i in dslow.keys():
-                    dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
-                self.autotree.fillEnvVariables(dslow.take([0]))
+                    try:
+                       dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
+                    except:
+                       print("WARNING: conversion_env_variables failed.")
+                try:
+                   self.autotree.fillEnvVariables(dslow.take([0]))
+                except:
+                   print("WARNING: could not fill dslow variables.")   
                 #print(dslow)
                 j = 1
         
@@ -584,7 +590,10 @@ if __name__ == '__main__':
         flag_env = 0
     except:
         flag_env = 1
-        USER = os.environ['JUPYTERHUB_USER']
+        try:
+          USER = os.environ['JUPYTERHUB_USER']
+        except:
+          USER = "autoreco"
     #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
     tmpdir = '/tmp'

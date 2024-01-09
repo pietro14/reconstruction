@@ -55,7 +55,10 @@ def swift_download_root_file(url,run,tmp=None,justName=False):
     try:
         USER = os.environ['USER']
     except:
-        USER = os.environ['JUPYTERHUB_USER']
+        try:
+          USER = os.environ['JUPYTERHUB_USER']
+        except:
+          USER = "autoreco"
     tmpdir = tmp if tmp else '/tmp/'
     if tmpdir == '/tmp/':
          os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
@@ -84,7 +87,10 @@ def checkfiletmp(run,tier,tmp=None):
     try:
         USER = os.environ['USER']
     except:
-        USER = os.environ['JUPYTERHUB_USER']
+        try:
+          USER = os.environ['JUPYTERHUB_USER']
+        except:
+          USER = "autoreco"
     tmpdir = tmp if tmp else '/tmp/'
          
     
