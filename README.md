@@ -56,16 +56,18 @@ Then, reconstruct digitized (simulated) images:
 - kiwisolver==1.1.0
 - matplotlib==3.1.1
 - networkx==2.4
-- numpy==1.17.3
+- numpy > 1.20
 - Pillow==6.2.0
 - pyparsing==2.4.2
 - python-dateutil==2.8.0
 - PyWavelets==1.1.0
-- root-numpy==4.8.0
+- root-numpy==4.8.0 (only for older versions of the code before winter23 branch and with python < python3.10)
+- uproot (only for newer versions like winter23 branch)
 - scikit-image==0.16.1
 - scikit-learn==0.21.3
 - scipy==1.3.1
 - six==1.12.0
+- cython > 3.0.2
 
 ## Example
 
