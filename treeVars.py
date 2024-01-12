@@ -38,12 +38,14 @@ class AutoFillTreeProducer:
         
 
     def fillEnvVariables(self, dslow):
-        self.outTree.fillBranch('Lime_pressure', dslow.P0IIn5)        
-        self.outTree.fillBranch('Atm_pressure', dslow.P0IIn3)
-        self.outTree.fillBranch('Lime_temperature', dslow.P0IIn0)
-        self.outTree.fillBranch('Atm_temperature', dslow.P1UIn1)
-        self.outTree.fillBranch('Humidity', dslow.P1UIn5*0.0375*1000-37.7)
-        self.outTree.fillBranch('Mixture_Density', dslow.P3IIn6)
+        env_var = open('env_variables.txt','r')
+        env_var = eval(env_var.read())
+        self.outTree.fillBranch('Lime_pressure', dslow[env_var['lime_pressure']])        
+        self.outTree.fillBranch('Atm_pressure', dslow[env_var['atm_pressure']])
+        self.outTree.fillBranch('Lime_temperature', dslow[env_var['lime_temperature']])
+        self.outTree.fillBranch('Atm_temperature', dslow[env_var['atm_temperature']])
+        self.outTree.fillBranch('Humidity', dslow[env_var['humidity']])
+        self.outTree.fillBranch('Mixture_Density', dslow[env_var['mixture_density']])
 
     def createCameraVariables(self):
         self.outTree.branch('cmos_integral', 'F', title="integral counts of the full CMOS sensor")
