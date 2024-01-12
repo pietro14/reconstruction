@@ -18,7 +18,7 @@ from clusterTools import Cluster
 from cameraChannel import cameraTools
 from cluster.ddbscan_ import DDBSCAN
 from energyCalibrator import EnergyCalibrator
-
+from cython_cygno import nred_cython
 import debug_code.tools_lib as tl
 
 class SnakesFactory:
@@ -71,7 +71,7 @@ class SnakesFactory:
         edges = self.ct.arrrebin(filtimage,self.rebin)
         edcopy = edges.copy()
         t0_noise = time.perf_counter()
-        edcopyTight = tl.noisereductor(edcopy,rescale,self.options.min_neighbors_average)
+        edcopyTight = nred_cython(edcopy, rescale, self.options.min_neighbors_average)
         t1_noise = time.perf_counter()
 
         t_medianfilter = t1_med - t0

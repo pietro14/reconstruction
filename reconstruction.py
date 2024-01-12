@@ -1,8 +1,18 @@
+import os
+cythonized=False
+for fname in os.listdir('.'):
+        if fname.endswith('.so'):
+          cythonized=True
+          break
+          
+if cythonized==False:
+          os.system('sh cythonize.sh')
+        
 from concurrent import futures
 from subprocess import Popen, PIPE
 import signal,time
 
-import os,math,sys,random,re,gc
+import math,sys,random,re,gc
 import numpy as np
 
 import ROOT

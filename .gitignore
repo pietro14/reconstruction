@@ -19,4 +19,6 @@ __init__.py
 *.ipynb_checkpoints/
 *.out
 README_PARAMETERS.txt
-./pedestals/runlog_LNGS_auto.csv
+*so
+build/
+cython_cygno.c
