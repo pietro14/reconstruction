@@ -1,0 +1,8 @@
+{
+'humidity': 'P1UIn5',
+'lime_pressure': 'P0IIn5',
+'atm_pressure': 'P0IIn3',
+'lime_temperature': 'P0IIn0',
+'atm_temperature': 'P1UIn1',
+'mixture_density' : 'P3IIn6',
+}
