@@ -353,10 +353,10 @@ class analysis:
                 dslow = pd.DataFrame(columns = header_environment)
                 dslow.loc[len(dslow)] = value_variables['Input']
                 for i in dslow.keys():
-                    try:
-                       dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
-                    except:
-                       print("WARNING: conversion_env_variables failed.")
+                    #try:
+                    dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
+                    #except:
+                        #print("WARNING: conversion_env_variables failed.")
                 try:
                    self.autotree.fillEnvVariables(dslow.take([0]))
                 except:
@@ -407,14 +407,14 @@ class analysis:
                         numev += 1
                     
                     elif name.startswith('INPT') and options.environment_variables: # SLOW channels array
-                        try:
-                           dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j=j)
+                        #try:
+                        dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j=j)
                            #print(dslow)
-                           self.autotree.fillEnvVariables(dslow.take([j]))
-                           j = j+1
+                        self.autotree.fillEnvVariables(dslow.take([j]))
+                        j = j+1
                            #print(dslow)
-                        except:
-                           print("WARNING: INPT bank is not as expected.")
+                        #except:
+                        #   print("WARNING: INPT bank is not as expected.")
                     
                     else:
                         camera=False
