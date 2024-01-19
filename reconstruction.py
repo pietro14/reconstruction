@@ -172,7 +172,7 @@ class analysis:
 
         pedsum = np.zeros((nx,ny))
 
-        if options.rawdata_tier == 'root':
+        if options.rawdata_tier == 'root' or options.rawdata_tier == 'h5':
             tmpdir = '{tmpdir}'.format(tmpdir=options.tmpdir if options.tmpdir else "/tmp/")
             if not sw.checkfiletmp(int(options.pedrun),'root',tmpdir):
                 print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.pedrun)))
