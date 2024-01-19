@@ -357,7 +357,7 @@ class utils:
         return mem * factor_mb
     
     def conversion_env_variables(self, dslow, odb, i = 0, j = 0):
-        env_var = open('env_variables.txt','r')
+        env_var = open('modules_config/env_variables.txt','r')
         env_var = eval(env_var.read())
         
         if i == env_var['humidity']:
