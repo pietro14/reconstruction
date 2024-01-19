@@ -38,7 +38,7 @@ class AutoFillTreeProducer:
         
 
     def fillEnvVariables(self, dslow):
-        env_var = open('env_variables.txt','r')
+        env_var = open('modules_config/env_variables.txt','r')
         env_var = eval(env_var.read())
         self.outTree.fillBranch('Lime_pressure', dslow[env_var['lime_pressure']])        
         self.outTree.fillBranch('Atm_pressure', dslow[env_var['atm_pressure']])

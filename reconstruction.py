@@ -1,8 +1,18 @@
+import os
+cythonized=False
+for fname in os.listdir('.'):
+        if fname.endswith('.so'):
+          cythonized=True
+          break
+          
+if cythonized==False:
+          os.system('sh cythonize.sh')
+        
 from concurrent import futures
 from subprocess import Popen, PIPE
 import signal,time
 
-import os,math,sys,random,re,gc
+import math,sys,random,re,gc
 import numpy as np
 
 import ROOT
@@ -162,7 +172,7 @@ class analysis:
 
         pedsum = np.zeros((nx,ny))
 
-        if options.rawdata_tier == 'root':
+        if options.rawdata_tier == 'root' or options.rawdata_tier == 'h5':
             tmpdir = '{tmpdir}'.format(tmpdir=options.tmpdir if options.tmpdir else "/tmp/")
             if not sw.checkfiletmp(int(options.pedrun),'root',tmpdir):
                 print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.pedrun)))
