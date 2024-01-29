@@ -38,9 +38,12 @@ class PMTreco:
         
 
 
+        ## Digitizer samplings
+        ## For now we save x_array as the sample array, not converted to ns
+        ## Fast Digitzer: 750Mhz (1024 samples ) & Slow Digitizer: 250Mhz (4000 samples)
         if self.digitizer == "fast":
             self.freq       = 1                                                                                               
-            # self.freq       = 0.75                                        ## For now we save x_array as the sample array, not converted to ns                        
+            # self.freq       = 0.75                                                                
             self.x_array    = np.linspace(0,(1024-1)/self.freq,1024)
             self.sampling   = 1024
 
@@ -56,25 +59,30 @@ class PMTreco:
 
         self.baseline   = self.getBaseline()
         
-        # if self.channel in [1,2,3,4]:
-        if self.channel in [1,2,3,4,5,9,91,92,93,94]:                   ## For tests
+        # Channels: 0 - trigger; [1,4] - PMTs; [5-7] - GEMs; 9 - Weighted average wf
+        # GEMs signals should be added
+        # This condition is redundant now since the reco choose the channels from the banks, but could serve useful later
+        if self.channel in [1,2,3,4,9]:
+
             self.invert_and_center_WF(self.baseline)
 
-            if self.digitizer == "fast":                                    ##  For now let's not average the slow digitizer since hasn't been tested.
+            if self.digitizer == "fast":                                   
                 self.moving_average(window_size = self.resample)
 
-        # ## Test normalization
-        # if self.channel in [9,99,999,9999,99999]:
-        #     self.y_array = [x / max(self.y_array) for x in self.y_array]
+            if self.digitizer == "slow":                                   
+                self.moving_average(window_size = self.resample)
         
         self.findPeaks(thr = self.threshold, height = self.height_RMS, 
             mindist = self.minDist, prominence = self.prominence, 
             fixed_prom = self.fixed_prom, width = self.width)
     
         if self.plotpy == True:
+            # Add function to create folder if not existing already
             self.plot_and_save( pdir = './waveforms', xlabel = None, ylabel = None, save = True, plot = False)
 
-    ## Displays on the terminal the waveform information
+
+    #################  Display waveform information  ################# 
+
     def __repr__(self):
 
         style = self.getPMTVerbose()
@@ -110,6 +118,8 @@ class PMTreco:
         if style == 2 : return print(generic + specific)
         if style == 3 : return print(generic + specific + tot_info)
 
+
+
     #################  Operations of the waveform  #################  
 
     ## Inverts and centers to zero the waveform
@@ -124,7 +134,7 @@ class PMTreco:
         self.y_array = tuple(demo_y)
         self.y_array_original = self.y_array
 
-    ## Applies a low-pass filter, cutting the very high frequencies. Can be tuned with 'window size'
+    ## Applies a low-pass filter (moving average), cutting the very high frequencies. Can be tuned with 'window size'
     def moving_average(self, window_size = 7, drop_NaN = True):
 
         tmp = pd.Series(self.y_array)
@@ -139,6 +149,7 @@ class PMTreco:
         self.y_array = tuple(tmp_f)
 
     ## Find the peaks in the waveform and their properties
+    ## Tunning here is strongly suggested
     def findPeaks(self, height = None, thr = None, mindist = None, prominence = None, fixed_prom = None, width = None):
 
         height_thr = self.getRMS() * height
@@ -154,9 +165,10 @@ class PMTreco:
         self.widths_half = peak_widths(self.y_array, self.peaks, rel_height=0.5)        
         self.widths_full = peak_widths(self.y_array, self.peaks, rel_height=0.95)               ## 95% is used due to the large RMS of the waveforms. Maybe can be set to 1.00 after waveform corrections
 
+
     #################  Retrieval of values  ###########3######  
     
-    ## Get time of threshold of a given waveform
+    ## Get Time Over Threshold
     def getTOT(self, mod):
 
         threshold_tot = self.getRMS() * 3
@@ -172,8 +184,10 @@ class PMTreco:
         end_x = 0
 
         # Defines how many consectuive samples must be above (below) the threshold to start (end) the signal
-        density_start = 10          
-        density_finish = 10
+        density_start = 10      ## normal runs          
+        # density_start = 30      ## cosmics only runs         
+        density_finish = 10     ## normal runs
+        # density_finish = 30     ## cosmics only runs
 
         c_up = 0
         c_down = 0
@@ -217,13 +231,13 @@ class PMTreco:
         tot_limits[0] = begin_x
         tot_limits[1] = end_x
 
+        # different outputs are possible
         if   mod == 'time': return tot_time
         elif mod == 'area': return tot_area
         elif mod == 'limits': return tot_limits
         elif mod == 'thr': return threshold_tot
             
-
-
+    # Retrieves *basic* signal-to-noise ratio
     def getSignalToNoise(self):
         
         signal = self.getMaxAmpl()
@@ -243,12 +257,6 @@ class PMTreco:
     ## Retrieves trigger number of waveform
     def getTrigger(self):
         return self.trigger
-
-    ## Example for fillling the tree all in the same way
-    ## Check 'treeVars.py' for more details
-    # def getTrigger2(self):
-    #     a = [self.trigger] * len(self.getPeaks())
-    #     return a
 
     ## Retrieves channel number of waveform
     def getChannel(self):
@@ -273,7 +281,7 @@ class PMTreco:
     def getTTT(self):
         return self.TTT
 
-    ## Retrieves baseline of waveform with 100 samples starting from sample 0. Can be tuned
+    ## Retrieves baseline of waveform with X samples starting from sample "n_offset". Can be tuned
     def getBaseline(self, n_offset = 0):
 
         if   self.digitizer == "fast": n_samples = 100
@@ -294,26 +302,27 @@ class PMTreco:
         return rms
 
     ## Used to assign a ID (1,2,3,...) to each peak to more easily identify simultaneous peaks in different channels
+    ## Can be used for 1-to-1 association
     def getPeakIdentifier(self):
         peak_ID = [(ID+1) for ID in range(len(self.peaks))]
         return peak_ID
 
-    ## Allows to save the whole waveform in the tree. Not used for the moment
+    ## Allows to save the whole raw waveform in the tree.
     def getFullwaveform(self,axis):
         if axis == 'x':
             return self.x_array_original
         if axis == 'y':
             return self.y_array_original
         
-    ## Retrieves amplitudes (mV) of identified peaks    
+    ## Retrieves (max) amplitude in mV of identified peaks     
     def getAmplitudes(self):
         return self.properties["peak_heights"]
 
-    ## Retrieves peaks found. Different from peaks_positions
+    ## Retrieves *object* peaks found
     def getPeaks(self):
         return self.peaks
 
-    ## Retrieves the actual position of the peaks given our x_axis
+    ## Retrieves the peaks' positions in x_axis
     def getPeaksPositions(self):
         return self.x_array[self.peaks]
 
@@ -333,7 +342,6 @@ class PMTreco:
 
     ## Retrieves the x_values used for the determination of the widths (left and right). Useful for plots 
     def getPeakBoundaries(self,side,height):
- 
         if height == 'full':   
             if side=='left': 
                 return [self.x_array[int(x)] for x in self.widths_full[2]]
@@ -346,11 +354,11 @@ class PMTreco:
             if side == 'right':
                 return [self.x_array[int(x)] for x in self.widths_half[3]]
 
-    ## Retrieves the maximum amplitude of a waveform. Could be useful to check the saturation or do a quick particle ID
+    ## Retrieves the maximum amplitude of a waveform. Could be useful to check the "saturation: plateaus or quick particle ID
     def getMaxAmpl(self):
         return max(self.y_array)
 
-    ## Retrieves total integral of the waveform (sum all the points). Could be improved 
+    ## Retrieves *basic* integral of the waveform (sum over all the points). 
     def getTotalIntegral(self, begin=None,end=None):
         if begin is not None:
             return np.sum(self.y_array[begin:end])
@@ -362,12 +370,9 @@ class PMTreco:
         charge = vlt * (4./3.) * (1./50.)
         return charge
 
-    ## Plot the waveforms with the peaks  founds and respective widths. Saves them into a folder called 'waveforms'
-    def plot_and_save(self,pdir='./waveforms',xlabel='Time (ns)',ylabel='amplitude (mV)', save = True, plot = False):
+    ## Plot the waveforms with the peaks founds and respective widths. Saves them into a folder called 'waveforms'
+    def plot_and_save(self, pdir='./waveforms', xlabel='Time (ns)', ylabel='amplitude (mV)', save = True, plot = False):
         import matplotlib.pyplot as plt
-        # from matplotlib import rc
-        # rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-        # rc('text', usetex=True)
 
         # plot data and the found peaks
         plt.plot(self.x_array, self.y_array, color = 'black')
@@ -379,8 +384,8 @@ class PMTreco:
         plt.hlines(y=self.getHeightPeakBoundaries(height = 'half'), xmin=self.getPeakBoundaries(side = 'left',height = 'half'),
             xmax=self.getPeakBoundaries(side = 'right', height = 'half'), color = "C2")     
 
-        ###testtt
-        plt.hlines(y= self.getTOT('thr'), xmin=self.getTOT(mod = 'limits')[0], xmax=self.getTOT(mod = 'limits')[1], color = "pink")     
+        # plot the time over threshold
+        plt.hlines(y= self.getTOT('thr'), xmin=self.getTOT(mod = 'limits')[0], xmax=self.getTOT(mod = 'limits')[1], color = "cornflowerblue")      
 
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
@@ -388,8 +393,7 @@ class PMTreco:
             plt.show()
         
         if save == True:
-            # for ext in ['pdf','png']:                                 ## To be changed if one want to save also in '.png' format
-            for ext in ['pdf']:
+            for ext in ['pdf']:                         # Change to " for ext in ['pdf','png']: " to also save png format                 
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=pdir,name=self.plotname,ext=ext))
             plt.gcf().clear()
 
@@ -413,6 +417,8 @@ class PMTreco:
         return IDvec
 
     ###### Possible missing functions
+
+    ##  function to plot the 4 waveform in one plot
     ##  function for peak majority (mj2_peak)    
     ##  function for calculate integral of mj2_peak peaks    
     ##  function of SUB-substructure charge? will depend on the relative height choosen
