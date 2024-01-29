@@ -385,7 +385,7 @@ class analysis:
                 dslow.loc[len(dslow)] = value_variables['Input']
                 for i in dslow.keys():
                     dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
-                self.autotree.fillEnvVariables(dslow.take([0]))
+                # self.autotree.fillEnvVariables(dslow.take([0]))
                 #print(dslow)
                 j = 1
         
@@ -441,7 +441,7 @@ class analysis:
                     elif bank_name=='INPT' and options.environment_variables: # SLOW channels array
                         dslow = utilities.read_env_variables(bank, dslow, odb, j=j)
                         #print(dslow)
-                        self.autotree.fillEnvVariables(dslow.take([j]))
+                        # self.autotree.fillEnvVariables(dslow.take([j]))
                         j = j+1
                         #print(dslow)
                         
@@ -465,7 +465,6 @@ class analysis:
                             nChannels_s  = header.nchannels[1]
                             nTriggers_s = len(header.TTT[1])
                             TTTs_s = header.TTT[1]
-
                             waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
 
                             pmt = True

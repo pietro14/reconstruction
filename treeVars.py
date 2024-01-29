@@ -387,6 +387,8 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('{name}_latrms'.format(name=name),   [cl.shapes['latrms'] for cl in clusters])
         self.outTree.fillBranch('{name}_lfullrms'.format(name=name), [cl.shapes['long_fullrms'] for cl in clusters])
         self.outTree.fillBranch('{name}_tfullrms'.format(name=name), [cl.shapes['lat_fullrms'] for cl in clusters])
+
+        #NB: these variables were once cut because they were breaking the pmt reco, I don't know if they are used/useful for the camera reco
         # self.outTree.fillBranch('{name}_lp0amplitude'.format(name=name), [cl.shapes['long_p0amplitude'] for cl in clusters])
         # self.outTree.fillBranch('{name}_lp0prominence'.format(name=name), [cl.shapes['long_p0prominence'] for cl in clusters])
         # self.outTree.fillBranch('{name}_lp0fwhm'.format(name=name),   [cl.shapes['long_p0fwhm'] for cl in clusters])
