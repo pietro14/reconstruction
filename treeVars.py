@@ -34,8 +34,7 @@ class AutoFillTreeProducer:
     """
 
     ## Each entry in the PMT tree is an individual waveform.
-    def createPMTVariables_multipleTrees(self,pmt_params):
-
+    def createPMTVariables(self,pmt_params):
 
         # General waveform info 
         ## Identifiable with 'pmt_wf_ID'
@@ -75,7 +74,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('pmt_peak_HalfWidth',   'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks half widths')
         self.outTree.branch('pmt_peak_FullWidth',   'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks full widths')
 
-    def fillPMTVariables_multipleTrees(self,wf):
+    def fillPMTVariables(self,wf):
 
         self.outTree.fillBranch('pmt_wf_ID',                wf.getWaveformID('waveforms')[0])
         self.outTree.fillBranch('pmt_wf_run',               wf.getRun())
@@ -101,7 +100,6 @@ class AutoFillTreeProducer:
             # self.outTree.fillBranch('pmt_fullWaveform_X',   [x for x in wf.getFullwaveform('x')])
             self.outTree.fillBranch('pmt_fullWaveform_Y',   [y for y in wf.getFullwaveform('y')])
 
-        ## Peak variables
         self.outTree.fillBranch('pmt_peak_Number',          [pid for pid in wf.getPeakIdentifier()])
         self.outTree.fillBranch('pmt_peak_Position',        [pp for pp in wf.getPeaksPositions()])
         self.outTree.fillBranch('pmt_peak_Height',          [ph for ph in wf.getAmplitudes()])
@@ -156,6 +154,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('pmt_peak_FullWidth',       [pfw for pfw in wf.getPeakWidths('full')])
 
 
+
     ########################################################  CAMERA   ############################################################################################################################
 
     def createCameraVariables(self):
@@ -177,7 +176,7 @@ class AutoFillTreeProducer:
         self.outTree.branch('t_medianfilter',     'F', title="median filter")
         self.outTree.branch('t_noisered',     'F', title="noise reductor")
 
-    def createTimePMTVariables_multipleTrees(self):
+    def createTimePMTVariables(self):
         self.outTree.branch('t_waveforms', 'F', title="waveforms time")
 
     def createTimePMTVariables_average(self):
@@ -258,7 +257,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('t_medianfilter', t_medianfilter)
         self.outTree.fillBranch('t_noisered', t_noisered) 
 
-    def fillTimePMTVariables_multipleTrees(self, t_waveforms):
+    def fillTimePMTVariables(self, t_waveforms):
         self.outTree.fillBranch('t_waveforms', t_waveforms)
 
     def fillTimePMTVariables_average(self, t_waveforms):
@@ -311,7 +310,7 @@ class AutoFillTreeProducer:
         # self.outTree.fillBranch('{name}_lp0fwhm'.format(name=name),   [cl.shapes['long_p0fwhm'] for cl in clusters])
         # self.outTree.fillBranch('{name}_lp0mean'.format(name=name),   [cl.shapes['long_p0mean'] for cl in clusters])
         # self.outTree.fillBranch('{name}_tp0fwhm'.format(name=name),   [cl.shapes['lat_p0fwhm'] for cl in clusters])
-        
+
         self.outTree.fillBranch('{name}_xmean'.format(name=name),     [cl.shapes['xmean'] for cl in clusters])
         self.outTree.fillBranch('{name}_ymean'.format(name=name),     [cl.shapes['ymean'] for cl in clusters])
         self.outTree.fillBranch('{name}_xmax'.format(name=name),      [cl.shapes['xmax'] for cl in clusters])

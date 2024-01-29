@@ -134,12 +134,13 @@ class analysis:
             if self.options.cosmic_killer:
                 self.autotree.addCosmicKillerVariables('sc')
         
-        ##[DAV] Create PMT branchs
+        ## Create PMT branchs
         if self.options.pmt_mode:
-            # self.autotree.createPMTVariables_singleTree(self.pmt_params)          ## Function for fillling the tree all in the same way. Check 'treeVars.py' for more details
-            self.autotree_pmt.createPMTVariables_multipleTrees(self.pmt_params)     ## Individual waveform
+            self.autotree_pmt.createPMTVariables(self.pmt_params)                   ## Individual waveform
             self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)       ## Average Waveform
-            self.autotree_pmt.createTimePMTVariables_multipleTrees()
+            
+            # time variables
+            self.autotree_pmt.createTimePMTVariables()                          
             self.autotree_pmt_avg.createTimePMTVariables_average()
 
     def endJob(self):
@@ -635,8 +636,8 @@ class analysis:
                                 t1 = time.perf_counter()
                                 t_waveforms = t1 - t0
 
-                                self.autotree_pmt.fillPMTVariables_multipleTrees(fast_waveform) 
-                                self.autotree_pmt.fillTimePMTVariables_multipleTrees(t_waveforms)
+                                self.autotree_pmt.fillPMTVariables(fast_waveform) 
+                                self.autotree_pmt.fillTimePMTVariables(t_waveforms)
 
                                 self.outTree_pmt.fill()
 
@@ -755,8 +756,8 @@ class analysis:
                                 t1 = time.perf_counter()
                                 t_waveforms = t1 - t0
 
-                                self.autotree_pmt.fillPMTVariables_multipleTrees(slow_waveform) 
-                                self.autotree_pmt.fillTimePMTVariables_multipleTrees(t_waveforms)
+                                self.autotree_pmt.fillPMTVariables(slow_waveform) 
+                                self.autotree_pmt.fillTimePMTVariables(t_waveforms)
                                 self.outTree_pmt.fill()
 
                                 ###########################################
