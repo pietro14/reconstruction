@@ -59,7 +59,7 @@ class analysis:
            else:
                self.vignmap = np.ones((self.xmax, self.xmax))
 
-        ##[DAV] Create a sub-dictionary with the config_file parameters useful for the PMT
+        ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
         'threshold': options.threshold,
         'height_RMS': options.height_RMS, 
@@ -90,17 +90,18 @@ class analysis:
         self.outputFile = ROOT.TFile.Open(outfname, "RECREATE")
         print("Opening out file: ",outfname," self.outputFile = ",self.outputFile)
         ROOT.gDirectory.cd()
+
         # prepare output tree
         self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
         self.outTree = OutputTree(self.outputFile,self.outputTree)
         self.autotree = AutoFillTreeProducer(self.outTree,self.eventContentParams)
 
-        ## [DAV] Prepare PMT individual waveform Tree
+        ## Prepare PMT waveform Tree (1 event = 1 waveform)
         self.outputTree_pmt = ROOT.TTree("PMT_Events","Tree containing reconstructed PMT quantities")
         self.outTree_pmt = OutputTree(self.outputFile,self.outputTree_pmt)
         self.autotree_pmt = AutoFillTreeProducer(self.outTree_pmt,self.eventContentParams)
 
-        ## [DAV] Prepare PMT average waveform Tree
+        ## Prepare PMT average waveform Tree (1 event = 1 averaged waveform using 4 PMTs)
         self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
         self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
         self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
@@ -109,7 +110,7 @@ class analysis:
         self.outTree.branch("event", "I", title="event number")
         self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
         if self.options.save_MC_data:
-#           self.outTree.branch("MC_track_len","F")
+            #self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
             self.outTree.branch("particle_type","I")
             self.outTree.branch("energy","F")
@@ -139,7 +140,7 @@ class analysis:
             self.autotree_pmt.createPMTVariables(self.pmt_params)                   ## Individual waveform
             self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)       ## Average Waveform
             
-            # time variables
+            # time variables -- see if it can be merged with above functions
             self.autotree_pmt.createTimePMTVariables()                          
             self.autotree_pmt_avg.createTimePMTVariables_average()
 
@@ -355,12 +356,13 @@ class analysis:
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
             
-            ##[DAV] Necessary to read the ODB to retrieve some info necessary for the analysis
+            ## Necessary to read the ODB to retrieve some info necessary for the waveform analysis
             ## Seems to repeat the opening process but *doesn't* slow down the code.
-            if self.options.pmt_mode == 1:        
 
-                ## There is an issue with Run1 because it doesn't contain all the info present in Run2 (due to later updates)
-                if run > 7790:
+            ## Probably better to merge with the new piece of code below?
+            if self.options.pmt_mode == 1:        
+                
+                if run > 7790:   ## There is an issue with Run1 because it doesn't contain all the info present in Run2
                     odb=cy.get_bor_odb(mf)
                     corrected  = odb.data['Configurations']['DRS4Correction']
                     channels_offsets  = odb.data['Configurations']['DigitizerOffset']
@@ -386,7 +388,7 @@ class analysis:
                 dslow.loc[len(dslow)] = value_variables['Input']
                 for i in dslow.keys():
                     dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
-                # self.autotree.fillEnvVariables(dslow.take([0]))
+                # self.autotree.fillEnvVariables(dslow.take([0]))       #to FIX
                 #print(dslow)
                 j = 1
         
@@ -442,7 +444,7 @@ class analysis:
                     elif bank_name=='INPT' and options.environment_variables: # SLOW channels array
                         dslow = utilities.read_env_variables(bank, dslow, odb, j=j)
                         #print(dslow)
-                        # self.autotree.fillEnvVariables(dslow.take([j]))
+                        # self.autotree.fillEnvVariables(dslow.take([j]))           #to FIX
                         j = j+1
                         #print(dslow)
                         
@@ -466,6 +468,7 @@ class analysis:
                             nChannels_s  = header.nchannels[1]
                             nTriggers_s = len(header.TTT[1])
                             TTTs_s = header.TTT[1]
+
                             waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
 
                             pmt = True
@@ -590,35 +593,20 @@ class analysis:
                         fast_sampling = 1024
                         slow_sampling = 4000
 
-                        ##[DAV] Function for fillling the tree all in the same way. Check 'treeVars.py' for more details. Uncomment below line to add them.
-                        # waveforms = []
-
-                        # Fast waveforms
+                        ## Fast waveforms
                         if options.debug_mode == 1:
                             print("Number of fast triggers: {}".format(nTriggers_f))
+
                         for trg in range(nTriggers_f):    
 
                             insideGE = 0
-                            method2 = False
-
-                            ## Method 1 to be implemented in the next data taking once channel 5 is confirmed to work
-                            # method1 = False
-                            # bl_ch5 = np.mean(waveform_f[trg * nChannels + 5][0:500])      # Channel 5 need to be fixed locally at LNGS
-                            # if bl_ch5 > 4000: method1 = True
-                            # if method1 == True and method2 == True: insideGE = 1
-
+                            # Method 1 uses a specific signal in ch5 to check if inside GE or not. Now *deprecated*
+                            # Method 2 uses the TTTs to check this condition
                             if (TTTs_f[trg] * 8.5/1000/1000) >= 180 and (TTTs_f[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
-                                method2 = True
+                                insideGE = 1
 
-                            if method2 == True: insideGE = 1
-                            else:               insideGE = 0
-
-                            ## Produce a normal average waveform (Not in use)##
-                            normal_avg_fast_waveform = [0]*fast_sampling
-                            normalized_fast_waveform = [0]*fast_sampling
-
-                            ## Produce a weighted average waveform (In use)## 
-                            sing_weig_avg_fast_wf = [ [0]* fast_sampling for _ in range(chs_to_analyse)]  
+                            # Prepare the weighted average waveform 
+                            sing_weig_avg_fast_wf = [ [0]*fast_sampling for _ in range(chs_to_analyse)]  
                             fast_wf_weights_snr = [0] * chs_to_analyse
                             weight_average_wf = [0]* fast_sampling
 
@@ -638,37 +626,16 @@ class analysis:
 
                                 self.autotree_pmt.fillPMTVariables(fast_waveform) 
                                 self.autotree_pmt.fillTimePMTVariables(t_waveforms)
-
                                 self.outTree_pmt.fill()
 
-                                #####################################
-                                ###### Averaged waveform
-
-                                # for i in range(len(normal_avg_fast_waveform)):
-                                #     normal_avg_fast_waveform[i] += waveform_f[indx][i]/4      ##average
-                                #     normal_avg_fast_waveform[i] += waveform_f[indx][i]      ##sum
-
-                                #     ## to normalize instead
-                                #     normalized_fast_waveform[ch-1] = waveform_f[indx][j] * (-1.) / max(waveform_f[indx]) 
-
-                                # if ch == 4:
-                                #     waveform_info_sum = { 'run' : run, 'event': event, 'channel' : 5, 'trigger' : trg, 'GE' : 9, 'sampling' : "fast"}
-                                #     fast_waveform_sum = PMTreco(waveform_info_sum, normal_avg_fast_waveform, self.pmt_params)
-                                #     self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_sum)
-                                #     fast_waveform_sum.__repr__()
-                                #     self.outTree_pmt_avg.fill()
-
-
-                                ############################################
-                                ## Weighted averaged waveform (weight = S/N)
-
+                                # Weighted averaged waveform (weight = SNR)
                                 snr_ratio = fast_waveform.getSignalToNoise()
                                 fast_wf_weights_snr[ch-1] = snr_ratio
                                 sing_weig_avg_fast_wf[ch-1] = waveform_f[indx]
 
-                                ## If one wants to visualize the new weighted waveforms, meaning how much they actual weight for the final average, change boolean
-                                ## Note again, normalizing the y_axis doesn't actually change the peak_finder as it acts always as a ratio from the RMS.
-                                # plot_weighted_fast_wfs = False
+                                # If one wants to visualize the new weighted waveforms,
+                                # meaning how much they actual weight for the final average, 
+                                # Ask David for the script changes
 
                                 if ch == 4:
 
@@ -676,14 +643,9 @@ class analysis:
 
                                     for k in range(chs_to_analyse):
 
-                                        # if plot_weighted_fast_wfs is True: demo_wf = list(sing_weig_avg_fast_wf[k])
-
                                         for j in range(fast_sampling):
 
                                             weight_average_wf[j] += sing_weig_avg_fast_wf[k][j]*fast_wf_weights_snr[k]/sum(fast_wf_weights_snr)
-                                            # if plot_weighted_fast_wfs is True: demo_wf[j] *= fast_wf_weights_snr[k]
-
-                                        # if plot_weighted_fast_wfs is True: sing_weig_avg_fast_wf[k] = tuple(demo_wf)
 
                                     waveform_info_fast_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "fast"}
 
@@ -694,22 +656,11 @@ class analysis:
 
                                     self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_wei_avg)
                                     self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
-                                    #fast_waveform_wei_avg.__repr__()
+                                    #fast_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
                                     self.outTree_pmt_avg.fill()
-
-                                    # if plot_weighted_fast_wfs is True:
-                                    #     for pp in range(1,5):
-                                    #         new_chs = [0,91,92,93,94]
-                                    #         new_ch =  new_chs[pp]
-                                    #         waveform_info_weighted = { 'run' : run, 'event': event, 'channel' : new_ch, 'trigger' : trg, 'GE' : 9, 'sampling' : "fast"}
-                                    #         fast_waveform_weighted = PMTreco(waveform_info_weighted, sing_weig_avg_fast_wf[pp-1], self.pmt_params)
-                                    #         self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_weighted)
 
                                     del waveform_info_fast_wei_avg
                                     del fast_waveform_wei_avg
-
-                                ##[DAV] Function for fillling the tree all in the same way. Check 'treeVars.py' for more details. Uncomment below line to add them.
-                                # waveforms.append(fast_waveform)
 
                                 del waveform_info
                                 del fast_waveform
@@ -717,27 +668,13 @@ class analysis:
                         # Slow waveforms
                         if options.debug_mode == 1:
                             print("Number of slow triggers: {}".format(nTriggers_s))
+
                         for trg in range(nTriggers_s):    
 
                             insideGE = 0
-                            method2 = False
+                            if (TTTs_f[trg] * 8.5/1000/1000) >= 180 and (TTTs_f[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
+                                insideGE = 1
 
-                            ## Method 1 to be implemented in the next data taking once channel 5 is confirmed to work
-                            # method1 = False
-                            # bl_ch5 = np.mean(waveform_f[trg * nChannels + 5][0:500])      # Channel 5 need to be fixed locally at LNGS
-                            # if bl_ch5 > 4000: method1 = True
-                            # if method1 == True and method2 == True: insideGE = 1
-
-                            if (TTTs_s[trg] * 8.5/1000/1000) >= 180 and (TTTs_s[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
-                                method2 = True
-
-                            if method2 == True: insideGE = 1
-                            else:               insideGE = 0
-
-                            ## Produce a normal average waveform (Not in use)##
-                            # normal_avg_slow_waveform = [0]*slow_sampling
-
-                            ## Produce a weighted average waveform (In use)## 
                             sing_weig_avg_slow_wf = [ [0]* slow_sampling for _ in range(chs_to_analyse)]  
                             slow_wf_weights_snr = [0] * chs_to_analyse
                             weight_average_wf = [0]* slow_sampling
@@ -760,30 +697,9 @@ class analysis:
                                 self.autotree_pmt.fillTimePMTVariables(t_waveforms)
                                 self.outTree_pmt.fill()
 
-                                ###########################################
-                                ## Average waveform 
-                                
-                                # for i in range(len(normal_avg_slow_waveform)):
-                                #     normal_avg_slow_waveform[i] += waveform_s[indx][i]/4
-
-                                # if ch == 4:
-                                #     waveform_info_sum = { 'run' : run, 'event': event, 'channel' : 5, 'trigger' : trg, 'GE' : 9, 'sampling' : "slow"}
-                                #     slow_waveform_sum = PMTreco(waveform_info_sum, normal_avg_slow_waveform, self.pmt_params)
-                                #     self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_sum)
-                                #     # slow_waveform_sum.__repr__()
-                                #     self.outTree_pmt_avg.fill()
-                                
-
-                                ############################################
-                                ## Weighted averaged waveform (weight = S/N)
-
                                 snr_ratio = slow_waveform.getSignalToNoise()
                                 slow_wf_weights_snr[ch-1] = snr_ratio
                                 sing_weig_avg_slow_wf[ch-1] = waveform_s[indx]
-
-                                ## If one wants to visualize the new weighted waveforms, meaning how much they actual weight for the final average, change boolean
-                                ## Note again, normalizing the y_axis doesn't actually change the peak_finder as it acts always as a ratio from the RMS.
-                                # plot_weighted_slow_wfs = False
 
                                 if ch == 4:
 
@@ -791,14 +707,9 @@ class analysis:
 
                                     for k in range(chs_to_analyse):
 
-                                        # if plot_weighted_slow_wfs is True: demo_wf = list(sing_weig_avg_slow_wf[k])
-
                                         for j in range(slow_sampling):
 
                                             weight_average_wf[j] += sing_weig_avg_slow_wf[k][j]*slow_wf_weights_snr[k]/sum(slow_wf_weights_snr)
-                                            # if plot_weighted_slow_wfs is True: demo_wf[j] *= slow_wf_weights_snr[k]
-
-                                        # if plot_weighted_slow_wfs is True: sing_weig_avg_slow_wf[k] = tuple(demo_wf)
 
                                     waveform_info_slow_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "slow"}
 
@@ -809,29 +720,14 @@ class analysis:
 
                                     self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_wei_avg)
                                     self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
-                                    #slow_waveform_wei_avg.__repr__()
+                                    #slow_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
                                     self.outTree_pmt_avg.fill()
-
-                                    # if plot_weighted_slow_wfs is True:
-                                    #     for pp in range(1,5):
-                                    #         new_chs = [0,91,92,93,94]
-                                    #         new_ch =  new_chs[pp]
-                                    #         waveform_info_weighted = { 'run' : run, 'event': event, 'channel' : new_ch, 'trigger' : trg, 'GE' : 9, 'sampling' : "slow"}
-                                    #         slow_waveform_weighted = PMTreco(waveform_info_weighted, sing_weig_avg_slow_wf[pp-1], self.pmt_params)
-                                    #         self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_weighted)
 
                                     del waveform_info_slow_wei_avg
                                     del slow_waveform_wei_avg
 
-                                ##[DAV] Function for fillling the tree all in the same way. Check 'treeVars.py' for more details. Uncomment below line to add them.
-                                # waveforms.append(slow_waveform)
-
                                 del waveform_info
                                 del slow_waveform
-
-                        ##[DAV] Uncomment to save the overall tree with waveforms
-                        # self.autotree.fillPMTVariables_singleTree(waveforms) 
-                        # del waveforms
 
                 if self.options.camera_mode and self.options.pmt_mode:
                     if pmt == True:
@@ -842,7 +738,6 @@ class analysis:
                 elif self.options.pmt_mode and not self.options.camera_mode:
                     if pmt == True:
                         self.outTree.fill()
-
 
                 if camera==True:
                     del obj
@@ -968,6 +863,7 @@ if __name__ == '__main__':
             os.system('hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         else:
             # os.system('usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
+            # Change below was done to run the reco in the condor, probably already fixed in the main reco.
             os.system('/usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         os.system('rm {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
     else:
