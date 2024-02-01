@@ -429,6 +429,92 @@ class utils:
             
         return dslow
         
+        
+    def Param_storage(self, root_file, outfilename, nameconfig, options):
+
+        fout = open('{outname}.txt'.format(outname=outfilename),'w')
+        
+        fout.write('##########ConfigFile##########\n')
+        f_config = open('{name}'.format(name=nameconfig),'r')
+        content = f_config.read()
+        fout.write(content)
+        f_config.close() 
+        
+        fout.write('\n##########Geometry##########\n')
+        fgeometry = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
+        content = fgeometry.read()
+        params = eval(content)
+        fout.write(content)
+        fgeometry.close()
+        
+        fout.write('\n##########Clustering##########\n')
+        fclustering = open('modules_config/clustering.txt','r')
+        content = fclustering.read()
+        params_cl = eval(content)
+        fout.write(content)
+        fclustering.close()
+        
+        fout.write('\n##########Environment##########\n')
+        fenv = open('modules_config/env_variables.txt','r')
+        content = fenv.read()
+        fout.write(content)
+        fenv.close()
+        
+        fout.write('\n##########Reco_content##########\n')
+        fcont = open('modules_config/reco_eventcontent.txt','r')
+        content = fcont.read()
+        fout.write(content)
+        fcont.close()
+        fout.close()
+        
+        #New tree addition for numerical parameters
+        treeparam = ROOT.TTree('Reco_params','Tree with parameters of the reconstruction')
+        camera_mode = np.array(options.camera_mode,int)
+        treeparam.Branch('camera_mode',camera_mode,'camera_mode/I')
+        pmt_mode = np.array(options.pmt_mode,int)
+        treeparam.Branch('pmt_mode',pmt_mode,'pmt_mode/I')
+        rebin = np.array(options.rebin,int)
+        treeparam.Branch('rebin',rebin,'rebin/I')
+        nsigma = np.array(options.nsigma,dtype='float32')
+        treeparam.Branch('nsigma',nsigma,'nsigma/F')
+        min_neighbors_average = np.array(options.min_neighbors_average,dtype='float32')
+        treeparam.Branch('min_neighbors_average',min_neighbors_average,'min_neighbors_average/F')
+        cimax = np.array(options.cimax,int)
+        treeparam.Branch('cimax',cimax,'cimax/I')
+        ##still missing PMT variables
+        
+        npixx = np.array(params['npixx'],int)
+        treeparam.Branch('npixx',npixx,'npixx/I')
+        xmin = np.array(params['xmin'],int)
+        treeparam.Branch('xmin',xmin,'xmin/I')
+        xmax = np.array(params['xmax'],int)
+        treeparam.Branch('xmax',xmax,'xmax/I')
+        ymin = np.array(params['ymin'],int)
+        treeparam.Branch('ymin',ymin,'ymin/I')
+        ymax = np.array(params['ymax'],int)
+        treeparam.Branch('ymax',ymax,'ymax/I')
+        
+        dbscan_eps = np.array(params_cl['dbscan_eps'],dtype='float32')
+        treeparam.Branch('dbscan_eps',dbscan_eps,'dbscan_eps/F')
+        dbscan_minsamples = np.array(params_cl['dbscan_minsamples'],dtype='float32')
+        treeparam.Branch('dbscan_minsamples',dbscan_minsamples,'dbscan_minsamples/F')
+        dir_radius = np.array(params_cl['dir_radius'],dtype='float32')
+        treeparam.Branch('dir_radius',dir_radius,'dir_radius/F')
+        dir_min_accuracy = np.array(params_cl['dir_min_accuracy'],dtype='float32')
+        treeparam.Branch('dir_min_accuracy',dir_min_accuracy,'dir_min_accuracy/F')
+        dir_minsamples = np.array(params_cl['dir_minsamples'],dtype='float32')
+        treeparam.Branch('dir_minsamples',dir_minsamples,'dir_minsamples/F')
+        dir_thickness = np.array(params_cl['dir_thickness'],dtype='float32')
+        treeparam.Branch('dir_thickness',dir_thickness,'dir_thickness/F')
+        time_threshold = np.array(params_cl['time_threshold'],dtype='float32')
+        treeparam.Branch('time_threshold',time_threshold,'time_threshold/F')
+        max_attempts = np.array(params_cl['max_attempts'],dtype='float32')
+        treeparam.Branch('max_attempts',max_attempts,'max_attempts/F')
+        isolation_radius = np.array(params_cl['isolation_radius'],dtype='float32')
+        treeparam.Branch('isolation_radius',isolation_radius,'isolation_radius/F')
+        
+        treeparam.Fill()
+        treeparam.Write()
 
 
 class bcolors:

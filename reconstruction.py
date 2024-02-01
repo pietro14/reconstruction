@@ -681,9 +681,12 @@ if __name__ == '__main__':
     t2 = time.perf_counter()
     if options.debug_mode == 1:
         print(f'Reconstruction Code Took: {t2 - t1} seconds')
-        print(f'Total time the Code Took: {t2 - t0} seconds')
-    # now add the git commit hash to track the version in the ROOT file
+
+    # now add extra information
     tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
+    # now add parameters of the reconstruction
+    utilities.Param_storage(tf,base,args[0],options)
+    # now add the git commit hash to track the version in the ROOT file
     if options.githash != None:
        githash=ROOT.TNamed("gitHash",options.githash)
        githash.Write()       
@@ -693,9 +696,14 @@ if __name__ == '__main__':
           githash.Write()
        except:
           print('No githash provided nor githash found (no .git folder?)') 
+    # now add the time of reconstruction
     total_time = ROOT.TNamed("total_time", str(t2-t1))
     total_time.Write()
     tf.Close()
     
     if options.donotremove == False:
         sw.swift_rm_root_file(options.tmpname)
+    
+    t3 = time.perf_counter()
+    if options.debug_mode == 1:
+           print(f'Total time the Code Took: {t3 - t0} seconds')
