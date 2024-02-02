@@ -68,6 +68,7 @@ Then, reconstruct digitized (simulated) images:
 - scipy==1.3.1
 - six==1.12.0
 - cython > 3.0.2
+- midas== 0.0.1 (see Install cygno-lib)
 
 ## Example
 
