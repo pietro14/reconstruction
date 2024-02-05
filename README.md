@@ -62,19 +62,14 @@ Then, reconstruct digitized (simulated) images:
 - scikit-learn>=0.21.3
 - mahotas==1.4.13
  
-- kiwisolver==1.1.0
-- matplotlib==3.1.1
-- networkx==2.4
-- pyparsing==2.4.2
-- python-dateutil==2.8.0
-- six==1.12.0
+
 (Beware that some dependent packages will be installed automatically as requirements for some of these packages like:
-- kiwisolver==1.1.0
-- matplotlib==3.1.1
-- networkx==2.4
-- pyparsing==2.4.2
-- python-dateutil==2.8.0
-- six==1.12.0
+ - kiwisolver==1.1.0
+ - matplotlib==3.1.1
+ - networkx==2.4
+ - pyparsing==2.4.2
+ - python-dateutil==2.8.0
+ - six==1.12.0
 ...so proceed in order)
 
 ## Example
