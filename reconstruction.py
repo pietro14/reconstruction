@@ -109,6 +109,7 @@ class analysis:
         self.outTree.branch("run", "I", title="run number")
         self.outTree.branch("event", "I", title="event number")
         self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
+
         if self.options.save_MC_data:
             #self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
@@ -131,7 +132,6 @@ class analysis:
             self.autotree.createCameraVariables()
             self.autotree.createTimeCameraVariables()
             self.autotree.createClusterVariables('sc')
-            if options.environment_variables: self.autotree.createEnvVariables()
             if self.options.cosmic_killer:
                 self.autotree.addCosmicKillerVariables('sc')
         
@@ -143,6 +143,10 @@ class analysis:
             # time variables -- see if it can be merged with above functions
             self.autotree_pmt.createTimePMTVariables()                          
             self.autotree_pmt_avg.createTimePMTVariables_average()
+
+        if options.environment_variables: 
+            self.autotree.createEnvVariables()
+        
 
     def endJob(self):
         self.outTree.write()
@@ -352,17 +356,16 @@ class analysis:
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
 
-        else:
+        elif options.rawdata_tier == 'midas':
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
             
             ## Necessary to read the ODB to retrieve some info necessary for the waveform analysis
             ## Seems to repeat the opening process but *doesn't* slow down the code.
-
-            ## Probably better to merge with the new piece of code below?
             if self.options.pmt_mode == 1:        
                 
                 if run > 7790:   ## There is an issue with Run1 because it doesn't contain all the info present in Run2
+                        #TO FIX -- ADD TAG CHECK since this only applies for LIME @ LNGS
                     odb=cy.get_bor_odb(mf)
                     corrected  = odb.data['Configurations']['DRS4Correction']
                     channels_offsets  = odb.data['Configurations']['DigitizerOffset']
@@ -374,10 +377,8 @@ class analysis:
                     channels_offsets = 0
                     mf.jump_to_start()
 
-        numev = 0
-        event=0
-        if  options.rawdata_tier == 'midas': 
-            mf.jump_to_start()
+
+            # mf.jump_to_start()
             dslow = pd.DataFrame()
             if options.environment_variables:
         
@@ -388,10 +389,12 @@ class analysis:
                 dslow.loc[len(dslow)] = value_variables['Input']
                 for i in dslow.keys():
                     dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
-                # self.autotree.fillEnvVariables(dslow.take([0]))       #to FIX
-                #print(dslow)
+                self.autotree.fillEnvVariables(dslow.take([0]))
                 j = 1
-        
+
+        numev = 0
+        event=0
+
         for mevent in mf:
             if self.options.rawdata_tier == 'midas':
                 if mevent.header.is_midas_internal_event():
@@ -401,8 +404,6 @@ class analysis:
                     
             for bank_name, bank in mevent.banks.items():
                 name=bank_name
-            #for iobj,key in enumerate(keys):
-                #name=key
                 camera = False
                 pmt = False
 
@@ -430,54 +431,45 @@ class analysis:
                         camera=False
 
                 elif self.options.rawdata_tier == 'midas':
+                    
                     run = int(self.options.run)
-                    if bank_name=='CAM0':
+
+                    if bank_name=='CAM0' and options.camera_mode:
+
                         obj,_,_ = cy.daq_cam2array(bank, dslow)
                         obj = np.rot90(obj)
                     
-                    
-                    #if name.startswith('CAM'):
-                    #    obj,_,_ = cy.daq_cam2array(mevent.banks[key])
-                    #    obj = np.rot90(obj)
                         camera=True
                     
                     elif bank_name=='INPT' and options.environment_variables: # SLOW channels array
                         dslow = utilities.read_env_variables(bank, dslow, odb, j=j)
-                        #print(dslow)
-                        # self.autotree.fillEnvVariables(dslow.take([j]))           #to FIX
+                        self.autotree.fillEnvVariables(dslow.take([j]))           
                         j = j+1
-                        #print(dslow)
-                        
-                    
+
+                    elif bank_name=='DGH0' and options.pmt_mode:
+
+                        header=cy.daq_dgz_full2header(bank, verbose=False)
+                        SIC = header.SIC
+                        sample_rate = header.sampling_rate
+
+                        nChannels_f  = header.nchannels[0]
+                        nTriggers_f = len(header.TTT[0])
+                        TTTs_f = header.TTT[0]
+
+                        nChannels_s  = header.nchannels[1]
+                        nTriggers_s = len(header.TTT[1])
+                        TTTs_s = header.TTT[1]
+
+                        ## TO FIX : catch the dgitizer general 'tag' in the config file. Should work
+                        waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
+
+                        pmt = True
+
                     else:
-                        camera=False
+                        camera = False
+                        pmt = False
+
                     event=numev
-
-                    ##[DAV] Read PMT waveforms
-                    if self.options.pmt_mode:
-                        if name.startswith('DGH0'):
-
-                            header=cy.daq_dgz_full2header(bank, verbose=False)
-                            SIC = header.SIC
-                            sample_rate = header.sampling_rate
-
-                            nChannels_f  = header.nchannels[0]
-                            nTriggers_f = len(header.TTT[0])
-                            TTTs_f = header.TTT[0]
-
-                            nChannels_s  = header.nchannels[1]
-                            nTriggers_s = len(header.TTT[1])
-                            TTTs_s = header.TTT[1]
-
-                            waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
-
-                            pmt = True
-                        else:
-                            pmt = False
-                    else:
-                        pmt = False 
-
-                # print("    peak memory: {} MB".format(utilities.peak_memory_usage()))
 
                 justSkip = False
                 if event<evrange[1]: justSkip=True
@@ -487,38 +479,43 @@ class analysis:
                 if justSkip:
                     continue
                 
-                if camera==True:
+                # Event is identified by EITHER camera or pmt
+                # FIX: Perhaps we should change this with the same scheme as the filling at the end
+                # FIX: I'm filling the Branchs twice, but that should not be a problem (I think it overwrites)
+                if camera == True or pmt == True:
                     print("Processing Run: ",run,"- Event ",event,"...")
-                    
-                    testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
-                    if np.sum(obj)>testspark:
-                        print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
-                        continue
-                                
+
                     self.outTree.fillBranch("run",run)
                     self.outTree.fillBranch("event",event)
                     self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
-                    if self.options.save_MC_data:
-                        mc_tree = tf.Get('event_info/info_tree')
-                        mc_tree.GetEntry(event)
-                        self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
-                        self.outTree.fillBranch("particle_type",mc_tree.particle_type)
-                        self.outTree.fillBranch("energy",mc_tree.energy_ini)
-                        self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
-                        self.outTree.fillBranch("drift",mc_tree.drift)
-                        self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
-                        self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
-                        self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
-                        self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
-                        self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
-                        self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
-                        self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
-                        self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
-                        self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
-                        self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
-         
+
                 if self.options.camera_mode:
                     if camera==True:
+
+                        testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
+                        if np.sum(obj)>testspark:
+                            print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
+                            continue
+
+                        if self.options.save_MC_data:
+                            mc_tree = tf.Get('event_info/info_tree')
+                            mc_tree.GetEntry(event)
+                            self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
+                            self.outTree.fillBranch("particle_type",mc_tree.particle_type)
+                            self.outTree.fillBranch("energy",mc_tree.energy_ini)
+                            self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
+                            self.outTree.fillBranch("drift",mc_tree.drift)
+                            self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
+                            self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
+                            self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
+                            self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
+                            self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
+                            self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
+                            self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
+                            self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
+                            self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
+                            self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
+
              
                         img_fr = obj.T
          
@@ -729,15 +726,16 @@ class analysis:
                                 del waveform_info
                                 del slow_waveform
 
-                if self.options.camera_mode and self.options.pmt_mode:
-                    if pmt == True:
+                ## If single sensor analysis, update event number each loop 
+                if (self.options.camera_mode and not self.options.pmt_mode) or (self.options.pmt_mode and not self.options.camera_mode):
+                    if camera == True or pmt == True:           ##this is needed otherwise it increases the event number with each bank
+                        numev += 1  
                         self.outTree.fill()
-                elif self.options.camera_mode and not self.options.pmt_mode:
+                ## If both sensor analysis, update event number only after camera analysis since it comes after the PMT 
+                elif (self.options.camera_mode and self.options.pmt_mode):
                     if camera == True:
                         self.outTree.fill()
-                elif self.options.pmt_mode and not self.options.camera_mode:
-                    if pmt == True:
-                        self.outTree.fill()
+                        numev += 1
 
                 if camera==True:
                     del obj
@@ -745,8 +743,6 @@ class analysis:
                 if pmt==True:
                     del waveform_f, waveform_s, header
 
-            if camera == True or pmt == True:
-                         numev += 1
         gc.collect()
                     
         ROOT.gErrorIgnoreLevel = savErrorLevel
