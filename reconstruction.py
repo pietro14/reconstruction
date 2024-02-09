@@ -31,7 +31,6 @@ class analysis:
     def __init__(self,options):
         self.rebin = options.rebin        
         self.options = options
-        self.pedfile_fullres_name = options.pedfile_fullres_name
         self.tmpname = options.tmpname
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
         geometryParams = eval(geometryPSet.read())
@@ -43,21 +42,22 @@ class analysis:
         for k,v in self.eventContentParams.items():
             setattr(self.options,k,v)
         
-        if not os.path.exists(self.pedfile_fullres_name):
-            print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
-            self.calcPedestal(options,1)
-        if not options.justPedestal:
-           print("Pulling pedestals...")
-           # first the one for clustering with rebin
-           ctools = cameraTools(self.cg)
-           # then the full resolution one
-           pedrf_fr = uproot.open(self.pedfile_fullres_name)
-           self.pedarr_fr   = pedrf_fr['pedmap'].values().T
-           self.noisearr_fr = pedrf_fr['pedmap'].errors().T
-           if options.vignetteCorr:
-               self.vignmap = ctools.loadVignettingMap()
-           else:
-               self.vignmap = np.ones((self.xmax, self.xmax))
+        if options.camera_mode == True:
+            if not os.path.exists(options.pedfile_fullres_name):
+                print("WARNING: pedestal file with full resolution ",options.pedfile_fullres_name, " not existing. First calculate them...")
+                self.calcPedestal(options,1)
+            if not options.justPedestal:
+               print("Pulling pedestals...")
+               # first the one for clustering with rebin
+               ctools = cameraTools(self.cg)
+               # then the full resolution one
+               pedrf_fr = uproot.open(options.pedfile_fullres_name)
+               self.pedarr_fr   = pedrf_fr['pedmap'].values().T
+               self.noisearr_fr = pedrf_fr['pedmap'].errors().T
+               if options.vignetteCorr:
+                   self.vignmap = ctools.loadVignettingMap()
+               else:
+                   self.vignmap = np.ones((self.xmax, self.xmax))
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
@@ -497,9 +497,9 @@ class analysis:
 
                     self.outTree.fillBranch("run",run)
                     self.outTree.fillBranch("event",event)
-                    self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
 
                 if self.options.camera_mode:
+                    self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
                     if camera==True:
 
                         testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
@@ -787,13 +787,14 @@ if __name__ == '__main__':
     else:
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
     
-    patt = re.compile('\S+_(\S+).txt')
-    m = patt.match(args[0])
-    detector = m.group(1)
-    if run > 16798 :
-        utilities.setPedestalRun_v2(options,detector)
-    else:
-        utilities.setPedestalRun(options,detector)
+    if options.camera_mode == True:
+        patt = re.compile('\S+_(\S+).txt')
+        m = patt.match(args[0])
+        detector = m.group(1)
+        if run > 16798 :
+            utilities.setPedestalRun_v2(options,detector)
+        else:
+            utilities.setPedestalRun(options,detector)
         
         
     try:
@@ -838,8 +839,9 @@ if __name__ == '__main__':
     ana = analysis(options)
     nev = ana.getNEvents(options)
     print("This run has ",nev," events.")
-    print("Will save plots to ",options.plotDir)
-    os.system('cp utils/index.php {od}'.format(od=options.plotDir))
+    if options.camera_mode == True:
+        print("Will save plots to ",options.plotDir)
+        os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
     nThreads = 1
     if options.jobs==-1:
