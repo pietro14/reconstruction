@@ -661,7 +661,6 @@ class analysis:
 
                                 del waveform_info
                                 del fast_waveform
-                        
                         # Slow waveforms
                         if options.debug_mode == 1:
                             print("Number of slow triggers: {}".format(nTriggers_s))
