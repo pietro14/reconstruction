@@ -449,9 +449,7 @@ class analysis:
                         j = j+1
                            #print(dslow)
                         #except:
-                        #   print("WARNING: INPT bank is not as expected.")
-
-                    
+                        #   print("WARNING: INPT bank is not as expected.")                
                     elif bank_name=='DGH0' and options.pmt_mode:
                         header=cy.daq_dgz_full2header(bank, verbose=False)
                         SIC = header.SIC
