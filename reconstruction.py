@@ -388,8 +388,15 @@ class analysis:
                 dslow = pd.DataFrame(columns = header_environment)
                 dslow.loc[len(dslow)] = value_variables['Input']
                 for i in dslow.keys():
+                    #try:
                     dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
-                self.autotree.fillEnvVariables(dslow.take([0]))
+                    #except:
+                        #print("WARNING: conversion_env_variables failed.")
+                try:
+                   self.autotree.fillEnvVariables(dslow.take([0]))
+                except:
+                   print("WARNING: could not fill dslow variables.")   
+                #print(dslow)
                 j = 1
 
         numev = 0
