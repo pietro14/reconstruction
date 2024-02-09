@@ -441,10 +441,15 @@ class analysis:
                     
                         camera=True
                     
-                    elif bank_name=='INPT' and options.environment_variables: # SLOW channels array
-                        dslow = utilities.read_env_variables(bank, dslow, odb, j=j)
-                        self.autotree.fillEnvVariables(dslow.take([j]))           
+                    elif name.startswith('INPT') and options.environment_variables: # SLOW channels array
+                        #try:
+                        dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j=j)
+                           #print(dslow)
+                        self.autotree.fillEnvVariables(dslow.take([j]))
                         j = j+1
+                           #print(dslow)
+                        #except:
+                        #   print("WARNING: INPT bank is not as expected.")
 
                     elif bank_name=='DGH0' and options.pmt_mode:
 
