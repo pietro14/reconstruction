@@ -449,7 +449,8 @@ class analysis:
                         j = j+1
                            #print(dslow)
                         #except:
-                        #   print("WARNING: INPT bank is not as expected.")                
+                        #   print("WARNING: INPT bank is not as expected.")
+                    
                     elif bank_name=='DGH0' and options.pmt_mode:
                         header=cy.daq_dgz_full2header(bank, verbose=False)
                         SIC = header.SIC
@@ -467,8 +468,6 @@ class analysis:
                         waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
 
                         pmt = True
-
-                    
                     else:
                         camera = False
                         pmt = False
