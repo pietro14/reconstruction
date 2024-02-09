@@ -489,6 +489,9 @@ class analysis:
                 if justSkip:
                     continue
                 
+                # Event is identified by EITHER camera or pmt
+                # FIX: Perhaps we should change this with the same scheme as the filling at the end
+                # FIX: I'm filling the Branchs twice, but that should not be a problem (I think it overwrites)
                 if camera==True or pmt==True:
                     print("Processing Run: ",run,"- Event ",event,"...")
 
