@@ -858,8 +858,6 @@ if __name__ == '__main__':
         if flag_env == 0:
             os.system('hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         else:
-            # os.system('usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
-            # Change below was done to run the reco in the condor, probably already fixed in the main reco.
             os.system('/usr/bin/hadd -k -f {outdir}/{base}.root {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
         os.system('rm {outdir}/{base}_chunk*.root'.format(base=base, outdir=options.outdir))
     else:
