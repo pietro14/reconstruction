@@ -451,8 +451,8 @@ class analysis:
                         #except:
                         #   print("WARNING: INPT bank is not as expected.")
 
+                    
                     elif bank_name=='DGH0' and options.pmt_mode:
-
                         header=cy.daq_dgz_full2header(bank, verbose=False)
                         SIC = header.SIC
                         sample_rate = header.sampling_rate
@@ -470,6 +470,7 @@ class analysis:
 
                         pmt = True
 
+                    
                     else:
                         camera = False
                         pmt = False
