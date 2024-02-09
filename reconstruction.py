@@ -409,8 +409,8 @@ class analysis:
                 else:
                     keys = mevent.banks.keys()
                     
-            for bank_name, bank in mevent.banks.items():
-                name=bank_name
+            for iobj,key in enumerate(keys):
+                name=key
                 camera = False
                 pmt = False
 
@@ -441,9 +441,8 @@ class analysis:
                     
                     run = int(self.options.run)
 
-                    if bank_name=='CAM0' and options.camera_mode:
-
-                        obj,_,_ = cy.daq_cam2array(bank, dslow)
+                    if name.startswith('CAM') and options.camera_mode:
+                        obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
                         obj = np.rot90(obj)
                     
                         camera=True
@@ -458,8 +457,8 @@ class analysis:
                         #except:
                         #   print("WARNING: INPT bank is not as expected.")
                     
-                    elif bank_name=='DGH0' and options.pmt_mode:
-                        header=cy.daq_dgz_full2header(bank, verbose=False)
+                    elif name.startswith('DGH0') and options.pmt_mode:
+                        header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
                         SIC = header.SIC
                         sample_rate = header.sampling_rate
 
@@ -838,10 +837,12 @@ if __name__ == '__main__':
 
     ana = analysis(options)
     nev = ana.getNEvents(options)
-    print("This run has ",nev," events.")
+    print("\nThis run has ",nev," events.")
+    if options.debug_mode == 1: print('DEBUG mode activated. Only event',options.ev,'will be analysed')
     if options.camera_mode == True:
-        print("Will save plots to ",options.plotDir)
+        print("I Will save plots to ",options.plotDir)
         os.system('cp utils/index.php {od}'.format(od=options.plotDir))
+
     
     nThreads = 1
     if options.jobs==-1:

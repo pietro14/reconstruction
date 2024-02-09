@@ -19,7 +19,7 @@
 'flag_dbscan_seeds'     : 1,
 'flag_stats'            : 0,
 
-'camera_mode'            : 1,
+'camera_mode'            : 0,
 
 # Parameters of the plots
 'cmapcolor'             : 'gray',
@@ -57,7 +57,7 @@
 'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 0,
+'pmt_mode'              : 1,
 
 'threshold'             : 0,			## Not used
 'height_RMS'		    : 5,			## 5 * RMS
