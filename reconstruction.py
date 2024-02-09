@@ -489,7 +489,7 @@ class analysis:
                 if justSkip:
                     continue
                 
-                if camera == True:
+                if camera==True or pmt==True:
                     print("Processing Run: ",run,"- Event ",event,"...")
 
                     self.outTree.fillBranch("run",run)
