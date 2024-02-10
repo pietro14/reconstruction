@@ -1,8 +1,18 @@
+import os
+cythonized=False
+for fname in os.listdir('.'):
+        if fname.endswith('.so'):
+          cythonized=True
+          break
+          
+if cythonized==False:
+          os.system('sh cythonize.sh')
+        
 from concurrent import futures
 from subprocess import Popen, PIPE
 import signal,time
 
-import os,math,sys,random,re,gc
+import math,sys,random,re,gc
 import numpy as np
 
 import ROOT
@@ -31,6 +41,8 @@ class analysis:
     def __init__(self,options):
         self.rebin = options.rebin        
         self.options = options
+        # FIX: if only pmt mode, don't need to compute pedestal
+        self.pedfile_fullres_name = options.pedfile_fullres_name
         self.tmpname = options.tmpname
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
         geometryParams = eval(geometryPSet.read())
@@ -42,22 +54,23 @@ class analysis:
         for k,v in self.eventContentParams.items():
             setattr(self.options,k,v)
         
-        if options.camera_mode == True:
-            if not os.path.exists(options.pedfile_fullres_name):
-                print("WARNING: pedestal file with full resolution ",options.pedfile_fullres_name, " not existing. First calculate them...")
-                self.calcPedestal(options,1)
-            if not options.justPedestal:
-               print("Pulling pedestals...")
-               # first the one for clustering with rebin
-               ctools = cameraTools(self.cg)
-               # then the full resolution one
-               pedrf_fr = uproot.open(options.pedfile_fullres_name)
-               self.pedarr_fr   = pedrf_fr['pedmap'].values().T
-               self.noisearr_fr = pedrf_fr['pedmap'].errors().T
-               if options.vignetteCorr:
-                   self.vignmap = ctools.loadVignettingMap()
-               else:
-                   self.vignmap = np.ones((self.xmax, self.xmax))
+# FIX: if only pmt mode, don't need to compute pedestal
+        if not os.path.exists(self.pedfile_fullres_name):
+            print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
+            self.calcPedestal(options,1)
+        if not options.justPedestal:
+           print("Pulling pedestals...")
+           # first the one for clustering with rebin
+           ctools = cameraTools(self.cg)
+           # then the full resolution one
+           pedrf_fr = uproot.open(self.pedfile_fullres_name)
+           self.pedarr_fr   = pedrf_fr['pedmap'].values().T
+           self.noisearr_fr = pedrf_fr['pedmap'].errors().T
+           if options.vignetteCorr:
+               self.vignmap = ctools.loadVignettingMap()
+           else:
+               self.vignmap = np.ones((self.xmax, self.xmax))
+            
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
@@ -90,7 +103,6 @@ class analysis:
         self.outputFile = ROOT.TFile.Open(outfname, "RECREATE")
         print("Opening out file: ",outfname," self.outputFile = ",self.outputFile)
         ROOT.gDirectory.cd()
-
         # prepare output tree
         self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
         self.outTree = OutputTree(self.outputFile,self.outputTree)
@@ -108,10 +120,10 @@ class analysis:
 
         self.outTree.branch("run", "I", title="run number")
         self.outTree.branch("event", "I", title="event number")
+        # FIX: if only pmt mode, don't need pedestal 
         self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
-
         if self.options.save_MC_data:
-            #self.outTree.branch("MC_track_len","F")
+#           self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
             self.outTree.branch("particle_type","I")
             self.outTree.branch("energy","F")
@@ -134,19 +146,14 @@ class analysis:
             self.autotree.createClusterVariables('sc')
             if self.options.cosmic_killer:
                 self.autotree.addCosmicKillerVariables('sc')
-        
-        ## Create PMT branchs
+        if options.environment_variables: self.autotree.createEnvVariables()
         if self.options.pmt_mode:
-            self.autotree_pmt.createPMTVariables(self.pmt_params)                   ## Individual waveform
-            self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)       ## Average Waveform
+            self.autotree_pmt.createPMTVariables(self.pmt_params)
+            self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)
             
-            # time variables -- see if it can be merged with above functions
-            self.autotree_pmt.createTimePMTVariables()                          
+            # FIX: time variables -- see if it can be merged with above functions
+            self.autotree_pmt.createTimePMTVariables()
             self.autotree_pmt_avg.createTimePMTVariables_average()
-
-        if options.environment_variables: 
-            self.autotree.createEnvVariables()
-        
 
     def endJob(self):
         self.outTree.write()
@@ -164,20 +171,30 @@ class analysis:
             pics = [k for k in tf.keys() if 'pic' in k]
             print("n events:", len(pics))
             return len(pics)
-        else:
-            run,tmpdir,tag = self.tmpname
-            mf = sw.swift_download_midas_file(run,tmpdir,tag)
-            evs =0
-            for mevent in mf:
-                if mevent.header.is_midas_internal_event():
-                    continue
-                else:
-                    keys = mevent.banks.keys()
-                for iobj,key in enumerate(keys):
-                    name=key
-                    if name.startswith('CAM'):
-                        evs += 1
-            return evs
+            
+        run,tmpdir,tag = self.tmpname
+        mf = sw.swift_download_midas_file(run,tmpdir,tag)     #you download the file here so that in multithread does not confuse if it downloaded or not
+        runlog='runlog_%s_auto.csv' % (options.tag)
+        df = pd.read_csv('pedestals/%s'%runlog)
+        if df.run_number.isin({int(options.run)}).any():
+           dffilter = df["run_number"] == int(options.run)
+           try:
+              evs = int(df.number_of_events[dffilter].values.tolist()[0])
+              return evs
+           except ValueError:
+              print('Probably number of events line in data frame is empty. Opening and counting the file events\n')
+     
+        evs =0
+        for mevent in mf:
+            if mevent.header.is_midas_internal_event():
+               continue
+            else:
+                keys = mevent.banks.keys()
+            for iobj,key in enumerate(keys):
+                name=key
+                if name.startswith('CAM'):
+                    evs += 1
+        return evs
 
     def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
@@ -192,7 +209,7 @@ class analysis:
 
         pedsum = np.zeros((nx,ny))
 
-        if options.rawdata_tier == 'root':
+        if options.rawdata_tier == 'root' or options.rawdata_tier == 'h5':
             tmpdir = '{tmpdir}'.format(tmpdir=options.tmpdir if options.tmpdir else "/tmp/")
             if not sw.checkfiletmp(int(options.pedrun),'root',tmpdir):
                 print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.pedrun)))
@@ -238,7 +255,7 @@ class analysis:
                         pedsum = np.add(pedsum,arr)
                         numev += 1
         else:
-            print ("keys = ",keys)
+            #print ("keys = ",keys)
             for i,name in enumerate(keys):
                 if 'pic' in name:
                     patt = re.compile('\S+run(\d+)_ev(\d+)')
@@ -356,7 +373,8 @@ class analysis:
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
 
-        elif options.rawdata_tier == 'midas':
+        # this 'else' should probabily be:  ` if options.rawdata_tier == 'midas': `
+        else:
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
             
@@ -377,8 +395,11 @@ class analysis:
                     channels_offsets = 0
                     mf.jump_to_start()
 
-
-            # mf.jump_to_start()
+        numev = 0
+        event=0
+        if  options.rawdata_tier == 'midas': 
+        # FIX: this 'if' seems uneccessary here, it should probably susbtitute the 'else' above   
+            mf.jump_to_start()
             dslow = pd.DataFrame()
             if options.environment_variables:
         
@@ -398,11 +419,9 @@ class analysis:
                    print("WARNING: could not fill dslow variables.")   
                 #print(dslow)
                 j = 1
-
-        numev = 0
-        event=0
-
+        
         for mevent in mf:
+            # FIX: this 'if statement' seems uneccessary here, it should probably susbtitute the 'else' above   
             if self.options.rawdata_tier == 'midas':
                 if mevent.header.is_midas_internal_event():
                     continue
@@ -438,13 +457,10 @@ class analysis:
                         camera=False
 
                 elif self.options.rawdata_tier == 'midas':
-                    
                     run = int(self.options.run)
-
                     if name.startswith('CAM') and options.camera_mode:
                         obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
                         obj = np.rot90(obj)
-                    
                         camera=True
                     
                     elif name.startswith('INPT') and options.environment_variables: # SLOW channels array
@@ -480,6 +496,8 @@ class analysis:
 
                     event=numev
 
+                # print("    peak memory: {} MB".format(utilities.peak_memory_usage()))
+
                 justSkip = False
                 if event<evrange[1]: justSkip=True
                 if event>evrange[2]: return # avoids seeking up to EOF which with MIDAS is slow
@@ -493,38 +511,38 @@ class analysis:
                 # FIX: I'm filling the Branchs twice, but that should not be a problem (I think it overwrites)
                 if camera==True or pmt==True:
                     print("Processing Run: ",run,"- Event ",event,"...")
-
+                    
+		    if self.options.camera_mode:  # FIX: maybe move this below in larger scope
+		            testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
+		            if np.sum(obj)>testspark:
+		                print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
+		                continue
+                      
                     self.outTree.fillBranch("run",run)
                     self.outTree.fillBranch("event",event)
-
-                if self.options.camera_mode:
+                    # FIX: if only pmt mode, don't need the pedestal_run branch
                     self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
+                    if self.options.save_MC_data:
+                        mc_tree = tf.Get('event_info/info_tree')
+                        mc_tree.GetEntry(event)
+                        self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
+                        self.outTree.fillBranch("particle_type",mc_tree.particle_type)
+                        self.outTree.fillBranch("energy",mc_tree.energy_ini)
+                        self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
+                        self.outTree.fillBranch("drift",mc_tree.drift)
+                        self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
+                        self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
+                        self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
+                        self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
+                        self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
+                        self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
+                        self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
+                        self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
+                        self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
+                        self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
+         
+                if self.options.camera_mode:
                     if camera==True:
-
-                        testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
-                        if np.sum(obj)>testspark:
-                            print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
-                            continue
-
-                        if self.options.save_MC_data:
-                            mc_tree = tf.Get('event_info/info_tree')
-                            mc_tree.GetEntry(event)
-                            self.outTree.fillBranch("eventnumber",mc_tree.eventnumber)
-                            self.outTree.fillBranch("particle_type",mc_tree.particle_type)
-                            self.outTree.fillBranch("energy",mc_tree.energy_ini)
-                            self.outTree.fillBranch("ioniz_energy",mc_tree.ioniz_energy)
-                            self.outTree.fillBranch("drift",mc_tree.drift)
-                            self.outTree.fillBranch("phi_initial",mc_tree.phi_ini)
-                            self.outTree.fillBranch("theta_initial",mc_tree.theta_ini)
-                            self.outTree.fillBranch("MC_x_vertex",mc_tree.x_vertex)
-                            self.outTree.fillBranch("MC_y_vertex",mc_tree.y_vertex)
-                            self.outTree.fillBranch("MC_z_vertex",mc_tree.z_vertex)
-                            self.outTree.fillBranch("MC_x_vertex_end",mc_tree.x_vertex_end)
-                            self.outTree.fillBranch("MC_y_vertex_end",mc_tree.y_vertex_end)
-                            self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
-                            self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
-                            self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
-
              
                         img_fr = obj.T
          
@@ -734,6 +752,10 @@ class analysis:
                                 del waveform_info
                                 del slow_waveform
 
+                # end of `if self.options.pmt_mode`
+
+
+
                 ## If single sensor analysis, update event number each loop 
                 if (self.options.camera_mode and not self.options.pmt_mode) or (self.options.pmt_mode and not self.options.camera_mode):
                     if camera == True or pmt == True:           ##this is needed otherwise it increases the event number with each bank
@@ -744,20 +766,18 @@ class analysis:
                     if camera == True:
                         self.outTree.fill()
                         numev += 1
-
                 if camera==True:
                     del obj
                 
                 if pmt==True:
                     del waveform_f, waveform_s, header
-
         gc.collect()
                     
         ROOT.gErrorIgnoreLevel = savErrorLevel
                 
 if __name__ == '__main__':
     from optparse import OptionParser
-    
+    t0 = time.perf_counter()
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel (-1 uses all the cores available)')
@@ -767,8 +787,9 @@ if __name__ == '__main__':
     parser.add_option('-t',  '--tmp',  dest='tmpdir', default=None, type='string', help='Directory where to put the input file. If none is given, /tmp/<user> is used')
     parser.add_option(      '--max-hours', dest='maxHours', default=-1, type='float', help='Kill a subprocess if hanging for more than given number of hours.')
     parser.add_option('-o', '--outname', dest='outname', default='reco', type='string', help='prefix for the output file name')
-    parser.add_option('-d', '--outdir', dest='outdir', default='./', type='string', help='Directory where to save the output file')
-    
+    parser.add_option('-d', '--outdir', dest='outdir', default='.', type='string', help='Directory where to save the output file')
+    parser.add_option(      '--git', dest='githash', default=None, type='string', help='git hash of the version of the reco code in use which you may want to give manually')
+        
     (options, args) = parser.parse_args()
     
     f = open(args[0], "r")
@@ -785,26 +806,21 @@ if __name__ == '__main__':
         #if options.daq == 'midas': options.ev +=0.5 
     else:
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
-    
-    if options.camera_mode == True:
-        patt = re.compile('\S+_(\S+).txt')
-        m = patt.match(args[0])
-        detector = m.group(1)
-        if run > 16798 :
-            utilities.setPedestalRun_v2(options,detector)
-        else:
-            utilities.setPedestalRun(options,detector)
-        
+    # FIX: if only pmt mode, don't need to compute pedestal
+    utilities.setPedestalRun(options)        
         
     try:
         USER = os.environ['USER']
         flag_env = 0
     except:
         flag_env = 1
-        USER = os.environ['JUPYTERHUB_USER']
+        try:
+          USER = os.environ['JUPYTERHUB_USER']
+        except:
+          USER = "autoreco"
     #tmpdir = '/mnt/ssdcache/' if os.path.exists('/mnt/ssdcache/') else '/tmp/'
     # it seems that ssdcache it is only mounted on cygno-login, not in the batch queues (neither in cygno-custom)
-    tmpdir = '/tmp/'
+    tmpdir = '/tmp'
     os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
     tmpdir = '{tmpdir}/{user}/'.format(tmpdir=tmpdir,user=USER) if not options.tmpdir else options.tmpdir+"/"
     if sw.checkfiletmp(int(options.run),options.rawdata_tier,tmpdir):
@@ -820,14 +836,15 @@ if __name__ == '__main__':
         options.tmpname = "%s/%s%05d.%s" % (tmpdir,prefix,int(options.run),postfix)
     else:
         if options.rawdata_tier == 'root':
-            print ('Downloading file: ' + sw.swift_root_file(options.tag, int(options.run)))
-            options.tmpname = sw.swift_download_root_file(sw.swift_root_file(options.tag, int(options.run)),int(options.run),tmpdir)
+            file_url = sw.swift_root_file(options.tag, int(options.run))
+            print ('Downloading file: ' + file_url)
+            options.tmpname = sw.swift_download_root_file(file_url,int(options.run),tmpdir)
         else:
             print ('Downloading MIDAS.gz file for run ' + options.run)
     # in case of MIDAS, download function checks the existence and in case it is absent, dowloads it. If present, opens it
     if options.rawdata_tier == 'midas':
         ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
-        options.tmpname = [int(options.run),tmpdir,options.tag]
+        options.tmpname = [int(options.run),tmpdir,options.tag]		#This line needs to be corrected if MC data will be in midas format. Not foreseen at all
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
@@ -839,10 +856,8 @@ if __name__ == '__main__':
     nev = ana.getNEvents(options)
     print("\nThis run has ",nev," events.")
     if options.debug_mode == 1: print('DEBUG mode activated. Only event',options.ev,'will be analysed')
-    if options.camera_mode == True:
-        print("I Will save plots to ",options.plotDir)
-        os.system('cp utils/index.php {od}'.format(od=options.plotDir))
-
+    print("I Will save plots to ",options.plotDir)
+    os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
     nThreads = 1
     if options.jobs==-1:
@@ -854,6 +869,8 @@ if __name__ == '__main__':
     t1 = time.perf_counter()
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
     lastEvent = nev if options.maxEntries==-1 else min(nev,firstEvent+options.maxEntries)
+    if options.debug_mode == 1: lastEvent = min(nev,int(options.ev))
+    
     print ("Analyzing from event %d to event %d" %(firstEvent,lastEvent))
     base = options.outFile.split('.')[0]
     if nThreads>1:
@@ -879,13 +896,28 @@ if __name__ == '__main__':
     if options.debug_mode == 1:
         print(f'Reconstruction Code Took: {t2 - t1} seconds')
 
-    # now add the git commit hash to track the version in the ROOT file
+    # now add extra information
     tf = ROOT.TFile.Open("{outdir}/{base}.root".format(base=base, outdir=options.outdir),'update')
-    githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace('\n',''))
-    githash.Write()
+    # now add parameters of the reconstruction
+    utilities.Param_storage(tf,base,args[0],options)
+    # now add the git commit hash to track the version in the ROOT file
+    if options.githash != None:
+       githash=ROOT.TNamed("gitHash",options.githash)
+       githash.Write()       
+    else:
+       try:
+          githash = ROOT.TNamed("gitHash",str(utilities.get_git_revision_hash()).replace("\\n'","").replace("b'",""))
+          githash.Write()
+       except:
+          print('No githash provided nor githash found (no .git folder?)') 
+    # now add the time of reconstruction
     total_time = ROOT.TNamed("total_time", str(t2-t1))
     total_time.Write()
     tf.Close()
     
     if options.donotremove == False:
         sw.swift_rm_root_file(options.tmpname)
+    
+    t3 = time.perf_counter()
+    if options.debug_mode == 1:
+           print(f'Total time the Code Took: {t3 - t0} seconds')
