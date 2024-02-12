@@ -639,13 +639,13 @@ class analysis:
                                 indx = trg * nChannels_f + ch
                                 waveform_info = { 'run' : run, 'event': event, 'channel' : ch, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
 
-                                t0 = time.perf_counter()
+                                t0_waveforms = time.perf_counter()
 
                                 fast_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
                                 fast_waveform.__repr__()
 
-                                t1 = time.perf_counter()
-                                t_waveforms = t1 - t0
+                                t1_waveforms = time.perf_counter()
+                                t_waveforms = t1_waveforms - t0_waveforms
 
                                 self.autotree_pmt.fillPMTVariables(fast_waveform) 
                                 self.autotree_pmt.fillTimePMTVariables(t_waveforms)
@@ -672,10 +672,10 @@ class analysis:
 
                                     waveform_info_fast_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "fast"}
 
-                                    t0 = time.perf_counter()
+                                    t0_waveforms = time.perf_counter()
                                     fast_waveform_wei_avg = PMTreco(waveform_info_fast_wei_avg, weight_average_wf, self.pmt_params)
-                                    t1 = time.perf_counter()
-                                    t_waveforms = t1 - t0 
+                                    t1_waveforms = time.perf_counter()
+                                    t_waveforms = t1_waveforms - t0_waveforms
 
                                     self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_wei_avg)
                                     self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
@@ -707,13 +707,13 @@ class analysis:
                                 indx = trg * nChannels_s + ch
                                 waveform_info = { 'run' : run, 'event': event, 'channel' : ch, 'trigger' : trg , 'GE' : insideGE , 'sampling' : "slow", 'TTT' : (TTTs_s[trg]*8.5/1000./1000.)}
                                 
-                                t0 = time.perf_counter()
+                                t0_waveforms = time.perf_counter()
 
                                 slow_waveform = PMTreco(waveform_info, waveform_s[indx], self.pmt_params)
                                 slow_waveform.__repr__()
 
-                                t1 = time.perf_counter()
-                                t_waveforms = t1 - t0
+                                t1_waveforms = time.perf_counter()
+                                t_waveforms = t1_waveforms - t0_waveforms
 
                                 self.autotree_pmt.fillPMTVariables(slow_waveform) 
                                 self.autotree_pmt.fillTimePMTVariables(t_waveforms)
@@ -735,10 +735,10 @@ class analysis:
 
                                     waveform_info_slow_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "slow"}
 
-                                    t0 = time.perf_counter()
+                                    t0_waveforms = time.perf_counter()
                                     slow_waveform_wei_avg = PMTreco(waveform_info_slow_wei_avg, weight_average_wf, self.pmt_params)
-                                    t1 = time.perf_counter()
-                                    t_waveforms = t1 - t0 
+                                    t1_waveforms = time.perf_counter()
+                                    t_waveforms = t1_waveforms - t0_waveforms
 
                                     self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_wei_avg)
                                     self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
@@ -751,7 +751,8 @@ class analysis:
                                 del waveform_info
                                 del slow_waveform
 
-                # end of `if self.options.pmt_mode`
+                        # END of `for trg in range(nTriggers_f)`
+                # END of `if self.options.pmt_mode`
 
 
 
@@ -855,6 +856,7 @@ if __name__ == '__main__':
     nev = ana.getNEvents(options)
     print("\nThis run has ",nev," events.")
     if options.debug_mode == 1: print('DEBUG mode activated. Only event',options.ev,'will be analysed')
+    # FIX: the option for saving plots should only be ON only fi camera mode is ON
     print("I Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     
