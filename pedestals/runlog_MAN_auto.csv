@@ -1,4 +1,4 @@
-﻿"run_number","run_description","start_time","exposure_sec","GEM3_V","GEM2_V","GEM1_V","T2_V","T1_V","DRIFT_V","OFFSET_V","PMT1_V","PMT2_V","PMT3_V","PMT4_V","HV_STATE","storage_local_status","storage_cloud_status","storage_tape_status","total_gas_flow","sequence_filename","sequencer_running","pedestal_run","source_type","source_position","discrimination_threshold","trigger_veto_time","trigger_logic","run_type","drs4_correction_active","shielding_configuration","pmt_acquisition","stop_time","number_of_events"
+"run_number","run_description","start_time","exposure_sec","GEM3_V","GEM2_V","GEM1_V","T2_V","T1_V","DRIFT_V","OFFSET_V","PMT1_V","PMT2_V","PMT3_V","PMT4_V","HV_STATE","storage_local_status","storage_cloud_status","storage_tape_status","total_gas_flow","sequence_filename","sequencer_running","pedestal_run","source_type","source_position","discrimination_threshold","trigger_veto_time","trigger_logic","run_type","drs4_correction_active","shielding_configuration","pmt_acquisition","stop_time","number_of_events"
 11156,test,2023-11-16 14:55:58,0.100,430,430,430,500,500,600,10,1250,0,0,0,1,1,1,-1,-1,DataTaking_noped.msl,0,0,0,0,15,100,0,0,0,0,0,2023-11-16 14:56:07,1
 11158,test,2023-11-16 15:37:42,0.500,420,420,420,500,500,1000,10,1250,0,0,0,1,1,1,-1,-1,DataTaking_noped.msl,0,0,0,0,15,100,0,0,0,0,0,2023-11-16 15:47:54,124
 11166,Pedestal_Test_Quest,2023-11-17 17:11:01,0.500,200,199,200,500,500,899,10,1250,0,0,0,0,1,1,-1,-1,DataTaking_onlyped.msl,1,1,0,0,15,100,0,0,0,0,0,2023-11-17 17:13:22,202
@@ -49,4 +49,5 @@
 11229,Flux tests - He:CF4 60:40 - Gain scan,2023-11-20 16:09:34,0.500,430,430,429,500,500,899,10,1250,0,0,0,1,1,1,-1,-1,DataTaking_noped.msl,1,0,0,0,10,100,0,0,0,0,0,2023-11-20 16:10:52,103
 11230,Flux tests - He:CF4 60:40 - Gain scan,2023-11-20 16:10:53,0.500,430,430,429,500,500,899,10,1250,0,0,0,1,1,1,-1,-1,DataTaking_noped.msl,1,0,0,0,10,100,0,0,0,0,0,2023-11-20 16:12:11,103
 11231,Flux tests - He:CF4 60:40 - Gain scan,2023-11-20 16:12:12,0.500,430,430,429,500,500,899,10,1250,0,0,0,1,1,1,-1,-1,DataTaking_noped.msl,1,0,0,0,10,100,0,0,0,0,0,2023-11-20 16:13:29,101
+
 

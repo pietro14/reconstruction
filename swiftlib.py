@@ -5,18 +5,35 @@ import h5py
 import cygno as cy
 import os
 
-def swift_root_file(tag, run):
-    sel = rootlocation(tag,run)    
+def swift_root_file(tag, run):    
     BASE_URL = "https://s3.cloud.infn.it/v1/AUTH_2ebf769785574195bde2ff418deac08a/"
     if 'MC' in tag:
-        bucket = 'cygnus' if tag=='MC-old' else 'cygno-sim'
-    elif tag=='Data':
-        bucket = 'cygnus' if run<4505 else 'cygno-data'
-    elif tag=='DataMango':
-        bucket = 'cygnus' if run<3242 else 'cygno-data'
-    BASE_URL = BASE_URL + bucket + '/'
-    file_root = (sel+'/histograms_Run%05d.root' % run)
-    return BASE_URL+file_root
+        tag,path=tag.split('$')
+        bucket= 'cygno-sim'
+        sel=path
+    if tag=='LNGS':
+        if run>138:
+            bucket='cygno-data'
+            sel=tag
+        else:
+            print("WARNING: Runs prior 138 not present on cloud storage cygno-data/LNGS/")
+            exit()
+    if tag=='LNF':
+        if (run>5000 and run<6633) or (run>10037):
+            bucket='cygno-data'
+            if run>10037:
+               sel=tag
+            else:
+               sel='LAB'
+        else:
+            print("WARNING: Runs Data prior 5000 or in the range [6633-10036] are not present on cloud storage cygno-data/LNF/ or cygno-data/LAB")
+            exit()
+    if tag=='MAN':
+        bucket='cygno-data'
+        sel=tag
+    
+    file_root = ('/histograms_Run%05d.root' % run)
+    return BASE_URL+bucket+'/'+sel+file_root
 
     
 def reporthook(blocknum, blocksize, totalsize):
@@ -38,7 +55,10 @@ def swift_download_root_file(url,run,tmp=None,justName=False):
     try:
         USER = os.environ['USER']
     except:
-        USER = "" # os.environ['JUPYTERHUB_USER']
+        try:
+          USER = os.environ['JUPYTERHUB_USER']
+        except:
+          USER = "autoreco"
     tmpdir = tmp if tmp else '/tmp/'
     if tmpdir == '/tmp/':
          os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
@@ -48,27 +68,6 @@ def swift_download_root_file(url,run,tmp=None,justName=False):
     if not justName:
         urlretrieve(url, tmpname, reporthook)
     return tmpname 
-
-def rootlocation(tag,run):
-    
-    if tag == 'Data':
-        if (run>=936) and (run<=1601):
-            sel = 'Data/LTD/Data_Camera/ROOT'
-        elif (run>=1632) and (run<4505):
-            sel = 'Data/LAB'
-        elif (run>=4470) and (run<10000):
-            sel = 'LAB'
-        else:
-           print("WARNING: Data taken with another DAQ or not yet uploaded to the cloud")
-           exit()
-    elif tag == 'DataMango':
-            sel= 'Data/MAN' if run<3242 else 'MAN' 
-    elif tag == 'MC':
-        sel = 'Simulation'
-        print("WARNING: automatic download for Simulated data not implemented yet")
-        exit()
-        
-    return sel
 
 def swift_read_root_file(tmpname):
     f  = uproot.open(tmpname)
@@ -88,24 +87,28 @@ def checkfiletmp(run,tier,tmp=None):
     try:
         USER = os.environ['USER']
     except:
-        USER = "" # os.environ['JUPYTERHUB_USER']
+        try:
+          USER = os.environ['JUPYTERHUB_USER']
+        except:
+          USER = "autoreco"
     tmpdir = tmp if tmp else '/tmp/'
+         
     
     if tmpdir=='/tmp/':
-         os.system('mkdir -p {tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER))
-         if tier=='root':
-             return os.path.isfile("%s/%s/histograms_Run%05d.root" % (tmpdir,USER,run))
-         elif tier=='h5':
-             return os.path.isfile("%s/%s/histograms_Run%05d.h5" % (tmpdir,USER,run))
-         else:
-             return os.path.isfile("%s/%s/run%05d.mid.gz" % (tmpdir,USER,run))
+         tmpdir= '{tmpdir}/{user}'.format(tmpdir=tmpdir,user=USER)
+     
+    os.system('mkdir -p {tmpdir}'.format(tmpdir=tmpdir))
+    
+    if tier=='root':
+       prefix = 'histograms_Run'
+       postfix = 'root'
+    elif tier=='h5':
+       prefix = 'histograms_Run'
+       postfix = 'h5'
     else:
-        if tier=='root':
-            return os.path.isfile("%s/histograms_Run%05d.root" % (tmpdir,run))
-        elif tier=='h5':
-            return os.path.isfile("%s/histograms_Run%05d.h5" % (tmpdir,run))
-        else:
-            return os.path.isfile("%s/run%05d.mid.gz" % (tmpdir,run))
+       prefix = 'run'
+       postfix = 'mid.gz'
+    return os.path.isfile("%s/%s%05d.%s" % (tmpdir,prefix,run,postfix))
 
 def swift_download_midas_file(run,tmpdir,tag='LNGS'):
     print("download or open midas file for run ",int(run))
@@ -142,3 +145,4 @@ def selectPedestal(run):
     
  
     return sel
+

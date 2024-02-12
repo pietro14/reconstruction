@@ -93,7 +93,7 @@ class cameraTools:
             if not self.vignetteMap[det].any():
                 tf = uproot.open(self.geometry.vignette)
                 namehmap = 'normmap_'+self.geometry.name
-                if det == 'Mango_full':
+                if det == 'Mango_full' or 'gin':
                        namehmap = 'normmap_lime'		#in vignette_runs... there is no mango_full, so lime is used
                 vignetteMapRebinned = tf[namehmap].values()
                 print("py ndim = ",vignetteMapRebinned.ndim)
@@ -114,5 +114,6 @@ class cameraTools:
 
     def vignette_corr(self,img,vignette):
         return np.multiply(img,vignette)
+
 
 

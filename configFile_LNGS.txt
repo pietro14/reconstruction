@@ -7,19 +7,19 @@
 
 # DEBUG plots
 'debug_mode'            : 0,
-'ev'                    : 21,
+'ev'                    : 10,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
 
-'flag_full_image'       : 1,
+'flag_full_image'       : 0,
 'flag_rebin_image'      : 1,
-'flag_edges_image'      : 1,
+'flag_edges_image'      : 0,
 'flag_polycluster'      : 1,
 'flag_dbscan_seeds'     : 1,
 'flag_stats'            : 0,
 
-'camera_mode'            : 0,
+'camera_mode'            : 1,
 
 # Parameters of the plots
 'cmapcolor'             : 'gray',
@@ -31,13 +31,14 @@
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
 'rebin'                 : 4,
-'nsigma'                : 0.9,
-'min_neighbors_average' : 1.1,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
+'nsigma'                : 0.6,
+'min_neighbors_average' : 1.2,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
 'cimax'                 : 5000,                    # Upper threshold (keep very high not to kill large signals)
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
-'tag'                   : 'LNGS',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
+'tag'                   : 'LNGS',                  # 'LNGS' for LIME LNGS experimental data, 'LNF' for all data taken at LNF, 'MAN' for all data taken at LNGS MANGO, 'MC$path_to_histogram.root' for MC. 
+						   # An example for MC tag could be (see configFile_MC.txt) 'MC$digitized/LIME_08_keV_Sat_NewCode_Iso_RandZ' (do not include the bucket nor the file name) 
 'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
 'environment_variables' : True,                    # if True the environment variables are added to the Tree
 
@@ -57,17 +58,14 @@
 'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 1,
+'pmt_mode'              : 0,
 
-'threshold'             : 0,			## Not used
-'height_RMS'		    : 5,			## 5 * RMS
-'minPeakDistance'       : 1,			## Not used
-'prominence'            : 0.1,			## Not used
-'fixed_prom'			: True,			## If True, overrides prominence value with optimized one
-'width'                 : 5,
-'resample'              : 10,			## Number of samples used for moving average
-'pmt_plotpy'            : False,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
-'pmt_wf_in_tree'        : False,			## saves full X and Y arrays in tree branches. 
-'digitizer_tag'			:'LNGS',			## use LNGS for underground data; LNF for PMT specific data at LNF
-'pmt_verbose'			: 0			## '0' for no output; '3' for full output.			
+'time_range'            : [7300,7700],
+'threshold'             : 0,
+'minPeakDistance'       : 5,
+'prominence'            : 50,
+'width'                 : 10,
+'resample'              : 5,
+'pmt_plotpy'            : False,
 }
+

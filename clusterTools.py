@@ -25,6 +25,7 @@ class Cluster:
             self.nclu = clID
             self.ID=[]
             self.IDall=[]
+
             if self.integral()>0 and self.hits_fr_zs != [] and self.size()<1000000:		#tries to avoid to save cluster with zero integral or too big (like with afterglow of pixels)
                   self.nintpixels = self.sizeActive()
                   self.nallintpixels = self.size()
@@ -43,7 +44,7 @@ class Cluster:
                   self.nintpixels = 1
                   self.IDall.append(-1)
                   self.nallintpixels = 1
-                  if self.hits_fr_zs != []:
+                  if self.sizeActive()>0:
                       self.xpixelcoord= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,0]
                       self.ypixelcoord= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,1]
                       self.zpixel= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,2]

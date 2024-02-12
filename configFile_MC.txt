@@ -1,13 +1,13 @@
 {
 # DATA FORMAT
-'rawdata_tier' : 'h5',
+'rawdata_tier' : 'root',
 
 # DETECTOR
 'geometry'  : 'lime',
 
 # DEBUG plots
-'debug_mode'            : 0,
-'ev'                    : 52,
+'debug_mode'            : 1,
+'ev'                    : 10,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -37,8 +37,12 @@
 'justPedestal'          : False,
 'daq'                   : 'midas',                 # DAQ type (btf/h5/midas)
 'type'                  : 'neutrons',              # events type (beam/cosmics/neutrons)
-'tag'                   : 'MC',                  # 'Data' for experimental data or 'MC' for Simulated data, DataMango for MANGO data at LNGS
+'tag'                   : 'MC$digitized/LIME_08_keV_Sat_NewCode_Iso_RandZ',          # 'LNGS' for LIME LNGS experimental data, 'LNF' for all data taken at LNF, 'MAN' for all data taken at LNGS 										
+										     # MANGO, 'MC$path_to_histogram.root' for MC. 
+				  						     # An example for MC tag could be (see configFile_MC.txt) 'MC$digitized/LIME_08_keV_Sat_NewCode_Iso_RandZ' (do not 
+				  						     # include the bucket nor the file name) 
 'vignetteCorr'          : True,                    # apply vignetting correction (correction maps in data/ according to the geometry)
+'environment_variables' : True,                    # if True the environment variables are added to the Tree
 
 'excImages'             : [], #list(range(5))+[],      # To exlude some images of the analysis. Always exclude the first 5 which are messy (not true anymore)
 'donotremove'           : True,                   # Remove or not the file from the tmp folder
@@ -66,3 +70,4 @@
 'resample'              : 5,
 'pmt_plotpy'            : False,
 }
+

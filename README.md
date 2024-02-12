@@ -45,27 +45,34 @@ Then, reconstruct digitized (simulated) images:
 
 
 # Prerequisite to run:
-- Python 2.X (Stable version) or Python 3.X
+- Python 3.X (X>6)
 - Root 6.X
 
 ## Python libraries:
-- cycler==0.10.0
-- decorator==4.4.0
-- imageio==2.6.1
-- joblib==0.14.0
-- kiwisolver==1.1.0
-- matplotlib==3.1.1
-- networkx==2.4
-- numpy==1.17.3
-- Pillow==6.2.0
-- pyparsing==2.4.2
-- python-dateutil==2.8.0
-- PyWavelets==1.1.0
-- root-numpy==4.8.0
-- scikit-image==0.16.1
-- scikit-learn==0.21.3
-- scipy==1.3.1
-- six==1.12.0
+- cycler>=0.10.0
+- numpy >= 1.20
+- cython >= 3.0.2
+- cygnolib (see [Install cygno-lib](https://github.com/CYGNUS-RD/cygno?tab=readme-ov-file#install-the-cygno-library) )
+  (which requires oidc-agent==4.2.6, boto3sts and midas== 0.0.1 )
+- scipy>=1.3.1
+- root-numpy==4.8.0 (only for older versions of the code before winter23 branch and with python < python3.10)
+- uproot==5.2.2
+- h5py==3.10.0
+- scikit_image==0.22.0
+- scikit-learn>=0.21.3
+- mahotas==1.4.13
+ 
+
+(Beware that some dependent packages will be installed automatically as requirements for some of these packages like:
+ - kiwisolver==1.1.0
+ - matplotlib==3.1.1
+ - networkx==2.4
+ - pyparsing==2.4.2
+ - python-dateutil==2.8.0
+ - six==1.12.0
+
+
+...so proceed in order)
 
 ## Example
 
@@ -108,3 +115,4 @@ or
 **You can now look at the output ROOT file with a tree containing 1 event/image with:**
 
 `root -l reco_run02113_3D.root`
+

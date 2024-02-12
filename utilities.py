@@ -282,32 +282,33 @@ class utils:
         plt.gca().invert_yaxis()
         plt.savefig('%s.pdf' % name)
         
-    def setPedestalRun(self,options,detector):
-        if not hasattr(options,"pedrun"):
-            runlog='runlog_%s.csv' % (detector)
-            with open("pedestals/%s"%runlog,"r") as csvfile:
-                csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-                # This skips the first row (header) of the CSV file.
-                next(csvreader)
-                for row in reversed(list(csvreader)):
-                    runkey,runtype,comment = row[:3]
-                    if row[-12].strip()!='': # >= run 3
-                        pedestal_flag = int(row[-12]) # count from the end, because the field [1] is a txt run description that sometimes has ","...
-                    else:
-                        pedestal_flag = (":PED:" in runtype)
-                    nevents = int(row[-2]) if str(row[-2]).strip()!="NULL" else 0
-                    if int(runkey)<=int(options.run) and pedestal_flag and nevents>=100:
-                        options.pedrun = int(runkey)
-                        print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
-                        break
-            assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(options.run,runlog))
-        setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+        
+   # def setPedestalRun_v1(self,options):
+   #     if not hasattr(options,"pedrun"):
+   #         runlog='runlog_%s.csv' % (options.tag)
+   #         with open("pedestals/%s"%runlog,"r") as csvfile:
+   #             csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+   #             # This skips the first row (header) of the CSV file.
+   #             next(csvreader)
+   #             for row in reversed(list(csvreader)):
+   #                 runkey,runtype,comment = row[:3]
+   #                 if row[-12].strip()!='': # >= run 3
+   #                     pedestal_flag = int(row[-12]) # count from the end, because the field [1] is a txt run description that sometimes has ","...
+   #                 else:
+   #                     pedestal_flag = (":PED:" in runtype)
+   #                 nevents = int(row[-2]) if (str(row[-2]).strip() not in ["NULL",'']) else 0
+   #                 if int(runkey)<=int(options.run) and pedestal_flag and nevents>=100:
+   #                     options.pedrun = int(runkey)
+   #                     print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
+   #                     break
+   #         assert hasattr(options,"pedrun"), ("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!"%(options.run,runlog))
+   #     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
 
 
-    def setPedestalRun_v2(self,options,detector):
+    def setPedestalRun_v2(self,options):
         import pandas as pd
         if not hasattr(options,"pedrun"):
-            runlog='runlog_%s_auto.csv' % (detector)
+            runlog='runlog_%s_auto.csv' % (options.tag)
 
  
 
@@ -321,9 +322,32 @@ class utils:
                 print("Will use pedestal run %05d which has comment: '%s' and n of events: '%d'" % (int(runkey),comment,int(nevents)))
             else:
                 print("Didn't find the pedestal corresponding to run %d in pedestals/%s. Check the csv runlog dump!" % (options.run, runlog))
-        setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
-
+        setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))        
         
+        
+    def setPedestalRun(self,options):
+        run = int(options.run)
+        if (options.tag=='LNF' and run>10093) or (options.tag=='LNGS' and run>16798) or (options.tag=='MAN' and run>11166):
+           self.setPedestalRun_v2(options)
+        #elif (options.tag=='LNGS' and run>936 and run<16798):
+        #   self.setPedestalRun_v1(options)
+        else:
+           if not hasattr(options,"pedrun"):
+              pedname= 'pedruns_%s.txt' % (options.tag.split('$')[0])
+              pf = open("pedestals/"+pedname,"r")
+              peddic = eval(pf.read())
+              options.pedrun = -1
+              for runrange,ped in peddic.items():
+                 if int(runrange[0])<=run<=int(runrange[1]):
+                     options.pedrun = int(ped)
+                     print("Will use pedestal run %05d, valid for run range [%05d - %05d]" % (int(ped), int(runrange[0]), (runrange[1])))
+                     break
+              assert options.pedrun>0, ("Didn't find the pedestal corresponding to run ",run," in the pedestals/",pedname," Check the dictionary inside it!")
+               
+           setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
+        return 
+    
+
     def peak_memory_usage(self):
         """Return peak memory usage in MB"""
         mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -333,46 +357,57 @@ class utils:
         return mem * factor_mb
     
     def conversion_env_variables(self, dslow, odb, i = 0, j = 0):
-
-        """
-        if i == 'P1UIn5':
-            print(odb.data['History']['Display']['GasSystem']['humidity']['Variables'])
-            print(odb.data['History']['Display']['GasSystem']['humidity']['Formula'])
-            conversion = odb.data['History']['Display']['GasSystem']['humidity']['Formula'][1]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-        """
-        if i == 'P1UIn1':
-            conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][0]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+        env_var = open('modules_config/env_variables.txt','r')
+        env_var = eval(env_var.read())
+        
+        if i == env_var['humidity']:
+            try:
+                conversion = odb.data['History']['Display']['GasSystem']['humidity']['Formula'][1]
+                dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+            except:
+                dslow[i][j] = -99
+                #print('Warning: no humidity')
+                
+        if i == env_var['atm_temperature']:
+            try:
+                conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][0]
+                dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+            except:
+                dslow[i][j] = -99
+                #print('Warning: no atm temperature')
+                
+        if i == env_var['lime_temperature']:
+            try:
+                conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][1]
+                dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+            except:
+                dslow[i][j] = -99
+                #print('Warning: no lime temperature')
                     
-        if i == 'P0IIn0':
-            conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][1]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P0IIn5':
-            conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P0IIn3':
-            conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-        """             
-        if i == 'P3IIn0':
-            conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][0]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P3IIn1':
-            conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][1]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P3IIn2':
-            conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][2]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-                    
-        if i == 'P3IIn3':
-            conversion = odb.data['History']['Display']['GasSystem']['Filters']['Formula'][3]
-            dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
-        """    
+        if i == env_var['lime_pressure']:
+            try:
+                conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
+                dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+            except:
+                dslow[i][j] = -99
+                #print('Warning: no lime pressure')
+                
+        if i == env_var['atm_pressure']:
+            try:
+                conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
+                dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+            except:
+                dslow[i][j] = -99
+                #print('Warning: no atm pressure')
+        
+        if i == env_var['mixture_density']:
+            try:
+                conversion = odb.data['History']['Display']['GasSystem']['Mixture Density']['Formula'][1]
+                dslow[i][j] = eval(conversion.replace('x',str(dslow[i][j])))
+            except:
+                dslow[i][j] = -99
+                #print('Warning: no mixture density')
+        
         return dslow
     
     def read_env_variables(self, bank, dslow, odb, j=0):
@@ -394,6 +429,92 @@ class utils:
             
         return dslow
         
+        
+    def Param_storage(self, root_file, outfilename, nameconfig, options):
+
+        fout = open('{outname}.txt'.format(outname=outfilename),'w')
+        
+        fout.write('##########ConfigFile##########\n')
+        f_config = open('{name}'.format(name=nameconfig),'r')
+        content = f_config.read()
+        fout.write(content)
+        f_config.close() 
+        
+        fout.write('\n##########Geometry##########\n')
+        fgeometry = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
+        content = fgeometry.read()
+        params = eval(content)
+        fout.write(content)
+        fgeometry.close()
+        
+        fout.write('\n##########Clustering##########\n')
+        fclustering = open('modules_config/clustering.txt','r')
+        content = fclustering.read()
+        params_cl = eval(content)
+        fout.write(content)
+        fclustering.close()
+        
+        fout.write('\n##########Environment##########\n')
+        fenv = open('modules_config/env_variables.txt','r')
+        content = fenv.read()
+        fout.write(content)
+        fenv.close()
+        
+        fout.write('\n##########Reco_content##########\n')
+        fcont = open('modules_config/reco_eventcontent.txt','r')
+        content = fcont.read()
+        fout.write(content)
+        fcont.close()
+        fout.close()
+        
+        #New tree addition for numerical parameters
+        treeparam = ROOT.TTree('Reco_params','Tree with parameters of the reconstruction')
+        camera_mode = np.array(options.camera_mode,int)
+        treeparam.Branch('camera_mode',camera_mode,'camera_mode/I')
+        pmt_mode = np.array(options.pmt_mode,int)
+        treeparam.Branch('pmt_mode',pmt_mode,'pmt_mode/I')
+        rebin = np.array(options.rebin,int)
+        treeparam.Branch('rebin',rebin,'rebin/I')
+        nsigma = np.array(options.nsigma,dtype='float32')
+        treeparam.Branch('nsigma',nsigma,'nsigma/F')
+        min_neighbors_average = np.array(options.min_neighbors_average,dtype='float32')
+        treeparam.Branch('min_neighbors_average',min_neighbors_average,'min_neighbors_average/F')
+        cimax = np.array(options.cimax,int)
+        treeparam.Branch('cimax',cimax,'cimax/I')
+        ##still missing PMT variables
+        
+        npixx = np.array(params['npixx'],int)
+        treeparam.Branch('npixx',npixx,'npixx/I')
+        xmin = np.array(params['xmin'],int)
+        treeparam.Branch('xmin',xmin,'xmin/I')
+        xmax = np.array(params['xmax'],int)
+        treeparam.Branch('xmax',xmax,'xmax/I')
+        ymin = np.array(params['ymin'],int)
+        treeparam.Branch('ymin',ymin,'ymin/I')
+        ymax = np.array(params['ymax'],int)
+        treeparam.Branch('ymax',ymax,'ymax/I')
+        
+        dbscan_eps = np.array(params_cl['dbscan_eps'],dtype='float32')
+        treeparam.Branch('dbscan_eps',dbscan_eps,'dbscan_eps/F')
+        dbscan_minsamples = np.array(params_cl['dbscan_minsamples'],dtype='float32')
+        treeparam.Branch('dbscan_minsamples',dbscan_minsamples,'dbscan_minsamples/F')
+        dir_radius = np.array(params_cl['dir_radius'],dtype='float32')
+        treeparam.Branch('dir_radius',dir_radius,'dir_radius/F')
+        dir_min_accuracy = np.array(params_cl['dir_min_accuracy'],dtype='float32')
+        treeparam.Branch('dir_min_accuracy',dir_min_accuracy,'dir_min_accuracy/F')
+        dir_minsamples = np.array(params_cl['dir_minsamples'],dtype='float32')
+        treeparam.Branch('dir_minsamples',dir_minsamples,'dir_minsamples/F')
+        dir_thickness = np.array(params_cl['dir_thickness'],dtype='float32')
+        treeparam.Branch('dir_thickness',dir_thickness,'dir_thickness/F')
+        time_threshold = np.array(params_cl['time_threshold'],dtype='float32')
+        treeparam.Branch('time_threshold',time_threshold,'time_threshold/F')
+        max_attempts = np.array(params_cl['max_attempts'],dtype='float32')
+        treeparam.Branch('max_attempts',max_attempts,'max_attempts/F')
+        isolation_radius = np.array(params_cl['isolation_radius'],dtype='float32')
+        treeparam.Branch('isolation_radius',isolation_radius,'isolation_radius/F')
+        
+        treeparam.Fill()
+        treeparam.Write()
 
 
 class bcolors:
@@ -426,3 +547,4 @@ if __name__ == "__main__":
         ut.plotVignetteMap("vignette_run05890.root","summap_lime")
 
         
+
