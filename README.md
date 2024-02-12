@@ -115,4 +115,3 @@ or
 **You can now look at the output ROOT file with a tree containing 1 event/image with:**
 
 `root -l reco_run02113_3D.root`
-
