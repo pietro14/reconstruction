@@ -68,4 +68,3 @@
 'resample'              : 5,
 'pmt_plotpy'            : False,
 }
-
