@@ -512,11 +512,11 @@ class analysis:
                 if camera==True or pmt==True:
                     print("Processing Run: ",run,"- Event ",event,"...")
                     
-		    if self.options.camera_mode:  # FIX: maybe move this below in larger scope
-		            testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
-		            if np.sum(obj)>testspark:
-		                print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
-		                continue
+                    if self.options.camera_mode:  # FIX: maybe move this below in larger scope
+                            testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
+                            if np.sum(obj)>testspark:
+                                print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
+                                continue
                       
                     self.outTree.fillBranch("run",run)
                     self.outTree.fillBranch("event",event)
