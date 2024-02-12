@@ -1,58 +1,168 @@
 import numpy as np
+from waveform import PMTreco
+import ROOT
+
 
 class AutoFillTreeProducer:
     def __init__(self,tree,eventContent):
         self.outTree = tree
         self.saveKillerVars = False
         self.eventContent = eventContent
-        
-    def createPMTVariables(self):
-        self.outTree.branch('pmt_integral', 'F', title="integral of the PMT waveform")
-        self.outTree.branch('pmt_tot', 'F', title="time over threshold of the PMT waveform")
-        self.outTree.branch('pmt_amplitude', 'F', lenVar='nPeak', title="amplitude of the main peak of the PMT waveform")
-        self.outTree.branch('pmt_time', 'F', lenVar='nPeak', title="time of the raising edge of the PMT waveform")
-        self.outTree.branch('pmt_prominence', 'F', lenVar='nPeak', title="amplitude of the main peak of the PMT waveform wrt the surrounding baseline")
-        self.outTree.branch('pmt_fwhm', 'F', lenVar='nPeak', title="full width at half-maximum of the main peak of the PMT waveform")
-        self.outTree.branch('pmt_hm', 'F', lenVar='nPeak', title="half-maximum of the PMT waveform")
-        self.outTree.branch('pmt_risetime', 'F', lenVar='nPeak', title="length of the PMT waveform rise-time")
-        self.outTree.branch('pmt_falltime', 'F', lenVar='nPeak', title="length of the PMT waveform fall-time")
 
-    def fillPMTVariables(self,peakFinder,sampleSize):
-        self.outTree.fillBranch('pmt_integral',peakFinder.getIntegral()*sampleSize)        
-        self.outTree.fillBranch('pmt_tot',peakFinder.getTot())
-        self.outTree.fillBranch('pmt_amplitude',peakFinder.getAmplitudes())
-        self.outTree.fillBranch('pmt_time',peakFinder.getPeakTimes())
-        self.outTree.fillBranch('pmt_prominence',peakFinder.getProminences())
-        self.outTree.fillBranch('pmt_fwhm',peakFinder.getFWHMs())
-        self.outTree.fillBranch('pmt_hm',peakFinder.getHMs())
-        self.outTree.fillBranch('pmt_risetime',peakFinder.getTimes('rise'))
-        self.outTree.fillBranch('pmt_falltime',peakFinder.getTimes('fall'))
-        
     def createEnvVariables(self):
         self.outTree.branch('Lime_pressure', 'F', title="Lime pressure")
         self.outTree.branch('Atm_pressure', 'F', title="Atmosperic pressure")
         self.outTree.branch('Lime_temperature', 'F', title="Lime temperature")
         self.outTree.branch('Atm_temperature', 'F', title="Atmosheric temperature")
         self.outTree.branch('Humidity', 'F', title="Humidity")
-        self.outTree.branch('Mixture_Density', 'F', title="Mixture_Density")
         
 
     def fillEnvVariables(self, dslow):
-        env_var = open('modules_config/env_variables.txt','r')
-        env_var = eval(env_var.read())
-        self.outTree.fillBranch('Lime_pressure', dslow[env_var['lime_pressure']])        
-        self.outTree.fillBranch('Atm_pressure', dslow[env_var['atm_pressure']])
-        self.outTree.fillBranch('Lime_temperature', dslow[env_var['lime_temperature']])
-        self.outTree.fillBranch('Atm_temperature', dslow[env_var['atm_temperature']])
-        self.outTree.fillBranch('Humidity', dslow[env_var['humidity']])
-        self.outTree.fillBranch('Mixture_Density', dslow[env_var['mixture_density']])
+        self.outTree.fillBranch('Lime_pressure', dslow.P0IIn5)        
+        self.outTree.fillBranch('Atm_pressure', dslow.P0IIn3)
+        self.outTree.fillBranch('Lime_temperature', dslow.P0IIn0)
+        self.outTree.fillBranch('Atm_temperature', dslow.P1UIn1)
+        self.outTree.fillBranch('Humidity', dslow.P1UIn5*0.0375*1000-37.7)
+
+    ####################################################     PMT    ################################################################################################################################
+
+    """
+    # NB:
+    # There is a code that allows to create a single TTree with all the waveform information of a single picture clustered together.
+    # All the information is rolled down to 1D vectors -> Requires post analysis to disentagle information & specific way of filling branches
+    # To be discussed when reconstruction will be rebuild. Contact David for more info.
+    """
+
+    ## Each entry in the PMT tree is an individual waveform.
+    def createPMTVariables(self,pmt_params):
+
+        # General waveform info 
+        ## Identifiable with 'pmt_wf_ID'
+        # self.outTree.branch('pmt_nWaveforms',       'I', title  = 'Number of waveforms per event')
+        self.outTree.branch('pmt_wf_ID',            'I', title = 'Waveform identifier')             ## ID = {pic}{trigger}{channel}
+        self.outTree.branch('pmt_wf_run',           'I', title = 'Waveform run')
+        self.outTree.branch('pmt_wf_event',         'I', title = 'Waveform event(picture)')
+        self.outTree.branch('pmt_wf_trigger',       'I', title = 'Waveform trigger')
+        self.outTree.branch('pmt_wf_channel',       'I', title = 'Waveform channel')
+        self.outTree.branch('pmt_wf_insideGE',      'I', title = 'Check if waveform inside Global exposure')
+        self.outTree.branch('pmt_wf_sampling',      'I', title = 'Waveform coming from fast or slow digitizer')
+        self.outTree.branch('pmt_wf_TTT',           'F', title = 'Waveform/Trigger time of arrival')
+
+        # Waveform physics info 
+        self.outTree.branch('pmt_wf_baseline',      'F', title = 'Waveform baseline')
+        self.outTree.branch('pmt_wf_RMS',           'F', title = 'Waveform RMS')
+        self.outTree.branch('pmt_wf_tot_integral',  'F', title = 'Whole waveform total integrated amplitude')
+        self.outTree.branch('pmt_wf_tot_charge',    'F', title = 'Whole waveform total integrated charge')
+        self.outTree.branch('pmt_wf_max_ampl',      'F', title = 'Waveform max voltage')
+        self.outTree.branch('pmt_wf_nPeaks',        'I', title = 'Waveform number of peaks')
+
+        ## Time Over Threshold
+        self.outTree.branch('pmt_TOT_time',             'F', title = "Time over threshold")
+        self.outTree.branch('pmt_TOT_area',             'F', title = "Area over threshold")
+
+        ## Full waveforms -- If user requires full raw waveforms to be saved directly in the tree
+        #  Identifiable with 'pmt_wf_ID_full'
+        if pmt_params['wf_in_tree'] == True:
+            self.outTree.branch('pmt_wf_ID_full',       'F', lenVar = 'pmt_full_sized_wf',      title = 'Full waveforms length ID')
+            # self.outTree.branch('pmt_fullWaveform_X',   'F', lenVar = 'pmt_full_sized_wf',      title = 'Full waveform for in depth analysis') # x is fixed 
+            self.outTree.branch('pmt_fullWaveform_Y',   'F', lenVar = 'pmt_full_sized_wf',      title = 'Full waveform for in depth analysis')
+
+        ## Peak variables -- Leafs
+        self.outTree.branch('pmt_peak_Number',      'I', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks numbers')
+        self.outTree.branch('pmt_peak_Position',    'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks positions')
+        self.outTree.branch('pmt_peak_Height',      'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks heights')
+        self.outTree.branch('pmt_peak_HalfWidth',   'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks half widths')
+        self.outTree.branch('pmt_peak_FullWidth',   'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks full widths')
+
+    def fillPMTVariables(self,wf):
+
+        self.outTree.fillBranch('pmt_wf_ID',                wf.getWaveformID('waveforms')[0])
+        self.outTree.fillBranch('pmt_wf_run',               wf.getRun())
+        self.outTree.fillBranch('pmt_wf_event',             wf.getEvent())
+        self.outTree.fillBranch('pmt_wf_trigger',           wf.getTrigger())
+        self.outTree.fillBranch('pmt_wf_channel',           wf.getChannel())
+        self.outTree.fillBranch('pmt_wf_insideGE',          wf.getInGE())
+        self.outTree.fillBranch('pmt_wf_sampling',          wf.getSampling())
+        self.outTree.fillBranch('pmt_wf_TTT',               wf.getTTT())
+
+        self.outTree.fillBranch('pmt_wf_baseline',          wf.getBaseline())
+        self.outTree.fillBranch('pmt_wf_RMS',               wf.getRMS())
+        self.outTree.fillBranch('pmt_wf_tot_integral',      wf.getTotalIntegral())
+        self.outTree.fillBranch('pmt_wf_tot_charge',        wf.voltageToCharge(wf.getTotalIntegral()))
+        self.outTree.fillBranch('pmt_wf_max_ampl',          wf.getMaxAmpl())
+        self.outTree.fillBranch('pmt_wf_nPeaks',            len(wf.getPeaks()))
+
+        self.outTree.fillBranch('pmt_TOT_time',                 wf.getTOT('time'))
+        self.outTree.fillBranch('pmt_TOT_area',                 wf.getTOT('area'))
+
+        if (wf.getWfSaveInfo() == True):
+            self.outTree.fillBranch('pmt_wf_ID_full',       [wf_id_p for wf_id_p in wf.getWaveformID('fullWF')])
+            # self.outTree.fillBranch('pmt_fullWaveform_X',   [x for x in wf.getFullwaveform('x')])
+            self.outTree.fillBranch('pmt_fullWaveform_Y',   [y for y in wf.getFullwaveform('y')])
+
+        self.outTree.fillBranch('pmt_peak_Number',          [pid for pid in wf.getPeakIdentifier()])
+        self.outTree.fillBranch('pmt_peak_Position',        [pp for pp in wf.getPeaksPositions()])
+        self.outTree.fillBranch('pmt_peak_Height',          [ph for ph in wf.getAmplitudes()])
+        self.outTree.fillBranch('pmt_peak_HalfWidth',       [phw for phw in wf.getPeakWidths('half')])
+        self.outTree.fillBranch('pmt_peak_FullWidth',       [pfw for pfw in wf.getPeakWidths('full')])
+
+
+    ######################### Weighted average waveform #########################
+
+    ## The weighted average waveform is used to retrieve the time over threshold. Does not hold value concerning amplitudes
+    ##  Useful in the future once we want to save the PHYSICS EVENT variables mixing automatically Camera and PMT reconstructions
+    def createPMTVariables_average(self,pmt_params):
+
+        self.outTree.branch('pmt_wf_run',           'I', title = 'Waveform run')
+        self.outTree.branch('pmt_wf_event',         'I', title = 'Waveform event/picture')
+        self.outTree.branch('pmt_wf_trigger',       'I', title = 'Waveform trigger')
+        self.outTree.branch('pmt_wf_channel',       'I', title = 'Waveform channel')            # Fixed to channel 9
+        self.outTree.branch('pmt_wf_insideGE',      'I', title = 'Check if waveform inside Global exposure')
+        self.outTree.branch('pmt_wf_sampling',      'I', title = 'Waveform coming from fast or slow digitizer')
+        self.outTree.branch('pmt_wf_TTT',           'F', title = 'Waveform/Trigger time of arrival')
+
+        self.outTree.branch('pmt_wf_nPeaks',        'I', title = 'Waveform number of peaks')
+
+        self.outTree.branch('pmt_TOT_time',             'F', title = "Time over threshold")
+        self.outTree.branch('pmt_TOT_area',             'F', title = "Area over threshold")
+
+        self.outTree.branch('pmt_peak_Number',      'I', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks numbers')
+        self.outTree.branch('pmt_peak_Position',    'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks positions')
+        self.outTree.branch('pmt_peak_Height',      'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks heights')
+        self.outTree.branch('pmt_peak_HalfWidth',   'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks half widths')
+        self.outTree.branch('pmt_peak_FullWidth',   'F', lenVar = 'pmt_wf_nPeaks',  title = 'Peaks full widths')
+
+    def fillPMTVariables_average(self,wf):
+
+        self.outTree.fillBranch('pmt_wf_run',               wf.getRun())
+        self.outTree.fillBranch('pmt_wf_event',             wf.getEvent())
+        self.outTree.fillBranch('pmt_wf_trigger',           wf.getTrigger())
+        self.outTree.fillBranch('pmt_wf_channel',           wf.getChannel())                    # Fixed to channel 9
+        self.outTree.fillBranch('pmt_wf_insideGE',          wf.getInGE())
+        self.outTree.fillBranch('pmt_wf_sampling',          wf.getSampling())
+        self.outTree.fillBranch('pmt_wf_TTT',               wf.getTTT())
+
+        self.outTree.fillBranch('pmt_wf_nPeaks',            len(wf.getPeaks()))
+
+        self.outTree.fillBranch('pmt_TOT_time',                 wf.getTOT('time'))
+        self.outTree.fillBranch('pmt_TOT_area',                 wf.getTOT('area'))
+
+        self.outTree.fillBranch('pmt_peak_Number',          [pid for pid in wf.getPeakIdentifier()])
+        self.outTree.fillBranch('pmt_peak_Position',        [pp for pp in wf.getPeaksPositions()])
+        self.outTree.fillBranch('pmt_peak_Height',          [ph for ph in wf.getAmplitudes()])
+        self.outTree.fillBranch('pmt_peak_HalfWidth',       [phw for phw in wf.getPeakWidths('half')])
+        self.outTree.fillBranch('pmt_peak_FullWidth',       [pfw for pfw in wf.getPeakWidths('full')])
+
+
+
+    ########################################################  CAMERA   ############################################################################################################################
 
     def createCameraVariables(self):
         self.outTree.branch('cmos_integral', 'F', title="integral counts of the full CMOS sensor")
         self.outTree.branch('cmos_mean',     'F', title="average counts of the full CMOS sensor")
         self.outTree.branch('cmos_rms',      'F', title="RMS of the counts of the full CMOS sensor")
 
-    def createTimeVariables(self):
+    def createTimeCameraVariables(self):
         self.outTree.branch('t_DBSCAN', 'F', title="DBSCAN time")
         self.outTree.branch('t_variables',     'F', title="Variables time")
         self.outTree.branch('lp_len',     'F', title="# pixel")
@@ -66,7 +176,11 @@ class AutoFillTreeProducer:
         self.outTree.branch('t_medianfilter',     'F', title="median filter")
         self.outTree.branch('t_noisered',     'F', title="noise reductor")
 
+    def createTimePMTVariables(self):
+        self.outTree.branch('t_waveforms', 'F', title="waveforms time")
 
+    def createTimePMTVariables_average(self):
+        self.outTree.branch('t_waveforms', 'F', title="waveforms time")
         
     def createClusterVariables(self,name='track'):
         chars = list(name)
@@ -129,7 +243,7 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('cmos_mean',np.mean(pic))
         self.outTree.fillBranch('cmos_rms',np.std(pic))
 
-    def fillTimeVariables(self, t_variables, t_DBSCAN, lp, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered):
+    def fillTimeCameraVariables(self, t_variables, t_DBSCAN, lp, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered):
         self.outTree.fillBranch('t_DBSCAN', t_DBSCAN)
         self.outTree.fillBranch('t_variables',t_variables)
         self.outTree.fillBranch('lp_len',lp)
@@ -142,6 +256,12 @@ class AutoFillTreeProducer:
 
         self.outTree.fillBranch('t_medianfilter', t_medianfilter)
         self.outTree.fillBranch('t_noisered', t_noisered) 
+
+    def fillTimePMTVariables(self, t_waveforms):
+        self.outTree.fillBranch('t_waveforms', t_waveforms)
+
+    def fillTimePMTVariables_average(self, t_waveforms):
+        self.outTree.fillBranch('t_waveforms', t_waveforms)
 
     def fillClusterVariables(self,clusters,name='track'):
         chars = list(name)
@@ -183,11 +303,14 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('{name}_latrms'.format(name=name),   [cl.shapes['latrms'] for cl in clusters])
         self.outTree.fillBranch('{name}_lfullrms'.format(name=name), [cl.shapes['long_fullrms'] for cl in clusters])
         self.outTree.fillBranch('{name}_tfullrms'.format(name=name), [cl.shapes['lat_fullrms'] for cl in clusters])
-        self.outTree.fillBranch('{name}_lp0amplitude'.format(name=name), [cl.shapes['long_p0amplitude'] for cl in clusters])
-        self.outTree.fillBranch('{name}_lp0prominence'.format(name=name), [cl.shapes['long_p0prominence'] for cl in clusters])
-        self.outTree.fillBranch('{name}_lp0fwhm'.format(name=name),   [cl.shapes['long_p0fwhm'] for cl in clusters])
-        self.outTree.fillBranch('{name}_lp0mean'.format(name=name),   [cl.shapes['long_p0mean'] for cl in clusters])
-        self.outTree.fillBranch('{name}_tp0fwhm'.format(name=name),   [cl.shapes['lat_p0fwhm'] for cl in clusters])
+
+        # NB: these variables were once cut by David because they were breaking the pmt reco, I don't know if they are used/useful for the camera reco
+        # self.outTree.fillBranch('{name}_lp0amplitude'.format(name=name), [cl.shapes['long_p0amplitude'] for cl in clusters])
+        # self.outTree.fillBranch('{name}_lp0prominence'.format(name=name), [cl.shapes['long_p0prominence'] for cl in clusters])
+        # self.outTree.fillBranch('{name}_lp0fwhm'.format(name=name),   [cl.shapes['long_p0fwhm'] for cl in clusters])
+        # self.outTree.fillBranch('{name}_lp0mean'.format(name=name),   [cl.shapes['long_p0mean'] for cl in clusters])
+        # self.outTree.fillBranch('{name}_tp0fwhm'.format(name=name),   [cl.shapes['lat_p0fwhm'] for cl in clusters])
+
         self.outTree.fillBranch('{name}_xmean'.format(name=name),     [cl.shapes['xmean'] for cl in clusters])
         self.outTree.fillBranch('{name}_ymean'.format(name=name),     [cl.shapes['ymean'] for cl in clusters])
         self.outTree.fillBranch('{name}_xmax'.format(name=name),      [cl.shapes['xmax'] for cl in clusters])

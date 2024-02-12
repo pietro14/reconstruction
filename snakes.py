@@ -18,7 +18,7 @@ from clusterTools import Cluster
 from cameraChannel import cameraTools
 from cluster.ddbscan_ import DDBSCAN
 from energyCalibrator import EnergyCalibrator
-from cython_cygno import nred_cython
+
 import debug_code.tools_lib as tl
 
 class SnakesFactory:
@@ -71,7 +71,7 @@ class SnakesFactory:
         edges = self.ct.arrrebin(filtimage,self.rebin)
         edcopy = edges.copy()
         t0_noise = time.perf_counter()
-        edcopyTight = nred_cython(edcopy, rescale, self.options.min_neighbors_average)
+        edcopyTight = tl.noisereductor(edcopy,rescale,self.options.min_neighbors_average)
         t1_noise = time.perf_counter()
 
         t_medianfilter = t1_med - t0
@@ -108,7 +108,7 @@ class SnakesFactory:
 
         # clustering will crash if the vector of pixels is empty (it may happen after the zero-suppression + noise filtering)
         if len(X)==0:
-            return superclusters, lp, t_medianfilter, t_noisered, t_DBSCAN 
+            return superclusters, lp_len, t_medianfilter, t_noisered, t_DBSCAN 
 
         if self.options.debug_mode:
             if self.options.flag_dbscan_seeds:
@@ -262,11 +262,11 @@ class SnakesFactory:
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
                 plt.imshow(colorpix,cmap='binary',origin='lower' )
                 
-                #for j in range(0,len(polyclu)):
-                #    print ("covering with dark grey the polynomial cluster # ",j)
-                #    black = np.array([0.0,0.0,0.0],dtype = float)
-                #    colorpix[polyclu[j][:,0],polyclu[j][:,1]] = black
-                #plt.imshow(colorpix,cmap='binary',origin='lower') 
+                for j in range(0,len(polyclu)):
+                    print ("covering with dark grey the polynomial cluster # ",j)
+                    black = np.array([0.0,0.0,0.0],dtype = float)
+                    colorpix[polyclu[j][:,0],polyclu[j][:,1]] = black
+                plt.imshow(colorpix,cmap='binary',origin='lower') 
 
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
