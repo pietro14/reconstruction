@@ -116,4 +116,3 @@ class cameraTools:
         return np.multiply(img,vignette)
 
 
-
