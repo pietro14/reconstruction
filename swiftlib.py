@@ -145,4 +145,3 @@ def selectPedestal(run):
     
  
     return sel
-

@@ -7,4 +7,3 @@ source /nfs/cygno/users/abrittac/reco_env/bin/activate
 echo "Setting up ROOT..."
 source /nfs/cygno/software/root-v6-22-02-py38-install/bin/thisroot.sh
 echo "DONE."
-

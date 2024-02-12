@@ -464,4 +464,3 @@ class SnakesProducer:
         if self.plotprofiles: snfac.plotProfiles(snakes)
 
         return snakes, t_DBSCAN, t_variables, lp_len, t_medianfilter, t_noisered
-
