@@ -26,7 +26,7 @@ class Cluster:
             self.ID=[]
             self.IDall=[]
 
-            if self.integral()>0 and self.hits_fr_zs != [] and self.size()<1000000:		#tries to avoid to save cluster with zero integral or too big (like with afterglow of pixels)
+            if self.integral()>0 and self.sizeActive()>0  and self.size()<1000000:		#tries to avoid to save cluster with zero integral or too big (like with afterglow of pixels)
                   self.nintpixels = self.sizeActive()
                   self.nallintpixels = self.size()
                   for k in range(self.nintpixels):
