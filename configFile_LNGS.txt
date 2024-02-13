@@ -58,13 +58,16 @@
 'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 0,
-
-'time_range'            : [7300,7700],
-'threshold'             : 0,
-'minPeakDistance'       : 5,
-'prominence'            : 50,
-'width'                 : 10,
-'resample'              : 5,
-'pmt_plotpy'            : False,
+'pmt_mode'              : 1,
+'threshold'             : 0,			## Not used
+'height_RMS'		    : 5,			## 5 * RMS
+'minPeakDistance'       : 1,			## Not used
+'prominence'            : 0.1,			## Not used
+'fixed_prom'			: True,			## If True, overrides prominence value with optimized one
+'width'                 : 5,
+'resample'              : 10,			## Number of samples used for moving average
+'pmt_plotpy'            : False,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
+'pmt_wf_in_tree'        : False,			## saves full X and Y arrays in tree branches. 
+'digitizer_tag'			:'LNGS',			## use LNGS for underground data; LNF for PMT specific data at LNF
+'pmt_verbose'			: 0			## '0' for no output; '3' for full output.			
 }

@@ -469,10 +469,9 @@ class utils:
         
         #New tree addition for numerical parameters
         treeparam = ROOT.TTree('Reco_params','Tree with parameters of the reconstruction')
+        ##Camera variables
         camera_mode = np.array(options.camera_mode,int)
         treeparam.Branch('camera_mode',camera_mode,'camera_mode/I')
-        pmt_mode = np.array(options.pmt_mode,int)
-        treeparam.Branch('pmt_mode',pmt_mode,'pmt_mode/I')
         rebin = np.array(options.rebin,int)
         treeparam.Branch('rebin',rebin,'rebin/I')
         nsigma = np.array(options.nsigma,dtype='float32')
@@ -481,7 +480,23 @@ class utils:
         treeparam.Branch('min_neighbors_average',min_neighbors_average,'min_neighbors_average/F')
         cimax = np.array(options.cimax,int)
         treeparam.Branch('cimax',cimax,'cimax/I')
-        ##still missing PMT variables
+        ##PMT variables
+        pmt_mode = np.array(options.pmt_mode,int)
+        treeparam.Branch('pmt_mode', pmt_mode, 'pmt_mode/I')
+        pmt_threshold = np.array(options.threshold, int)
+        treeparam.Branch('threshold', pmt_threshold, 'threshold/I')
+        height_RMS = np.array(options.height_RMS, int)
+        treeparam.Branch('height_RMS', height_RMS, 'height_RMS/I')
+        minPeakDistance = np.array(options.minPeakDistance, int)
+        treeparam.Branch('minPeakDistance', minPeakDistance, 'minPeakDistance/I')
+        prominence = np.array(options.prominence, dtype='float32')
+        treeparam.Branch('prominence', prominence, 'prominence/F')
+        fixed_prom = np.array(options.fixed_prom, dtype=bool)
+        treeparam.Branch('fixed_prom', fixed_prom, 'fixed_prom/O')
+        width = np.array(options.width, dtype='float32')
+        treeparam.Branch('width', width, 'width/F')
+        resample = np.array(options.resample, int)
+        treeparam.Branch('resample', resample, 'resample/I')
         
         npixx = np.array(params['npixx'],int)
         treeparam.Branch('npixx',npixx,'npixx/I')

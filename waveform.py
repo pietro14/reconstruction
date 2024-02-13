@@ -3,247 +3,425 @@
 import os,math,sys,ctypes
 import numpy as np
 import ROOT
+import random
 ROOT.gROOT.SetBatch(True)
 from scipy.signal import find_peaks,peak_widths
+import pandas as pd
 
-class simplePeak:
-    def __init__(self,ampli,prominence,mean,fwhm):
-        self.amplitude = ampli
-        self.prominence = prominence
-        self.mean = mean
-        self.fwhm = fwhm
+########################################################################################################################
+
+class PMTreco:
+
+    ## Initializes the waveform object with its main properties and operations
+    def __init__(self, wf_info, y_array, pmt_params):
+
+        self.run        = wf_info['run']                if 'run' in wf_info else 0
+        self.event      = wf_info['event']              if 'event' in wf_info else 0
+        self.channel    = wf_info['channel']            if 'channel' in wf_info else 0
+        self.trigger    = wf_info['trigger']            if 'trigger' in wf_info else 0
+        self.insideGE   = wf_info['GE']                 if 'GE' in wf_info else 0
+        self.digitizer  = wf_info['sampling']           if 'sampling' in wf_info else None
+        self.TTT        = wf_info['TTT']                if 'TTT' in wf_info else 0
+        self.plotname   = 'WF__' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel) 
+
+        self.threshold  = pmt_params['threshold']       if 'threshold' in pmt_params else 0
+        self.height_RMS = pmt_params['height_RMS']      if 'height_RMS' in pmt_params else 1
+        self.minDist    = pmt_params['minPeakDistance'] if 'minPeakDistance' in pmt_params else 1
+        self.prominence = pmt_params['prominence']      if 'prominence' in pmt_params else None
+        self.fixed_prom = pmt_params['fixed_prom']      if 'fixed_prom' in pmt_params else False
+        self.width      = pmt_params['width']           if 'width' in pmt_params else 1
+        self.resample   = pmt_params['resample']        if 'resample' in pmt_params else 1
+        self.plotpy     = pmt_params['plotpy']          if 'plotpy' in pmt_params else False
+        self.wf_in_tree = pmt_params['wf_in_tree']      if 'wf_in_tree' in pmt_params else False
+        self.digit_tag  = pmt_params['digit_tag']       if 'digit_tag' in pmt_params else None
+        self.pmt_verb   = pmt_params['pmt_verb']        if 'pmt_verb' in pmt_params else 0
+        
+
+
+        ## Digitizer samplings
+        ## For now we save x_array as the sample array, not converted to ns
+        ## Fast Digitzer: 750Mhz (1024 samples ) & Slow Digitizer: 250Mhz (4000 samples)
+        if self.digitizer == "fast":
+            self.freq       = 1                                                                                               
+            # self.freq       = 0.75                                                                
+            self.x_array    = np.linspace(0,(1024-1)/self.freq,1024)
+            self.sampling   = 1024
+
+        elif self.digitizer == "slow":
+            self.freq       = 1
+            self.x_array    = np.linspace(0,(4000-1)/self.freq,4000)
+            self.sampling   = 4000
+
+        self.y_array    = y_array
+
+        self.x_array_original = self.x_array
+        self.y_array_original = self.y_array
+
+        self.baseline   = self.getBaseline()
+        
+        # Channels: 0 - trigger; [1,4] - PMTs; [5-7] - GEMs; 9 - Weighted average wf
+        # GEMs signals should be added
+        # This condition is redundant now since the reco choose the channels from the banks, but could serve useful later
+        if self.channel in [1,2,3,4,9]:
+
+            self.invert_and_center_WF(self.baseline)
+
+            if self.digitizer == "fast":                                   
+                self.moving_average(window_size = self.resample)
+
+            if self.digitizer == "slow":                                   
+                self.moving_average(window_size = self.resample)
+        
+        self.findPeaks(thr = self.threshold, height = self.height_RMS, 
+            mindist = self.minDist, prominence = self.prominence, 
+            fixed_prom = self.fixed_prom, width = self.width)
+    
+        if self.plotpy == True:
+            # Add function to create folder if not existing already
+            self.plot_and_save( pdir = './waveforms', xlabel = None, ylabel = None, save = True, plot = False)
+
+
+    #################  Display waveform information  ################# 
+
     def __repr__(self):
-        return "(Ampli={ampli:.2f}, Prom={prom:.2f}, Mean={mean:.2f}, FWHM={fwhm:.2f})".format(ampli=self.amplitude,prom=self.prominence,mean=self.mean,fwhm=self.fwhm)
 
-class PeakFinder:
-    def __init__(self,graph,xmin=None,xmax=None,rebin=None,negative=True):
-        if graph.InheritsFrom('TGraph'):
-            self.importTGraph(graph,xmin,xmax,rebin,negative)
-        elif graph.InheritsFrom('TH1'):
-            self.importTH1(graph,xmin,xmax,rebin,negative)
-        self.name = graph.GetName()
-        self.xmin = xmin; self.xmax=xmax
-        
-    def importTGraph(self,tgraph,xmin,xmax,rebin,negative=True):
-        # transform to positive signals for PMT
-        ## GetY of a TGraph crashes in pyROOT 6.20 ... 
-        #y = np.array([-y for y in tgraph.GetY()])
-        #x = np.array(tgraph.GetX())
-        ysign = -1 if negative else 1
-        xl = []; yl = []
-        for i in range(tgraph.GetN()):
-            #xi = ROOT.Double(0); yi = ROOT.Double(0)
-            xi = ctypes.c_double(); yi = ctypes.c_double()
-            tgraph.GetPoint(i,xi,yi)
-            xl.append(xi.value)
-            yl.append(ysign*yi.value)
-        x = np.array(xl)
-        y = np.array(yl)
+        style = self.getPMTVerbose()
 
-        if rebin:
-            yrebin = []; xrebin = []
-            for i in range(0,len(y),rebin):
-                yrebin.append(np.sum([y[j] for j in range(i,min(i+rebin,len(y)))]))
-                xrebin.append(np.mean([x[j] for j in range(i,min(i+rebin,len(y)))]))
-            y = np.array(yrebin)
-            x = np.array(xrebin)
-        self.setData(x,y,xmin,xmax)
-
-    def importTH1(self,th1,xmin,xmax,rebin,negative=True):
-        if rebin:
-            if th1.InheritsFrom('TProfile'):
-                print("WARNING! Rebinning for TProfile not implemented yet!")
-            else:
-                th1.Rebin(rebin)
-        ysign = -1 if negative else 1
-        x    = np.array([th1.GetXaxis().GetBinCenter(b) for b in range(1,th1.GetNbinsX()+1)])
-        y    = np.array([ysign*th1.GetBinContent(b) for b in range(1,th1.GetNbinsX()+1)])
-        yerr = np.array([th1.GetBinError(b) for b in range(1,th1.GetNbinsX()+1)])
-        self.setData(x,y,xmin,xmax,yerr)
-        
-    def setData(self,x,y,xmin,xmax,yerr=np.array([])):
-        xmax = xmax if xmax!=None else x[-1]
-        xmin = xmin if xmin!=None else x[0]
-        ix = np.array([i for i,v in enumerate(x) if v>xmin and v<xmax])
-        if len(ix):
-            self.x = np.array(x[ix])
-            self.y = np.array(y[ix])
-            if len(yerr)==len(ix):
-                self.yerr = np.array(yerr[ix])
-            else:
-                self.yerr = np.zeros(len(ix))
+        GE = ""
+        if self.insideGE == 0:
+            GE = "No"
         else:
-            self.x = self.y = self.yerr = np.array([])
-        self.binsize = self.x[1]-self.x[0] if len(self.x)>1 else 0
+            GE = "Yes"
+
+        generic = "\nWaveform analysis:\n\
+            Run: {run:.0f}\
+            Event: {event:.0f}\
+            Trigger: {trigger:.0f}\
+            Channel: {channel:.0f}".format(run=self.run,event=self.event,trigger = self.trigger,  channel=self.channel) 
+
+        specific = "\n\
+            Inside waveform: {GE}\n\
+            Digitizer: {dgtz}\n\
+            RMS: {rms:.2f}\n\
+            Tot integral: {ti:.2f}\n\
+            N_peaks: {np:.0f}\n\
+            Peaks pos: {ppp}".format(GE = GE, dgtz = self.digitizer,rms = self.getRMS(),ti= self.getTotalIntegral(), \
+                np =  len(self.getPeaks()) , ppp = str( np.around(self.getPeaksPositions()[:],2) ))
+
+        tot_info = "\n\
+            SNR: {snr:.2f}\n\
+            TOT_time: {tot:.2f}\n\
+            TOT_area: {ar:.2f}".format(snr = self.getSignalToNoise(), tot = self.getTOT('time'), ar = self.getTOT('area'))
+
+        if style == 0 : return 
+        if style == 1 : return print(generic)
+        if style == 2 : return print(generic + specific)
+        if style == 3 : return print(generic + specific + tot_info)
+
+
+
+    #################  Operations of the waveform  #################  
+
+    ## Inverts and centers to zero the waveform
+    def invert_and_center_WF(self, baseline):
+
+        demo_y = list(self.y_array) 
+        for i in range(len(demo_y)):
+
+            demo_y[i] -= baseline 
+            demo_y[i] *= (-1.)
+
+        self.y_array = tuple(demo_y)
+        self.y_array_original = self.y_array
+
+    ## Applies a low-pass filter (moving average), cutting the very high frequencies. Can be tuned with 'window size'
+    def moving_average(self, window_size = 7, drop_NaN = True):
+
+        tmp = pd.Series(self.y_array)
+        moving_average = (tmp.rolling(window=window_size).mean().to_numpy())
         
-    def findPeaks(self,thr,mindist,prominence=1,width=5):
-        peaks, properties = find_peaks(self.y, distance=mindist, height=thr, prominence=prominence,width=width)
+        if drop_NaN:
+            moving_average = (pd.Series(moving_average).dropna()).to_numpy()
+    
+        zeros = (window_size - 1) * [0.]                            ## Moving average changes the size of the array, so I fill it until 1024 with 0 to avoid issues
+        tmp_f = np.append(moving_average,zeros)       
+        
+        self.y_array = tuple(tmp_f)
+
+    ## Find the peaks in the waveform and their properties
+    ## Tunning here is strongly suggested
+    def findPeaks(self, height = None, thr = None, mindist = None, prominence = None, fixed_prom = None, width = None):
+
+        height_thr = self.getRMS() * height
+
+        if fixed_prom:
+            prominence = max(self.y_array)/4
+        else:
+            prominence = 0.01
+
+        peaks, properties = find_peaks(self.y_array, height=height_thr, threshold = thr, distance = mindist,  prominence = prominence, width = width)
         self.peaks = peaks
         self.properties = properties
-        self.setTot(thr)
-        return peaks
+        self.widths_half = peak_widths(self.y_array, self.peaks, rel_height=0.5)        
+        self.widths_full = peak_widths(self.y_array, self.peaks, rel_height=0.95)               ## 95% is used due to the large RMS of the waveforms. Maybe can be set to 1.00 after waveform corrections
 
-    def plotpy(self,pdir='./',xlabel='Time (ns)',ylabel='amplitude (mV)'):
-        import matplotlib.pyplot as plt
-        ## enable TeX 
-        from matplotlib import rc
-        rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-        rc('text', usetex=True)
 
-        # plot data and the found peaks
-        plt.errorbar(self.x, self.y, self.yerr, ls='', ecolor='lightgrey',elinewidth=1, marker='o', mfc = 'black', ms=3, mew=0)
-        plt.plot(self.getPeakTimes(), self.y[self.peaks], "x")
-        plt.plot(self.x, np.zeros_like(self.y), "--", color="gray")
+    #################  Retrieval of values  ###########3######  
+    
+    ## Get Time Over Threshold
+    def getTOT(self, mod):
 
-        # plot some properties
-        plt.vlines(x=self.getPeakTimes(), ymin=self.y[self.peaks] - self.getProminences(),
-                   ymax = self.y[self.peaks], color = "C1")
-        plt.hlines(y=self.getHMs(), xmin=self.getPeakBoundaries('left'),
-                   xmax=self.getPeakBoundaries('right'), color = "C1")        
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        for ext in ['pdf','png']:
-            plt.savefig('{pdir}/{name}.{ext}'.format(pdir=pdir,name=self.name,ext=ext))
-        plt.gcf().clear()
+        threshold_tot = self.getRMS() * 3
+        tot_limits = 2*[0]
 
-    def getPeakBoundaries(self,side):
-        if side=='left': return np.array([self.x[int(x)] for x in self.properties["left_ips"]])
-        return np.array([self.x[int(x)] for x in self.properties["right_ips"]])
+        tot_time = 0
+        tot_area = 0
+        
+        beginning = False
+        ending = False
 
-    def getFWHMs(self):
-        return self.properties["widths"]
+        begin_x = 0
+        end_x = 0
 
-    def getFullWidths(self):
-        self.widths_full = peak_widths(self.y, self.peaks, rel_height=1)        
-        return self.widths_full
+        # Defines how many consectuive samples must be above (below) the threshold to start (end) the signal
+        density_start = 10      ## normal runs          
+        # density_start = 30      ## cosmics only runs         
+        density_finish = 10     ## normal runs
+        # density_finish = 30     ## cosmics only runs
 
-    def getTimes(self,side='rise'):
-        if side=='rise': index=2
-        elif side=='fall': index=3
-        else:
-            print("ERROR! Side should be either rise or fall. Exiting.")
-            return []
-        if not hasattr(self,'widths_full'):
-            self.getFullWidths()
-        # intersection points are interpolated
-        times = np.array([self.x[int(x)] for x in self.widths_full[index]])
-        return times
+        c_up = 0
+        c_down = 0
 
-    def getHMs(self):
-        return self.properties["width_heights"]
+        for i in range(len(self.y_array)):
 
-    def getPeakTimes(self):
-        return self.x[self.peaks]
+            elem = self.y_array[i]
 
-    def getProminences(self):
-        return self.properties["prominences"]
+            if elem > threshold_tot: c_up += 1
+            else: c_up = 0
 
+            if c_up == density_start and beginning == False:
+
+                beginning = True
+                begin_x = self.x_array[i] - c_up
+
+            if beginning == True:
+
+                if elem < threshold_tot : c_down += 1
+                else: c_down = 0
+
+                if c_down == density_finish and ending == False:
+
+                    ending = True
+                    end_x = self.x_array[i] - c_down
+
+        if beginning == False:
+            begin_x = 0
+            end_x = 0
+
+        if beginning == True and ending == False:
+            endind = True
+            end_x = self.sampling
+
+        tot_time = end_x - begin_x
+
+        for k in range(int(tot_time)):
+
+            tot_area += self.y_array[int(begin_x) + k]
+
+        tot_limits[0] = begin_x
+        tot_limits[1] = end_x
+
+        # different outputs are possible
+        if   mod == 'time': return tot_time
+        elif mod == 'area': return tot_area
+        elif mod == 'limits': return tot_limits
+        elif mod == 'thr': return threshold_tot
+            
+    # Retrieves *basic* signal-to-noise ratio
+    def getSignalToNoise(self):
+        
+        signal = self.getMaxAmpl()
+        noise = self.getRMS()
+        S_N_ratio = signal/noise
+
+        return S_N_ratio
+
+    ## Retrieves run number of waveform
+    def getRun(self):
+        return self.run
+
+    ## Retrieves event number of waveform
+    def getEvent(self):
+        return self.event
+
+    ## Retrieves trigger number of waveform
+    def getTrigger(self):
+        return self.trigger
+
+    ## Retrieves channel number of waveform
+    def getChannel(self):
+        return self.channel
+
+    def getInGE(self):
+        return self.insideGE
+
+    def getWfSaveInfo(self):
+        return self.wf_in_tree
+
+    def getSampling(self):
+        return self.sampling
+
+    def getDigitizerTag(self):
+        return self.digit_tag
+
+    def getPMTVerbose(self):
+        return self.pmt_verb
+
+    ## Retrieves run number of waveform
+    def getTTT(self):
+        return self.TTT
+
+    ## Retrieves baseline of waveform with X samples starting from sample "n_offset". Can be tuned
+    def getBaseline(self, n_offset = 0):
+
+        if   self.digitizer == "fast": n_samples = 100
+        elif self.digitizer == "slow": n_samples = 400
+
+        bl = np.mean(self.y_array[n_offset:n_offset+n_samples])
+
+        return bl
+
+    ## Retrieves RMS of waveform with 100 samples starting from sample 0. Can be tuned
+    def getRMS(self, n_offset = 0):
+
+        if   self.digitizer == "fast": n_samples = 100
+        elif self.digitizer == "slow": n_samples = 400
+
+        rms = np.std(self.y_array[n_offset:n_offset+n_samples])
+
+        return rms
+
+    ## Used to assign a ID (1,2,3,...) to each peak to more easily identify simultaneous peaks in different channels
+    ## Can be used for 1-to-1 association
+    def getPeakIdentifier(self):
+        peak_ID = [(ID+1) for ID in range(len(self.peaks))]
+        return peak_ID
+
+    ## Allows to save the whole raw waveform in the tree.
+    def getFullwaveform(self,axis):
+        if axis == 'x':
+            return self.x_array_original
+        if axis == 'y':
+            return self.y_array_original
+        
+    ## Retrieves (max) amplitude in mV of identified peaks     
     def getAmplitudes(self):
         return self.properties["peak_heights"]
 
-    def setTot(self,threshold=0):
-        x0,x1=(-1,-1)
-        # for robustness, look for the rise from the left and for the fall from the right
-        for i,y in enumerate(self.y):
-            if y>threshold:
-                x0 = self.x[i]
-                break
-        for i in range(1,len(self.y)):
-            ip = -i
-            if self.x[ip]<=x0:
-                x1 = x0
-                break
-            y = self.y[ip]
-            if y>threshold:
-                x1=self.x[ip]
-                break
-        if self.xmin is not None and self.xmax is not None:
-            self.x0 = np.nanmax(np.array([x0,self.xmin]))
-            self.x1 = np.nanmin(np.array([x1,self.xmax]))
+    ## Retrieves *object* peaks found
+    def getPeaks(self):
+        return self.peaks
+
+    ## Retrieves the peaks' positions in x_axis
+    def getPeaksPositions(self):
+        return self.x_array[self.peaks]
+
+    ## Retrieves the full and half width of the peaks
+    def getPeakWidths(self,height):
+        if height == 'full':
+            return self.widths_full[0]
+        if height == 'half':
+            return self.widths_half[0]
+
+    ## Retrieves the y_value used for the determination of the widths. Useful for plots
+    def getHeightPeakBoundaries(self,height):
+        if height == 'full':
+            return self.widths_full[1]
+        if height == 'half':
+            return self.widths_half[1]
+
+    ## Retrieves the x_values used for the determination of the widths (left and right). Useful for plots 
+    def getPeakBoundaries(self,side,height):
+        if height == 'full':   
+            if side=='left': 
+                return [self.x_array[int(x)] for x in self.widths_full[2]]
+            if side == 'right':
+                return [self.x_array[int(x)] for x in self.widths_full[3]]
+
+        if height == 'half':   
+            if side=='left': 
+                return [self.x_array[int(x)] for x in self.widths_half[2]]
+            if side == 'right':
+                return [self.x_array[int(x)] for x in self.widths_half[3]]
+
+    ## Retrieves the maximum amplitude of a waveform. Could be useful to check the "saturation: plateaus or quick particle ID
+    def getMaxAmpl(self):
+        return max(self.y_array)
+
+    ## Retrieves *basic* integral of the waveform (sum over all the points). 
+    def getTotalIntegral(self, begin=None,end=None):
+        if begin is not None:
+            return np.sum(self.y_array[begin:end])
         else:
-            self.x0 = -999
-            self.x1 = -999
+            return np.sum(self.y_array)
 
-    def getTot(self):
-        return self.x1-self.x0
+    ## Converts value (integral tipically) into charge
+    def voltageToCharge(self,vlt):
+        charge = vlt * (4./3.) * (1./50.)
+        return charge
 
-    def getIntegral(self):
-        # range of x with y over threshold
-        ix = np.array([i for i,v in enumerate(self.x) if v>self.x0 and v<self.x1])
-        if len(ix)==0:
-            return 0
-        else:
-            return sum(self.y[ix])
+    ## Plot the waveforms with the peaks founds and respective widths. Saves them into a folder called 'waveforms'
+    def plot_and_save(self, pdir='./waveforms', xlabel='Time (ns)', ylabel='amplitude (mV)', save = True, plot = False):
+        import matplotlib.pyplot as plt
 
-
-class PeaksProducer:
-    def __init__(self,sources,params,options):
-        self.waveform = sources['waveform'] if 'waveform' in sources else None
-
-        self.threshold  = params['threshold']       if 'threshold' in params else 0
-        self.minDist    = params['minPeakDistance'] if 'minPeakDistance' in params else 1
-        self.prominence = params['prominence']      if 'prominence' in params else 1
-        self.width      = params['width']           if 'width' in params else 1
-        self.resample   = params['resample']        if 'resample' in params else 1
-        self.rangex     = params['rangex']          if 'rangex' in params else (-1,-1)
-        self.plotpy     = params['plotpy']          if 'plotpy' in params else True
+        # plot data and the found peaks
+        plt.plot(self.x_array, self.y_array, color = 'black')
+        plt.plot(self.x_array[self.peaks], self.getAmplitudes(), "x", color = 'orange')
         
-        self.options = options
+        # plot some properties
+        plt.hlines(y=self.getHeightPeakBoundaries(height = 'full'), xmin=self.getPeakBoundaries(side = 'left',height = 'full'),
+            xmax=self.getPeakBoundaries(side = 'right', height = 'full'), color = "C3")     
+        plt.hlines(y=self.getHeightPeakBoundaries(height = 'half'), xmin=self.getPeakBoundaries(side = 'left',height = 'half'),
+            xmax=self.getPeakBoundaries(side = 'right', height = 'half'), color = "C2")     
 
-    def run(self):
-        pf = PeakFinder(self.waveform,self.rangex[0],self.rangex[1],rebin=self.resample)
-        pf.findPeaks(self.threshold,self.minDist,self.prominence,self.width)
-        if self.plotpy: pf.plotpy(pdir=self.options.plotDir)
-        return pf
+        # plot the time over threshold
+        plt.hlines(y= self.getTOT('thr'), xmin=self.getTOT(mod = 'limits')[0], xmax=self.getTOT(mod = 'limits')[1], color = "cornflowerblue")      
+
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        if plot == True:
+            plt.show()
         
-from cameraChannel import cameraGeometry
-class PMTSignal:
-    def __init__(self,tgraph,clusters,options):
-        self.waveform = tgraph
-        self.clusters = clusters
-        self.options = options
+        if save == True:
+            for ext in ['pdf']:                         # Change to " for ext in ['pdf','png']: " to also save png format                 
+                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=pdir,name=self.plotname,ext=ext))
+            plt.gcf().clear()
+
+
+    def getWaveformID(self,size = 'peaks'):
         
-    def plotNice(self):
-        sig_width = 150 #ns
-        sig_min = 6150 # at least at FNG with DAQ
+        IDvec = []
+        IDstr = "{}{}{}".format(self.event,self.trigger,self.channel)
+        IDnum = int(IDstr)
+        
+        if size == 'waveforms':
+            length = [1]
+        elif size == 'peaks':
+            length = self.getPeaks()
+        elif size == 'fullWF':
+            length = self.x_array
 
-        canv = ROOT.TCanvas("cfr","",600,600)
-        canv.SetLeftMargin(0.20)
-        canv.SetBottomMargin(0.15)
-        self.waveform.Draw('AL')
-        self.waveform.GetXaxis().SetRangeUser(sig_min,sig_min+sig_width)
-        self.waveform.GetXaxis().SetTitle('Time (ns)')
-        self.waveform.GetYaxis().SetTitle('Amplitude (mV)')
+        for i in range(len(length)):
+            IDvec.append(IDnum)
+        
+        return IDvec
 
-        maxwidth = 0
-        if len(self.clusters): maxwidth = max([cl.widths['long'] for cl in self.clusters]) # mm
-        title = 'N clusters = {nclu}, max length = {maxl:.1f}mm'.format(nclu=len(self.clusters), maxl=maxwidth)
-        self.waveform.SetTitle(title)
+    ###### Possible missing functions
 
-        for ext in ['png','pdf']:
-            canv.SaveAs('{od}/{name}.{ext}'.format(od=self.options.plotDir,name=self.waveform.GetName(),ext=ext))
-
-
-
-if __name__ == '__main__':
-
-    inputf = sys.argv[1]
-    print("testing ",inputf) 
-
-    tf = ROOT.TFile(inputf)
-    # sampling was 5 GHz (5/ns). Separate peaks of at least 1ns
-    # rebin by 5 (1/ns)
-    
-    threshold = 0 # min threshold for a signal
-    min_distance_peaks = 5 # number of samples (1 samples = 1ns)
-    prominence = 50 # noise seems ~0.2 mV
-    width = 10 # minimal width of the signal
-
-    # plot the first 10 waveforms
-    for iev in range(10):
-        gr = tf.Get('wfm_run01753_ev{iev}'.format(iev=iev))
-        pf = PeakFinder(gr,7000,7800,rebin=5)
-        pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-        pf.plotpy()
+    ##  function to plot the 4 waveform in one plot
+    ##  function for peak majority (mj2_peak)    
+    ##  function for calculate integral of mj2_peak peaks    
+    ##  function of SUB-substructure charge? will depend on the relative height choosen
+    ##  function for if Saturated(self):
 
 
