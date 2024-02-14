@@ -87,6 +87,9 @@ class analysis:
         'pmt_verb':  options.pmt_verbose,
         'pmt_outdir': options.plotDir
         }
+        if options.debug_mode == 1:
+            self.pmt_params['pmt_verb']=3
+            self.pmt_params['plotpy']= True
 
     # the following is needed for multithreading
     def __call__(self,evrange=(-1,-1,-1)):
@@ -616,7 +619,7 @@ class analysis:
                 if self.options.pmt_mode:
                     if pmt == True:
                         print("Processing Run: ",run,"- Event ",event,"PMT...")
-
+                        t00_wave =  time.perf_counter()
                         chs_to_analyse = 4
                         fast_sampling = 1024
                         slow_sampling = 4000
@@ -757,7 +760,10 @@ class analysis:
                                 del slow_waveform
 
                         del waveform_f, waveform_s, header
-
+                        
+                        t01_wave =  time.perf_counter()
+                        if self.options.debug_mode == 1:
+                            print(f'PMT Reco Code Took: {t01_wave - t00_wave} seconds')
                         # END of `if pmt`
                 # END of `if self.options.pmt_mode`
                 
