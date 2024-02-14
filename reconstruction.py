@@ -153,9 +153,8 @@ class analysis:
             self.autotree_pmt.createPMTVariables(self.pmt_params)
             self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)
             
-            # FIX: time variables -- see if it can be merged with above functions
             self.autotree_pmt.createTimePMTVariables()
-            self.autotree_pmt_avg.createTimePMTVariables_average()
+            self.autotree_pmt_avg.createTimePMTVariables()
 
     def endJob(self):
         if options.camera_mode or options.environment_variables:
@@ -684,7 +683,7 @@ class analysis:
                                     t_waveforms = t1_waveforms - t0_waveforms
 
                                     self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_wei_avg)
-                                    self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
+                                    self.autotree_pmt_avg.fillTimePMTVariables(t_waveforms)
                                     #fast_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
                                     self.outTree_pmt_avg.fill()
 
@@ -747,7 +746,7 @@ class analysis:
                                     t_waveforms = t1_waveforms - t0_waveforms
 
                                     self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_wei_avg)
-                                    self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
+                                    self.autotree_pmt_avg.fillTimePMTVariables(t_waveforms)
                                     #slow_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
                                     self.outTree_pmt_avg.fill()
 

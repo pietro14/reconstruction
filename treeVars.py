@@ -182,9 +182,6 @@ class AutoFillTreeProducer:
 
     def createTimePMTVariables(self):
         self.outTree.branch('t_waveforms', 'F', title="waveforms time")
-
-    def createTimePMTVariables_average(self):
-        self.outTree.branch('t_waveforms', 'F', title="waveforms time")
         
     def createClusterVariables(self,name='track'):
         chars = list(name)
@@ -262,9 +259,6 @@ class AutoFillTreeProducer:
         self.outTree.fillBranch('t_noisered', t_noisered) 
 
     def fillTimePMTVariables(self, t_waveforms):
-        self.outTree.fillBranch('t_waveforms', t_waveforms)
-
-    def fillTimePMTVariables_average(self, t_waveforms):
         self.outTree.fillBranch('t_waveforms', t_waveforms)
 
     def fillClusterVariables(self,clusters,name='track'):
