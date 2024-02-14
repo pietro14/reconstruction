@@ -104,24 +104,31 @@ class analysis:
         print("Opening out file: ",outfname," self.outputFile = ",self.outputFile)
         ROOT.gDirectory.cd()
         # prepare output tree
-        self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
-        self.outTree = OutputTree(self.outputFile,self.outputTree)
-        self.autotree = AutoFillTreeProducer(self.outTree,self.eventContentParams)
+        if options.camera_mode or options.environment_variables:
+            self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
+            self.outTree = OutputTree(self.outputFile,self.outputTree)
+            self.autotree = AutoFillTreeProducer(self.outTree,self.eventContentParams)
 
         ## Prepare PMT waveform Tree (1 event = 1 waveform)
-        self.outputTree_pmt = ROOT.TTree("PMT_Events","Tree containing reconstructed PMT quantities")
-        self.outTree_pmt = OutputTree(self.outputFile,self.outputTree_pmt)
-        self.autotree_pmt = AutoFillTreeProducer(self.outTree_pmt,self.eventContentParams)
+        if options.pmt_mode:
+            self.outputTree_pmt = ROOT.TTree("PMT_Events","Tree containing reconstructed PMT quantities")
+            self.outTree_pmt = OutputTree(self.outputFile,self.outputTree_pmt)
+            self.autotree_pmt = AutoFillTreeProducer(self.outTree_pmt,self.eventContentParams)
 
-        ## Prepare PMT average waveform Tree (1 event = 1 averaged waveform using 4 PMTs)
-        self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
-        self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
-        self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
+            ## Prepare PMT average waveform Tree (1 event = 1 averaged waveform using 4 PMTs)
+            self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
+            self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
+            self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
 
-        self.outTree.branch("run", "I", title="run number")
-        self.outTree.branch("event", "I", title="event number")
-        # FIX: if only pmt mode, don't need pedestal 
-        self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
+        if self.options.camera_mode:
+            self.outTree.branch("run", "I", title="run number")
+            self.outTree.branch("event", "I", title="event number")
+            self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
+            self.autotree.createCameraVariables()
+            self.autotree.createTimeCameraVariables()
+            self.autotree.createClusterVariables('sc')
+            if self.options.cosmic_killer:
+                self.autotree.addCosmicKillerVariables('sc')
         if self.options.save_MC_data:
 #           self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
@@ -139,13 +146,7 @@ class analysis:
             self.outTree.branch("MC_z_vertex_end","F")
             self.outTree.branch("MC_3D_pathlength","F")
             self.outTree.branch("MC_2D_pathlength","F")
-
-        if self.options.camera_mode:
-            self.autotree.createCameraVariables()
-            self.autotree.createTimeCameraVariables()
-            self.autotree.createClusterVariables('sc')
-            if self.options.cosmic_killer:
-                self.autotree.addCosmicKillerVariables('sc')
+            
         if options.environment_variables: self.autotree.createEnvVariables()
         if self.options.pmt_mode:
             self.autotree_pmt.createPMTVariables(self.pmt_params)
@@ -156,9 +157,11 @@ class analysis:
             self.autotree_pmt_avg.createTimePMTVariables_average()
 
     def endJob(self):
-        self.outTree.write()
-        self.outTree_pmt.write()
-        self.outTree_pmt_avg.write()
+        if options.camera_mode or options.environment_variables:
+            self.outTree.write()
+        if self.options.pmt_mode:
+            self.outTree_pmt.write()
+            self.outTree_pmt_avg.write()
         self.outputFile.Close()
         
     def getNEvents(self,options):
@@ -373,7 +376,7 @@ class analysis:
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
 
-        elif options.rawdata_tier == 'midas':
+        elif self.options.rawdata_tier == 'midas':
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
             
@@ -397,7 +400,7 @@ class analysis:
 
             mf.jump_to_start()
             dslow = pd.DataFrame()
-            if options.environment_variables:
+            if self.options.environment_variables:
         
                 odb = cy.get_bor_odb(mf)
                 header_environment = odb.data['Equipment']['Environment']['Settings']['Names Input']
@@ -406,18 +409,23 @@ class analysis:
                 dslow.loc[len(dslow)] = value_variables['Input']
                 for i in dslow.keys():
                     #try:
-                    dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
+                    dslow = utilities.conversion_env_variables(dslow, odb, i, j_env = 0)
                     #except:
                         #print("WARNING: conversion_env_variables failed.")
                 try:
                    self.autotree.fillEnvVariables(dslow.take([0]))
+                   if not self.options.camera_mode:
+                            self.outTree.fill()
                 except:
                    print("WARNING: could not fill dslow variables.")   
                 #print(dslow)
-                j = 1
+
+                j_env = 1
 
         numev = 0
         event=0
+        camera_read = False         #only useful for midas read 
+        pmt_read = False            #only useful for midas read
 
         for mevent in mf:
             if self.options.rawdata_tier == 'midas':
@@ -425,11 +433,16 @@ class analysis:
                     continue
                 else:
                     keys = mevent.banks.keys()
-                    
+
+            if camera_read and pmt_read:
+                numev +=1   
+            camera_read = False         #only useful for midas read 
+            pmt_read = False            #only useful for midas read
             for iobj,key in enumerate(keys):
                 name=key
                 camera = False
                 pmt = False
+
 
                 if self.options.rawdata_tier == 'root':
                     if 'pic' in name:
@@ -440,8 +453,7 @@ class analysis:
                         obj = tf[key].values()
                         #obj = np.rot90(obj)
                         camera=True
-                    else:
-                        camera=False
+
                 elif self.options.rawdata_tier == 'h5':
                     if 'pic' in name:
                         patt = re.compile('\S+run(\d+)_ev(\d+)')
@@ -451,46 +463,49 @@ class analysis:
                         obj = np.array(tf[key])
                         #obj = np.rot90(obj)
                         camera=True
-                    else:
-                        camera=False
 
                 elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
-                    if name.startswith('CAM') and options.camera_mode:
-                        obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
-                        obj = np.rot90(obj)
-                        camera=True
+                    if name.startswith('CAM'):
+                        camera_read = True
+                        if options.camera_mode:
+                            obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
+                            obj = np.rot90(obj)
+                            camera=True
                     
-                    elif name.startswith('INPT') and options.environment_variables: # SLOW channels array
+                    elif name.startswith('INPT') and self.options.environment_variables: # SLOW channels array
                         #try:
-                        dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j=j)
-                           #print(dslow)
-                        self.autotree.fillEnvVariables(dslow.take([j]))
-                        j = j+1
+                        dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j_env=j_env)
+                        self.autotree.fillEnvVariables(dslow.take([j_env]))
+                        j_env = j_env+1
+                        if not self.options.camera_mode:
+                            if self.options.jobs != 1:
+                                if numev>=evrange[1]: self.outTree.fill()
+                            else:
+                                self.outTree.fill()
                            #print(dslow)
                         #except:
                         #   print("WARNING: INPT bank is not as expected.")
                     
-                    elif name.startswith('DGH0') and options.pmt_mode:
-                        header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
-                        SIC = header.SIC
-                        sample_rate = header.sampling_rate
+                    elif name.startswith('DGH0'):
+                        pmt_read = True
+                        if self.options.pmt_mode:
+                            header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
+                            SIC = header.SIC
+                            sample_rate = header.sampling_rate
 
-                        nChannels_f  = header.nchannels[0]
-                        nTriggers_f = len(header.TTT[0])
-                        TTTs_f = header.TTT[0]
+                            nChannels_f  = header.nchannels[0]
+                            nTriggers_f = len(header.TTT[0])
+                            TTTs_f = header.TTT[0]
 
-                        nChannels_s  = header.nchannels[1]
-                        nTriggers_s = len(header.TTT[1])
-                        TTTs_s = header.TTT[1]
+                            nChannels_s  = header.nchannels[1]
+                            nTriggers_s = len(header.TTT[1])
+                            TTTs_s = header.TTT[1]
 
-                        ## TO FIX : catch the dgitizer general 'tag' in the config file. Should work
-                        waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
+                            ## TO FIX : catch the dgitizer general 'tag' in the config file. Should work
+                            waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
 
-                        pmt = True
-                    else:
-                        camera = False
-                        pmt = False
+                            pmt = True
 
                     event=numev
 
@@ -503,21 +518,14 @@ class analysis:
                 if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
                 if justSkip:
                     continue
-                
-                # Event is identified by EITHER camera or pmt
-                # FIX: Perhaps we should change this with the same scheme as the filling at the end
-                # FIX: I'm filling the Branchs twice, but that should not be a problem (I think it overwrites)
-                if camera == True or pmt == True:
-                    print("Processing Run: ",run,"- Event ",event,"...")
-
-                    self.outTree.fillBranch("run",run)
-                    self.outTree.fillBranch("event",event)
-                    # FIX: if only pmt mode, don't need the pedestal_run branch
-                    self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
 
                 if self.options.camera_mode:
                     if camera==True:
-
+                        print("Processing Run: ",run,"- Event ",event,"Camera...")
+                        self.outTree.fillBranch("run",run)
+                        self.outTree.fillBranch("event",event)
+                        self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
+                    
                         testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
                         if np.sum(obj)>testspark:
                             print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
@@ -595,29 +603,33 @@ class analysis:
                         t_DBSCAN_1 = time.perf_counter()
                         snakes, t_DBSCAN, t_variables, lp_len, t_medianfilter, t_noisered = snprod.run()
                         t_DBSCAN_2 = time.perf_counter()
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print(f"1. DBSCAN run + variables calculation in {t_DBSCAN_2 - t_DBSCAN_1:0.4f} seconds")
                         self.autotree.fillCameraVariables(img_fr_zs)
                         t_DBSCAN_3 = time.perf_counter()
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print(f"fillCameraVariables in {t_DBSCAN_3 - t_DBSCAN_2:0.4f} seconds")
                         self.autotree.fillClusterVariables(snakes,'sc')
                         t_DBSCAN_4 = time.perf_counter()
                         self.autotree.fillTimeCameraVariables(t_variables, t_DBSCAN, lp_len, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered)
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print(f"fillClusterVariables in {t_DBSCAN_4 - t_DBSCAN_3:0.04f} seconds")
                             print()
                         del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
+                        self.outTree.fill()
+                        del obj
+                        
          
                 if self.options.pmt_mode:
                     if pmt == True:
+                        print("Processing Run: ",run,"- Event ",event,"PMT...")
 
                         chs_to_analyse = 4
                         fast_sampling = 1024
                         slow_sampling = 4000
 
                         ## Fast waveforms
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print("Number of fast triggers: {}".format(nTriggers_f))
 
                         for trg in range(nTriggers_f):    
@@ -688,13 +700,13 @@ class analysis:
                                 del waveform_info
                                 del fast_waveform
                         # Slow waveforms
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print("Number of slow triggers: {}".format(nTriggers_s))
 
                         for trg in range(nTriggers_s):    
 
                             insideGE = 0
-                            if (TTTs_f[trg] * 8.5/1000/1000) >= 180 and (TTTs_f[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
+                            if (TTTs_s[trg] * 8.5/1000/1000) >= 180 and (TTTs_s[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
                                 insideGE = 1
 
                             sing_weig_avg_slow_wf = [ [0]* slow_sampling for _ in range(chs_to_analyse)]  
@@ -751,26 +763,11 @@ class analysis:
                                 del waveform_info
                                 del slow_waveform
 
-                        # END of `for trg in range(nTriggers_f)`
+                        del waveform_f, waveform_s, header
+
+                        # END of `if pmt`
                 # END of `if self.options.pmt_mode`
-
-
-
-                ## If single sensor analysis, update event number each loop 
-                if (self.options.camera_mode and not self.options.pmt_mode) or (self.options.pmt_mode and not self.options.camera_mode):
-                    if camera == True or pmt == True:           ##this is needed otherwise it increases the event number with each bank
-                        numev += 1  
-                        self.outTree.fill()
-                ## If both sensor analysis, update event number only after camera analysis since it comes after the PMT 
-                elif (self.options.camera_mode and self.options.pmt_mode):
-                    if camera == True:
-                        self.outTree.fill()
-                        numev += 1
-                if camera==True:
-                    del obj
                 
-                if pmt==True:
-                    del waveform_f, waveform_s, header
         gc.collect()
                     
         ROOT.gErrorIgnoreLevel = savErrorLevel
