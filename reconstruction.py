@@ -83,8 +83,8 @@ class analysis:
         'resample': options.resample,
         'plotpy': options.pmt_plotpy,
         'wf_in_tree': options.pmt_wf_in_tree,
-        'digit_tag': options.digitizer_tag,
-        'pmt_verb':  options.pmt_verbose
+        'pmt_verb':  options.pmt_verbose,
+        'pmt_outdir': options.plotDir
         }
 
     # the following is needed for multithreading
@@ -502,8 +502,8 @@ class analysis:
                             nTriggers_s = len(header.TTT[1])
                             TTTs_s = header.TTT[1]
 
-                            ## TO FIX : catch the dgitizer general 'tag' in the config file. Should work
-                            waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
+                            ## Care: if tag is MC$blabla, the tag for the digitizer will have to be changed to LNGS or something
+                            waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.options.tag)
 
                             pmt = True
 
@@ -856,6 +856,7 @@ if __name__ == '__main__':
     # FIX: the option for saving plots should only be ON only fi camera mode is ON
     print("I Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
+    os.system('mkdir -p {pdir}'.format(pdir=options.plotDir))
     
     nThreads = 1
     if options.jobs==-1:
