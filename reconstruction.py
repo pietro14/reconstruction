@@ -380,19 +380,7 @@ class analysis:
             ## Seems to repeat the opening process but *doesn't* slow down the code.
             if self.options.pmt_mode == 1:        
                 
-                if run > 7790:   ## There is an issue with Run1 because it doesn't contain all the info present in Run2
-                        #TO FIX -- ADD TAG CHECK since this only applies for LIME @ LNGS
-                    odb=cy.get_bor_odb(mf)
-                    corrected  = odb.data['Configurations']['DRS4Correction']
-                    channels_offsets  = odb.data['Configurations']['DigitizerOffset']
-                    camera_exposure   = odb.data['Configurations']['Exposure']
-                    mf.jump_to_start()
-                else:
-                    corrected = True
-                    camera_exposure = 300
-                    channels_offsets = 0
-                    mf.jump_to_start()
-
+                odb,corrected,channels_offsets,camera_exposure = utilities.get_odb_pmt_info(mf,self.options,run)
 
             mf.jump_to_start()
             dslow = pd.DataFrame()
@@ -487,7 +475,6 @@ class analysis:
                         pmt_read = True
                         if self.options.pmt_mode:
                             header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
-                            SIC = header.SIC
                             sample_rate = header.sampling_rate
 
                             nChannels_f  = header.nchannels[0]

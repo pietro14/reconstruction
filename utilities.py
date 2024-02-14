@@ -429,7 +429,22 @@ class utils:
             
         return dslow
         
-        
+    def get_odb_pmt_info(self,mf,options,run):
+        import cygno as cy
+        if (options.tag == 'LNGS' and run>7790) or options.tag == 'LNF' or options.tag == 'MAN':
+            odb=cy.get_bor_odb(mf)
+            corrected  = odb.data['Configurations']['DRS4Correction']
+            channels_offsets  = odb.data['Configurations']['DigitizerOffset']
+            camera_exposure   = odb.data['Configurations']['Exposure']
+
+        else:       #ok these automatic settings are mostly valid for LIME at LNGS but should be checked for other detectors
+            odb = None
+            corrected = True
+            camera_exposure = 300
+            channels_offsets = 0
+
+        return odb,corrected,channels_offsets,camera_exposure
+
     def Param_storage(self, root_file, outfilename, nameconfig, options):
 
         fout = open('{outname}.txt'.format(outname=outfilename),'w')
