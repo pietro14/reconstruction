@@ -66,7 +66,7 @@
 'fixed_prom'		: True,			## If True, overrides prominence value with optimized one
 'width'                 : 5,
 'resample'              : 10,			## Number of samples used for moving average
-'pmt_plotpy'            : True,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
+'pmt_plotpy'            : False,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
 'pmt_wf_in_tree'        : False,		## saves full X and Y arrays in tree branches. 
 'pmt_verbose'		: 0	                ## '0' for no output; '3' for full output.			
 }
