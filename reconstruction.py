@@ -41,8 +41,8 @@ class analysis:
     def __init__(self,options):
         self.rebin = options.rebin        
         self.options = options
-        # FIX: if only pmt mode, don't need to compute pedestal
-        self.pedfile_fullres_name = options.pedfile_fullres_name
+        if options.camera_mode:
+            self.pedfile_fullres_name = options.pedfile_fullres_name
         self.tmpname = options.tmpname
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
         geometryParams = eval(geometryPSet.read())
@@ -54,23 +54,24 @@ class analysis:
         for k,v in self.eventContentParams.items():
             setattr(self.options,k,v)
         
-# FIX: if only pmt mode, don't need to compute pedestal
-        if not os.path.exists(self.pedfile_fullres_name):
-            print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
-            self.calcPedestal(options,1)
-        if not options.justPedestal:
-           print("Pulling pedestals...")
-           # first the one for clustering with rebin
-           ctools = cameraTools(self.cg)
-           # then the full resolution one
-           pedrf_fr = uproot.open(self.pedfile_fullres_name)
-           self.pedarr_fr   = pedrf_fr['pedmap'].values().T
-           self.noisearr_fr = pedrf_fr['pedmap'].errors().T
-           if options.vignetteCorr:
-               self.vignmap = ctools.loadVignettingMap()
-           else:
-               self.vignmap = np.ones((self.xmax, self.xmax))
-            
+
+        if options.camera_mode:
+            if not os.path.exists(self.pedfile_fullres_name):
+                print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
+                self.calcPedestal(options,1)
+            if not options.justPedestal:
+                print("Pulling pedestals...")
+                # first the one for clustering with rebin
+                ctools = cameraTools(self.cg)
+                # then the full resolution one
+                pedrf_fr = uproot.open(self.pedfile_fullres_name)
+                self.pedarr_fr   = pedrf_fr['pedmap'].values().T
+                self.noisearr_fr = pedrf_fr['pedmap'].errors().T
+                if options.vignetteCorr:
+                    self.vignmap = ctools.loadVignettingMap()
+                else:
+                    self.vignmap = np.ones((self.xmax, self.xmax))
+                
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
@@ -239,20 +240,17 @@ class analysis:
                 for iobj,key in enumerate(keys):
                     name=key
                     if name.startswith('CAM'):
-                        if options.rawdata_tier == 'root':
-                            arr = tf[key].values()
-                        else:
-                            arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                            arr = np.rot90(arr)
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                        arr = np.rot90(arr)
                         justSkip=False
-                        if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and numev>min(len(keys),maxImages): break
-                        if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
+                        if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
+                        if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
+                        if numev>200: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
                             
                         if numev%20 == 0:
                             print("Calc pedestal mean with event: ",numev)
                         if justSkip:
-                             continue
+                            continue
                         if rebin>1:
                             ctools.arrrebin(arr,rebin)
                         pedsum = np.add(pedsum,arr)
@@ -266,9 +264,9 @@ class analysis:
                     run = int(m.group(1))
                     event = int(m.group(2))
                 justSkip=False
-                if event in self.options.excImages: justSkip=True
-                if maxImages>-1 and event>min(len(keys),maxImages): break
-                if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
+                if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
+                if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
+                if numev>200: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                     continue
@@ -286,23 +284,19 @@ class analysis:
         if  options.rawdata_tier == 'midas':
             mf.jump_to_start()
             for mevent in mf:
-                if  options.rawdata_tier == 'midas':
-                    if mevent.header.is_midas_internal_event():
-                        continue
-                    else:
-                        keys = mevent.banks.keys()
+                if mevent.header.is_midas_internal_event():
+                    continue
+                else:
+                    keys = mevent.banks.keys()
                 for iobj,key in enumerate(keys):
                     name=key
                     if name.startswith('CAM'):
-                        if options.rawdata_tier == 'root':
-                            arr = tf[key].values()
-                        else:
-                            arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                            arr = np.rot90(arr)
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                        arr = np.rot90(arr)
                         justSkip=False
-                        if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and numev>min(len(keys),maxImages): break
-                        if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
+                        if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
+                        if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
+                        if numev>200: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
              
                         if numev%20 == 0:
                             print("Calc pedestal rms with event: ",numev)
@@ -320,13 +314,13 @@ class analysis:
                     run = int(m.group(1))
                     event = int(m.group(2))
                 justSkip=False
-                if event in self.options.excImages: justSkip=True
-                if maxImages>-1 and event>min(len(keys),maxImages): break
-                if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
-     
+                if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
+                if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
+                if numev>200: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                      continue
+
                 if event%20 == 0:
                     print("Calc pedestal rms with event: ",event)
                 arr = tf[name].values()
@@ -804,7 +798,8 @@ if __name__ == '__main__':
     else:
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
     # FIX: if only pmt mode, don't need to compute pedestal
-    utilities.setPedestalRun(options)        
+    if options.camera_mode:
+        utilities.setPedestalRun(options)        
         
     try:
         USER = os.environ['USER']
@@ -838,7 +833,7 @@ if __name__ == '__main__':
             options.tmpname = sw.swift_download_root_file(file_url,int(options.run),tmpdir)
         else:
             print ('Downloading MIDAS.gz file for run ' + options.run)
-    # in case of MIDAS, download function checks the existence and in case it is absent, dowloads it. If present, opens it
+    # in case of MIDAS, download function checks the existence and in case it is absent, downloads it. If present, opens it
     if options.rawdata_tier == 'midas':
         ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
         options.tmpname = [int(options.run),tmpdir,options.tag]		#This line needs to be corrected if MC data will be in midas format. Not foreseen at all
