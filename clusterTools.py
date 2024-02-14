@@ -328,16 +328,16 @@ class Cluster:
             return
         self.getProfile(name)
 
-        # from waveform import PeakFinder,simplePeak
+        from profiling import PeakFinder,simplePeak
 
         # find first the length/width with intersection of the base of the large peak
-        # threshold = 3
-        # min_distance_peaks = 5 # number of bins of the profile, to be converted in mm later... TO DO
-        # prominence = 2 # noise seems <1
-        # width = 10  # find only 1 big peak
-        # pf = PeakFinder(self.profiles[name])        
-        # pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-        # self.widths[name] = pf.getFWHMs()[0] if len(pf.getFWHMs()) else 0 # first should be the only big peak
+        threshold = 3
+        min_distance_peaks = 5 # number of bins of the profile, to be converted in mm later... TO DO
+        prominence = 2 # noise seems <1
+        width = 10  # find only 1 big peak
+        pf = PeakFinder(self.profiles[name])        
+        pf.findPeaks(threshold,min_distance_peaks,prominence,width)
+        self.widths[name] = pf.getFWHMs()[0] if len(pf.getFWHMs()) else 0 # first should be the only big peak
         self.shapes['%s_width' % name] = self.widths[name]
         
         # find the peaks and store their properties
@@ -348,31 +348,31 @@ class Cluster:
         width = 2 # minimal width of the signal
         xmin = 0 # the profile always starts from 0
         xmax = self.profiles[name].GetBinLowEdge(self.profiles[name].GetNbinsX()+1) # low edge of the overflow bin
-        # pf = PeakFinder(self.profiles[name],xmin=0,xmax=xmax,negative=False)        
-        # pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-        # if plot:
-            # pf.plotpy(xlabel='$X_{%s} (pixels)$' % name, ylabel='Photons / bin')
+        pf = PeakFinder(self.profiles[name],xmin=0,xmax=xmax,negative=False)        
+        pf.findPeaks(threshold,min_distance_peaks,prominence,width)
+        if plot:
+            pf.plotpy(xlabel='$X_{%s} (pixels)$' % name, ylabel='Photons / bin')
         
-        # amplitudes = pf.getAmplitudes()
-        # prominences = pf.getProminences()
-        # fwhms = pf.getFWHMs()
-        # peakPositions = pf.getPeakTimes()
+        amplitudes = pf.getAmplitudes()
+        prominences = pf.getProminences()
+        fwhms = pf.getFWHMs()
+        peakPositions = pf.getPeakTimes()
         
-        # peaksInProfile = [simplePeak(amplitudes[i],prominences[i],peakPositions[i],fwhms[i]) for i in range(len(amplitudes))]
-        # peaksInProfile = sorted(peaksInProfile, key = lambda x: x.mean, reverse=True)
+        peaksInProfile = [simplePeak(amplitudes[i],prominences[i],peakPositions[i],fwhms[i]) for i in range(len(amplitudes))]
+        peaksInProfile = sorted(peaksInProfile, key = lambda x: x.mean, reverse=True)
 
         self.shapes[name+'_fullrms']          = self.profiles[name].GetRMS()
-        # if len(peaksInProfile):
-        #     mainPeak = peaksInProfile[0]
-        #     self.shapes[name+'_p0amplitude']  = mainPeak.amplitude
-        #     self.shapes[name+'_p0prominence'] = mainPeak.prominence
-        #     self.shapes[name+'_p0mean']       = mainPeak.mean
-        #     self.shapes[name+'_p0fwhm']       = mainPeak.fwhm
-        # else:
-        #     self.shapes[name+'_p0amplitude']  = -999
-        #     self.shapes[name+'_p0prominence'] = -999
-        #     self.shapes[name+'_p0mean']       = -999
-        #     self.shapes[name+'_p0fwhm']       = -999
+        if len(peaksInProfile):
+            mainPeak = peaksInProfile[0]
+            self.shapes[name+'_p0amplitude']  = mainPeak.amplitude
+            self.shapes[name+'_p0prominence'] = mainPeak.prominence
+            self.shapes[name+'_p0mean']       = mainPeak.mean
+            self.shapes[name+'_p0fwhm']       = mainPeak.fwhm
+        else:
+            self.shapes[name+'_p0amplitude']  = -999
+            self.shapes[name+'_p0prominence'] = -999
+            self.shapes[name+'_p0mean']       = -999
+            self.shapes[name+'_p0fwhm']       = -999
             
     def applyProfileStyle(self,prof):
         prof.SetMarkerStyle(ROOT.kFullCircle)
