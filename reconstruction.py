@@ -41,8 +41,8 @@ class analysis:
     def __init__(self,options):
         self.rebin = options.rebin        
         self.options = options
-        # FIX: if only pmt mode, don't need to compute pedestal
-        self.pedfile_fullres_name = options.pedfile_fullres_name
+        if options.camera_mode:
+            self.pedfile_fullres_name = options.pedfile_fullres_name
         self.tmpname = options.tmpname
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
         geometryParams = eval(geometryPSet.read())
@@ -54,23 +54,24 @@ class analysis:
         for k,v in self.eventContentParams.items():
             setattr(self.options,k,v)
         
-# FIX: if only pmt mode, don't need to compute pedestal
-        if not os.path.exists(self.pedfile_fullres_name):
-            print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
-            self.calcPedestal(options,1)
-        if not options.justPedestal:
-           print("Pulling pedestals...")
-           # first the one for clustering with rebin
-           ctools = cameraTools(self.cg)
-           # then the full resolution one
-           pedrf_fr = uproot.open(self.pedfile_fullres_name)
-           self.pedarr_fr   = pedrf_fr['pedmap'].values().T
-           self.noisearr_fr = pedrf_fr['pedmap'].errors().T
-           if options.vignetteCorr:
-               self.vignmap = ctools.loadVignettingMap()
-           else:
-               self.vignmap = np.ones((self.xmax, self.xmax))
-            
+
+        if options.camera_mode:
+            if not os.path.exists(self.pedfile_fullres_name):
+                print("WARNING: pedestal file with full resolution ",self.pedfile_fullres_name, " not existing. First calculate them...")
+                self.calcPedestal(options,1)
+            if not options.justPedestal:
+                print("Pulling pedestals...")
+                # first the one for clustering with rebin
+                ctools = cameraTools(self.cg)
+                # then the full resolution one
+                pedrf_fr = uproot.open(self.pedfile_fullres_name)
+                self.pedarr_fr   = pedrf_fr['pedmap'].values().T
+                self.noisearr_fr = pedrf_fr['pedmap'].errors().T
+                if options.vignetteCorr:
+                    self.vignmap = ctools.loadVignettingMap()
+                else:
+                    self.vignmap = np.ones((self.xmax, self.xmax))
+                
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
@@ -83,9 +84,12 @@ class analysis:
         'resample': options.resample,
         'plotpy': options.pmt_plotpy,
         'wf_in_tree': options.pmt_wf_in_tree,
-        'digit_tag': options.digitizer_tag,
-        'pmt_verb':  options.pmt_verbose
+        'pmt_verb':  options.pmt_verbose,
+        'pmt_outdir': options.plotDir
         }
+        if options.debug_mode == 1:
+            self.pmt_params['pmt_verb']=3
+            self.pmt_params['plotpy']= True
 
     # the following is needed for multithreading
     def __call__(self,evrange=(-1,-1,-1)):
@@ -104,24 +108,31 @@ class analysis:
         print("Opening out file: ",outfname," self.outputFile = ",self.outputFile)
         ROOT.gDirectory.cd()
         # prepare output tree
-        self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
-        self.outTree = OutputTree(self.outputFile,self.outputTree)
-        self.autotree = AutoFillTreeProducer(self.outTree,self.eventContentParams)
+        if options.camera_mode or options.environment_variables:
+            self.outputTree = ROOT.TTree("Events","Tree containing reconstructed quantities")
+            self.outTree = OutputTree(self.outputFile,self.outputTree)
+            self.autotree = AutoFillTreeProducer(self.outTree,self.eventContentParams)
 
         ## Prepare PMT waveform Tree (1 event = 1 waveform)
-        self.outputTree_pmt = ROOT.TTree("PMT_Events","Tree containing reconstructed PMT quantities")
-        self.outTree_pmt = OutputTree(self.outputFile,self.outputTree_pmt)
-        self.autotree_pmt = AutoFillTreeProducer(self.outTree_pmt,self.eventContentParams)
+        if options.pmt_mode:
+            self.outputTree_pmt = ROOT.TTree("PMT_Events","Tree containing reconstructed PMT quantities")
+            self.outTree_pmt = OutputTree(self.outputFile,self.outputTree_pmt)
+            self.autotree_pmt = AutoFillTreeProducer(self.outTree_pmt,self.eventContentParams)
 
-        ## Prepare PMT average waveform Tree (1 event = 1 averaged waveform using 4 PMTs)
-        self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
-        self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
-        self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
+            ## Prepare PMT average waveform Tree (1 event = 1 averaged waveform using 4 PMTs)
+            self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
+            self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
+            self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
 
-        self.outTree.branch("run", "I", title="run number")
-        self.outTree.branch("event", "I", title="event number")
-        # FIX: if only pmt mode, don't need pedestal 
-        self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
+        if self.options.camera_mode:
+            self.outTree.branch("run", "I", title="run number")
+            self.outTree.branch("event", "I", title="event number")
+            self.outTree.branch("pedestal_run", "I", title="run number used for pedestal subtraction")
+            self.autotree.createCameraVariables()
+            self.autotree.createTimeCameraVariables()
+            self.autotree.createClusterVariables('sc')
+            if self.options.cosmic_killer:
+                self.autotree.addCosmicKillerVariables('sc')
         if self.options.save_MC_data:
 #           self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
@@ -139,26 +150,21 @@ class analysis:
             self.outTree.branch("MC_z_vertex_end","F")
             self.outTree.branch("MC_3D_pathlength","F")
             self.outTree.branch("MC_2D_pathlength","F")
-
-        if self.options.camera_mode:
-            self.autotree.createCameraVariables()
-            self.autotree.createTimeCameraVariables()
-            self.autotree.createClusterVariables('sc')
-            if self.options.cosmic_killer:
-                self.autotree.addCosmicKillerVariables('sc')
+            
         if options.environment_variables: self.autotree.createEnvVariables()
         if self.options.pmt_mode:
             self.autotree_pmt.createPMTVariables(self.pmt_params)
             self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)
             
-            # FIX: time variables -- see if it can be merged with above functions
             self.autotree_pmt.createTimePMTVariables()
-            self.autotree_pmt_avg.createTimePMTVariables_average()
+            self.autotree_pmt_avg.createTimePMTVariables()
 
     def endJob(self):
-        self.outTree.write()
-        self.outTree_pmt.write()
-        self.outTree_pmt_avg.write()
+        if options.camera_mode or options.environment_variables:
+            self.outTree.write()
+        if self.options.pmt_mode:
+            self.outTree_pmt.write()
+            self.outTree_pmt_avg.write()
         self.outputFile.Close()
         
     def getNEvents(self,options):
@@ -236,20 +242,17 @@ class analysis:
                 for iobj,key in enumerate(keys):
                     name=key
                     if name.startswith('CAM'):
-                        if options.rawdata_tier == 'root':
-                            arr = tf[key].values()
-                        else:
-                            arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                            arr = np.rot90(arr)
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                        arr = np.rot90(arr)
                         justSkip=False
-                        if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and numev>min(len(keys),maxImages): break
-                        if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
+                        if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
+                        if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
+                        if numev>200: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
                             
                         if numev%20 == 0:
                             print("Calc pedestal mean with event: ",numev)
                         if justSkip:
-                             continue
+                            continue
                         if rebin>1:
                             ctools.arrrebin(arr,rebin)
                         pedsum = np.add(pedsum,arr)
@@ -263,9 +266,9 @@ class analysis:
                     run = int(m.group(1))
                     event = int(m.group(2))
                 justSkip=False
-                if event in self.options.excImages: justSkip=True
-                if maxImages>-1 and event>min(len(keys),maxImages): break
-                if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
+                if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
+                if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
+                if numev>100: break # no need to compute pedestals with >100 evts (uproot issue)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                     continue
@@ -283,23 +286,19 @@ class analysis:
         if  options.rawdata_tier == 'midas':
             mf.jump_to_start()
             for mevent in mf:
-                if  options.rawdata_tier == 'midas':
-                    if mevent.header.is_midas_internal_event():
-                        continue
-                    else:
-                        keys = mevent.banks.keys()
+                if mevent.header.is_midas_internal_event():
+                    continue
+                else:
+                    keys = mevent.banks.keys()
                 for iobj,key in enumerate(keys):
                     name=key
                     if name.startswith('CAM'):
-                        if options.rawdata_tier == 'root':
-                            arr = tf[key].values()
-                        else:
-                            arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                            arr = np.rot90(arr)
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
+                        arr = np.rot90(arr)
                         justSkip=False
-                        if numev in self.options.excImages: justSkip=True
-                        if maxImages>-1 and numev>min(len(keys),maxImages): break
-                        if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
+                        if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
+                        if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
+                        if numev>200: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
              
                         if numev%20 == 0:
                             print("Calc pedestal rms with event: ",numev)
@@ -317,13 +316,13 @@ class analysis:
                     run = int(m.group(1))
                     event = int(m.group(2))
                 justSkip=False
-                if event in self.options.excImages: justSkip=True
-                if maxImages>-1 and event>min(len(keys),maxImages): break
-                if numev>100: break # no need to compute pedestals with >100 evts (avoid large RAM usage)
-     
+                if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
+                if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
+                if numev>100: break # no need to compute pedestals with >100 evts (uproot issue)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                      continue
+
                 if event%20 == 0:
                     print("Calc pedestal rms with event: ",event)
                 arr = tf[name].values()
@@ -373,7 +372,7 @@ class analysis:
             keys = tf.keys()
             mf = [0] # dummy array to make a common loop with MIDAS case
 
-        elif options.rawdata_tier == 'midas':
+        elif self.options.rawdata_tier == 'midas':
             run,tmpdir,tag = self.tmpname
             mf = sw.swift_download_midas_file(run,tmpdir,tag)
             
@@ -381,23 +380,11 @@ class analysis:
             ## Seems to repeat the opening process but *doesn't* slow down the code.
             if self.options.pmt_mode == 1:        
                 
-                if run > 7790:   ## There is an issue with Run1 because it doesn't contain all the info present in Run2
-                        #TO FIX -- ADD TAG CHECK since this only applies for LIME @ LNGS
-                    odb=cy.get_bor_odb(mf)
-                    corrected  = odb.data['Configurations']['DRS4Correction']
-                    channels_offsets  = odb.data['Configurations']['DigitizerOffset']
-                    camera_exposure   = odb.data['Configurations']['Exposure']
-                    mf.jump_to_start()
-                else:
-                    corrected = True
-                    camera_exposure = 300
-                    channels_offsets = 0
-                    mf.jump_to_start()
-
+                odb,corrected,channels_offsets,camera_exposure = utilities.get_odb_pmt_info(mf,self.options,run)
 
             mf.jump_to_start()
             dslow = pd.DataFrame()
-            if options.environment_variables:
+            if self.options.environment_variables:
         
                 odb = cy.get_bor_odb(mf)
                 header_environment = odb.data['Equipment']['Environment']['Settings']['Names Input']
@@ -406,18 +393,29 @@ class analysis:
                 dslow.loc[len(dslow)] = value_variables['Input']
                 for i in dslow.keys():
                     #try:
-                    dslow = utilities.conversion_env_variables(dslow, odb, i, j = 0)
+                    dslow = utilities.conversion_env_variables(dslow, odb, i, j_env = 0)
                     #except:
                         #print("WARNING: conversion_env_variables failed.")
                 try:
                    self.autotree.fillEnvVariables(dslow.take([0]))
+                   if not self.options.camera_mode:
+                            self.outTree.fill()
                 except:
                    print("WARNING: could not fill dslow variables.")   
                 #print(dslow)
-                j = 1
+
+                j_env = 1
 
         numev = 0
         event=0
+        camera_read = False         #only useful for midas read 
+        pmt_read = False            #only useful for midas read... FIX: is it fine to use only camera_read in the for of mevent but before keys loop? probably yes
+        if self.options.pmt_mode == 0:
+            pmt_read = True
+        
+        exist_pmt = False
+        exist_cam = False
+        fails_count = 0
 
         for mevent in mf:
             if self.options.rawdata_tier == 'midas':
@@ -425,11 +423,28 @@ class analysis:
                     continue
                 else:
                     keys = mevent.banks.keys()
-                    
+
+            if camera_read and pmt_read:
+                numev +=1   
+            camera_read = False         #only useful for midas read 
+            pmt_read = False            #only useful for midas read
+            if self.options.pmt_mode == 0:
+                pmt_read = True
+            else:
+                if exist_cam and not exist_pmt:
+                    fails_count +=1
+                    if fails_count==3:
+                        print('\nCareful: you set the PMT analysis ON but no PMT bank was found. Are you sure PMT data is available for this run?\n ANALYSIS FAILED')
+                        sys.exit()
+                    else:
+                         exist_pmt = False
+                         exist_cam = False   
+
             for iobj,key in enumerate(keys):
                 name=key
                 camera = False
                 pmt = False
+
 
                 if self.options.rawdata_tier == 'root':
                     if 'pic' in name:
@@ -440,8 +455,7 @@ class analysis:
                         obj = tf[key].values()
                         #obj = np.rot90(obj)
                         camera=True
-                    else:
-                        camera=False
+
                 elif self.options.rawdata_tier == 'h5':
                     if 'pic' in name:
                         patt = re.compile('\S+run(\d+)_ev(\d+)')
@@ -451,46 +465,50 @@ class analysis:
                         obj = np.array(tf[key])
                         #obj = np.rot90(obj)
                         camera=True
-                    else:
-                        camera=False
 
                 elif self.options.rawdata_tier == 'midas':
                     run = int(self.options.run)
-                    if name.startswith('CAM') and options.camera_mode:
-                        obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
-                        obj = np.rot90(obj)
-                        camera=True
+                    if name.startswith('CAM'):
+                        camera_read = True
+                        exist_cam = True
+                        if options.camera_mode:
+                            obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
+                            obj = np.rot90(obj)
+                            camera=True
                     
-                    elif name.startswith('INPT') and options.environment_variables: # SLOW channels array
+                    elif name.startswith('INPT') and self.options.environment_variables: # SLOW channels array
                         #try:
-                        dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j=j)
-                           #print(dslow)
-                        self.autotree.fillEnvVariables(dslow.take([j]))
-                        j = j+1
+                        dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j_env=j_env)
+                        self.autotree.fillEnvVariables(dslow.take([j_env]))
+                        j_env = j_env+1
+                        if not self.options.camera_mode:
+                            if self.options.jobs != 1:
+                                if numev>=evrange[1]: self.outTree.fill()
+                            else:
+                                self.outTree.fill()
                            #print(dslow)
                         #except:
                         #   print("WARNING: INPT bank is not as expected.")
                     
-                    elif name.startswith('DGH0') and options.pmt_mode:
-                        header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
-                        SIC = header.SIC
-                        sample_rate = header.sampling_rate
+                    elif name.startswith('DGH0'):
+                        pmt_read = True
+                        exist_pmt = True
+                        if self.options.pmt_mode:
+                            header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
+                            sample_rate = header.sampling_rate
 
-                        nChannels_f  = header.nchannels[0]
-                        nTriggers_f = len(header.TTT[0])
-                        TTTs_f = header.TTT[0]
+                            nChannels_f  = header.nchannels[0]
+                            nTriggers_f = len(header.TTT[0])
+                            TTTs_f = header.TTT[0]
 
-                        nChannels_s  = header.nchannels[1]
-                        nTriggers_s = len(header.TTT[1])
-                        TTTs_s = header.TTT[1]
+                            nChannels_s  = header.nchannels[1]
+                            nTriggers_s = len(header.TTT[1])
+                            TTTs_s = header.TTT[1]
 
-                        ## TO FIX : catch the dgitizer general 'tag' in the config file. Should work
-                        waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.pmt_params['digit_tag'])
+                            ## Care: if tag is MC$blabla, the tag for the digitizer will have to be changed to LNGS or something
+                            waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.options.tag)
 
-                        pmt = True
-                    else:
-                        camera = False
-                        pmt = False
+                            pmt = True
 
                     event=numev
 
@@ -503,21 +521,14 @@ class analysis:
                 if self.options.debug_mode == 1 and event != self.options.ev: justSkip=True
                 if justSkip:
                     continue
-                
-                # Event is identified by EITHER camera or pmt
-                # FIX: Perhaps we should change this with the same scheme as the filling at the end
-                # FIX: I'm filling the Branchs twice, but that should not be a problem (I think it overwrites)
-                if camera == True or pmt == True:
-                    print("Processing Run: ",run,"- Event ",event,"...")
-
-                    self.outTree.fillBranch("run",run)
-                    self.outTree.fillBranch("event",event)
-                    # FIX: if only pmt mode, don't need the pedestal_run branch
-                    self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
 
                 if self.options.camera_mode:
                     if camera==True:
-
+                        print("Processing Run: ",run,"- Event ",event,"Camera...")
+                        self.outTree.fillBranch("run",run)
+                        self.outTree.fillBranch("event",event)
+                        self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
+                    
                         testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
                         if np.sum(obj)>testspark:
                             print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
@@ -595,29 +606,33 @@ class analysis:
                         t_DBSCAN_1 = time.perf_counter()
                         snakes, t_DBSCAN, t_variables, lp_len, t_medianfilter, t_noisered = snprod.run()
                         t_DBSCAN_2 = time.perf_counter()
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print(f"1. DBSCAN run + variables calculation in {t_DBSCAN_2 - t_DBSCAN_1:0.4f} seconds")
                         self.autotree.fillCameraVariables(img_fr_zs)
                         t_DBSCAN_3 = time.perf_counter()
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print(f"fillCameraVariables in {t_DBSCAN_3 - t_DBSCAN_2:0.4f} seconds")
                         self.autotree.fillClusterVariables(snakes,'sc')
                         t_DBSCAN_4 = time.perf_counter()
                         self.autotree.fillTimeCameraVariables(t_variables, t_DBSCAN, lp_len, t_pedsub, t_saturation, t_zerosup, t_xycut, t_rebin, t_medianfilter, t_noisered)
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print(f"fillClusterVariables in {t_DBSCAN_4 - t_DBSCAN_3:0.04f} seconds")
                             print()
                         del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
+                        self.outTree.fill()
+                        del obj
+                        
          
                 if self.options.pmt_mode:
                     if pmt == True:
-
+                        print("Processing Run: ",run,"- Event ",event,"PMT...")
+                        t00_wave =  time.perf_counter()
                         chs_to_analyse = 4
                         fast_sampling = 1024
                         slow_sampling = 4000
 
                         ## Fast waveforms
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print("Number of fast triggers: {}".format(nTriggers_f))
 
                         for trg in range(nTriggers_f):    
@@ -678,7 +693,7 @@ class analysis:
                                     t_waveforms = t1_waveforms - t0_waveforms
 
                                     self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_wei_avg)
-                                    self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
+                                    self.autotree_pmt_avg.fillTimePMTVariables(t_waveforms)
                                     #fast_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
                                     self.outTree_pmt_avg.fill()
 
@@ -688,13 +703,13 @@ class analysis:
                                 del waveform_info
                                 del fast_waveform
                         # Slow waveforms
-                        if options.debug_mode == 1:
+                        if self.options.debug_mode == 1:
                             print("Number of slow triggers: {}".format(nTriggers_s))
 
                         for trg in range(nTriggers_s):    
 
                             insideGE = 0
-                            if (TTTs_f[trg] * 8.5/1000/1000) >= 180 and (TTTs_f[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
+                            if (TTTs_s[trg] * 8.5/1000/1000) >= 180 and (TTTs_s[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
                                 insideGE = 1
 
                             sing_weig_avg_slow_wf = [ [0]* slow_sampling for _ in range(chs_to_analyse)]  
@@ -741,7 +756,7 @@ class analysis:
                                     t_waveforms = t1_waveforms - t0_waveforms
 
                                     self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_wei_avg)
-                                    self.autotree_pmt_avg.fillTimePMTVariables_average(t_waveforms)
+                                    self.autotree_pmt_avg.fillTimePMTVariables(t_waveforms)
                                     #slow_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
                                     self.outTree_pmt_avg.fill()
 
@@ -751,28 +766,16 @@ class analysis:
                                 del waveform_info
                                 del slow_waveform
 
-                        # END of `for trg in range(nTriggers_f)`
+                        del waveform_f, waveform_s, header
+                        
+                        t01_wave =  time.perf_counter()
+                        if self.options.debug_mode == 1:
+                            print(f'PMT Reco Code Took: {t01_wave - t00_wave} seconds')
+                        # END of `if pmt`
                 # END of `if self.options.pmt_mode`
-
-
-
-                ## If single sensor analysis, update event number each loop 
-                if (self.options.camera_mode and not self.options.pmt_mode) or (self.options.pmt_mode and not self.options.camera_mode):
-                    if camera == True or pmt == True:           ##this is needed otherwise it increases the event number with each bank
-                        numev += 1  
-                        self.outTree.fill()
-                ## If both sensor analysis, update event number only after camera analysis since it comes after the PMT 
-                elif (self.options.camera_mode and self.options.pmt_mode):
-                    if camera == True:
-                        self.outTree.fill()
-                        numev += 1
-                if camera==True:
-                    del obj
                 
-                if pmt==True:
-                    del waveform_f, waveform_s, header
         gc.collect()
-                    
+             
         ROOT.gErrorIgnoreLevel = savErrorLevel
                 
 if __name__ == '__main__':
@@ -807,7 +810,8 @@ if __name__ == '__main__':
     else:
         setattr(options,'outFile','%s_run%05d_%s.root' % (options.outname, run, options.tip))
     # FIX: if only pmt mode, don't need to compute pedestal
-    utilities.setPedestalRun(options)        
+    if options.camera_mode:
+        utilities.setPedestalRun(options)        
         
     try:
         USER = os.environ['USER']
@@ -841,7 +845,7 @@ if __name__ == '__main__':
             options.tmpname = sw.swift_download_root_file(file_url,int(options.run),tmpdir)
         else:
             print ('Downloading MIDAS.gz file for run ' + options.run)
-    # in case of MIDAS, download function checks the existence and in case it is absent, dowloads it. If present, opens it
+    # in case of MIDAS, download function checks the existence and in case it is absent, downloads it. If present, opens it
     if options.rawdata_tier == 'midas':
         ## need to open it (and create the midas object) in the function, otherwise the async run when multithreaded will confuse events in the two threads
         options.tmpname = [int(options.run),tmpdir,options.tag]		#This line needs to be corrected if MC data will be in midas format. Not foreseen at all
@@ -859,6 +863,7 @@ if __name__ == '__main__':
     # FIX: the option for saving plots should only be ON only fi camera mode is ON
     print("I Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
+    os.system('mkdir -p {pdir}'.format(pdir=options.plotDir))
     
     nThreads = 1
     if options.jobs==-1:

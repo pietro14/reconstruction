@@ -33,8 +33,9 @@ class PMTreco:
         self.resample   = pmt_params['resample']        if 'resample' in pmt_params else 1
         self.plotpy     = pmt_params['plotpy']          if 'plotpy' in pmt_params else False
         self.wf_in_tree = pmt_params['wf_in_tree']      if 'wf_in_tree' in pmt_params else False
-        self.digit_tag  = pmt_params['digit_tag']       if 'digit_tag' in pmt_params else None
+        self.pmt_outdir = pmt_params['pmt_outdir']      if 'pmt_outdir' in pmt_params else None
         self.pmt_verb   = pmt_params['pmt_verb']        if 'pmt_verb' in pmt_params else 0
+        
         
 
 
@@ -78,7 +79,7 @@ class PMTreco:
     
         if self.plotpy == True:
             # Add function to create folder if not existing already
-            self.plot_and_save( pdir = './waveforms', xlabel = None, ylabel = None, save = True, plot = False)
+            self.plot_and_save( pdir =self.pmt_outdir, xlabel = None, ylabel = None, save = True, plot = False)
 
 
     #################  Display waveform information  ################# 
@@ -271,9 +272,6 @@ class PMTreco:
     def getSampling(self):
         return self.sampling
 
-    def getDigitizerTag(self):
-        return self.digit_tag
-
     def getPMTVerbose(self):
         return self.pmt_verb
 
@@ -371,7 +369,7 @@ class PMTreco:
         return charge
 
     ## Plot the waveforms with the peaks founds and respective widths. Saves them into a folder called 'waveforms'
-    def plot_and_save(self, pdir='./waveforms', xlabel='Time (ns)', ylabel='amplitude (mV)', save = True, plot = False):
+    def plot_and_save(self, pdir='./', xlabel='Time (ns)', ylabel='amplitude (mV)', save = True, plot = False):
         import matplotlib.pyplot as plt
 
         # plot data and the found peaks
@@ -393,7 +391,9 @@ class PMTreco:
             plt.show()
         
         if save == True:
-            for ext in ['pdf']:                         # Change to " for ext in ['pdf','png']: " to also save png format                 
+            os.system('mkdir -p {pdir}/waveforms'.format(pdir=pdir))
+            pdir = pdir + '/waveforms'
+            for ext in ['png']:                         # Change to " for ext in ['pdf','png']: " to also save png format                 
                 plt.savefig('{pdir}/{name}.{ext}'.format(pdir=pdir,name=self.plotname,ext=ext))
             plt.gcf().clear()
 
