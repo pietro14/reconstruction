@@ -624,6 +624,7 @@ class analysis:
                         
          
                 if self.options.pmt_mode:
+                    ## add comment test
                     if pmt == True:
                         print("Processing Run: ",run,"- Event ",event,"PMT...")
                         t00_wave =  time.perf_counter()
