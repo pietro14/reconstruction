@@ -268,7 +268,7 @@ class analysis:
                 justSkip=False
                 if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                 if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                if numev>100: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
+                if numev>100: break # no need to compute pedestals with >100 evts (uproot issue)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                     continue
@@ -318,7 +318,7 @@ class analysis:
                 justSkip=False
                 if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                 if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                if numev>100: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
+                if numev>100: break # no need to compute pedestals with >100 evts (uproot issue)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                      continue
@@ -409,7 +409,13 @@ class analysis:
         numev = 0
         event=0
         camera_read = False         #only useful for midas read 
-        pmt_read = False            #only useful for midas read
+        pmt_read = False            #only useful for midas read... FIX: is it fine to use only camera_read in the for of mevent but before keys loop? probably yes
+        if self.options.pmt_mode == 0:
+            pmt_read = True
+        
+        exist_pmt = False
+        exist_cam = False
+        fails_count = 0
 
         for mevent in mf:
             if self.options.rawdata_tier == 'midas':
@@ -422,6 +428,18 @@ class analysis:
                 numev +=1   
             camera_read = False         #only useful for midas read 
             pmt_read = False            #only useful for midas read
+            if self.options.pmt_mode == 0:
+                pmt_read = True
+            else:
+                if exist_cam and not exist_pmt:
+                    fails_count +=1
+                    if fails_count==3:
+                        print('\nCareful: you set the PMT analysis ON but no PMT bank was found. Are you sure PMT data is available for this run?\n ANALYSIS FAILED')
+                        sys.exit()
+                    else:
+                         exist_pmt = False
+                         exist_cam = False   
+
             for iobj,key in enumerate(keys):
                 name=key
                 camera = False
@@ -452,6 +470,7 @@ class analysis:
                     run = int(self.options.run)
                     if name.startswith('CAM'):
                         camera_read = True
+                        exist_cam = True
                         if options.camera_mode:
                             obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
                             obj = np.rot90(obj)
@@ -473,6 +492,7 @@ class analysis:
                     
                     elif name.startswith('DGH0'):
                         pmt_read = True
+                        exist_pmt = True
                         if self.options.pmt_mode:
                             header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
                             sample_rate = header.sampling_rate
@@ -755,7 +775,7 @@ class analysis:
                 # END of `if self.options.pmt_mode`
                 
         gc.collect()
-                    
+             
         ROOT.gErrorIgnoreLevel = savErrorLevel
                 
 if __name__ == '__main__':
