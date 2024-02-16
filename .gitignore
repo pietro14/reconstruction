@@ -23,3 +23,4 @@ README_PARAMETERS.txt
 build/
 cython_cygno.c
 reco_run*.txt
+*debug.txt
