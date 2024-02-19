@@ -674,11 +674,8 @@ class analysis:
 
                                     # Weighted averaged waveform (weight = SNR)
                                     snr_ratio = fast_waveform.getSignalToNoise()
-                                    print('snr: ', snr_ratio)
                                     fast_wf_weights_snr[ichf] = snr_ratio
                                     sing_weig_avg_fast_wf[ichf] = waveform_f[indx]
-
-
 
                                     # If one wants to visualize the new weighted waveforms,
                                     # meaning how much they actual weight for the final average, 
@@ -687,9 +684,9 @@ class analysis:
                                     if len(self.options.board_pmt_channels) > 1 and chf == self.options.board_pmt_channels[-1]:
 
                                         fast_wf_weights_snr = [ (x / max(fast_wf_weights_snr)) for x in fast_wf_weights_snr ]   # Normalization of the weights
-                                        print('snrs: ', fast_wf_weights_snr)
+                                        
                                         for k in range(chs_to_analyse):
-                                            print('**making the average')
+                                        
                                             for j in range(fast_sampling):
 
                                                 weight_average_wf[j] += sing_weig_avg_fast_wf[k][j]*fast_wf_weights_snr[k]/sum(fast_wf_weights_snr)

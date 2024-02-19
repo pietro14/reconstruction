@@ -61,10 +61,7 @@ class PMTreco:
         self.baseline   = self.getBaseline()
         
         # Channels: 0 - trigger; [1,4] - PMTs; [5-7] - GEMs; 9 - Weighted average wf
-        # self.ch_to_read.append(9)
-        if self.channel in self.ch_to_read or [9]: ##this is redundant
-
-            print("Im shaping this waveform...")
+        if self.channel in self.ch_to_read or [9]: 
 
             self.invert_and_center_WF(self.baseline)
 
