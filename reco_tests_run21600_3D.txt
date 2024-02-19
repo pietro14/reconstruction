@@ -1,3 +1,4 @@
+##########ConfigFile##########
 {
 # DATA FORMAT
 'rawdata_tier' : 'midas',
@@ -6,7 +7,7 @@
 'geometry'  : 'lime',
 
 # DEBUG plots
-'debug_mode'            : 1,
+'debug_mode'            : 0,
 'ev'                    : 5,
 'nclu'                  : -1,        # -1
 
@@ -72,4 +73,64 @@
 'pmt_plotpy'            : True,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
 'pmt_wf_in_tree'        : False,		## saves full X and Y arrays in tree branches. 
 'pmt_verbose'		: 0	                ## '0' for no output; '3' for full output.			
+}
+
+##########Geometry##########
+{
+# LIME
+'name'        : 'lime',
+'pixelwidth'  : 0.152,  # mm
+'npixx'       : 2304,
+'vignette'    : 'data/vignette_runs03930to03932.root',
+'xmin'        : 0,
+'xmax'        : 2304,
+'ymin'        : 304,
+'ymax'        : 2304-250,
+}
+
+##########Clustering##########
+{
+
+## DBSCAN seeding
+'dim'                : '3D',
+'dbscan_eps'         : 12,
+'dbscan_minsamples'  : 20, # this is for 2D #
+
+## directional clustering
+'dir_radius'         : 28, #11.5
+'dir_min_accuracy'   : 0.95, # minimum accuracy of the RANSAC to save one point of the cluster for the directional search
+'dir_minsamples'     : 12, ## 11 OKish ## N.B. this is always 2D, and it may differ from dbscan_minsamples (that can be Npix * intensity for 3D)
+'dir_thickness'      : 6.5,    ## 5.5,
+'time_threshold'     : 300, # seconds
+'max_attempts'       : 3,
+'isolation_radius'   : 5,
+'metric'             : 'cityblock', # this is fundamental not to be "euclidean", in order not to merge close and long tracks
+'metric_params'      : None,
+'algorithm'          : 'auto',
+'leaf_size'          : 30,
+'p'                  : None,
+'n_jobs'             : None,
+'expand_noncore'     : True,
+}
+
+##########Environment##########
+{
+'humidity': 'P1UIn5',
+'lime_pressure': 'P0IIn5',
+'atm_pressure': 'P0IIn3',
+'lime_temperature': 'P0IIn0',
+'atm_temperature': 'P1UIn1',
+'mixture_density' : 'P3IIn6',
+}
+##########Reco_content##########
+{
+
+'scfullinfo'            : True,			   # If True some the supercluster pixels info will be saved
+'scpixels_sel'          :  {                               # To reduce the event content when saving the pixels
+                           'max_len' : 100000,  # remove completely this cut (output files might be much larger)
+                           'min_integral' : 850 # corresponding to about 0.5 keV with the Run3 typical scale
+                           },
+
+'save_MC_data'          : False,			   # If True save the MC informations
+
 }

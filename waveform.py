@@ -24,6 +24,8 @@ class PMTreco:
         self.TTT        = wf_info['TTT']                if 'TTT' in wf_info else 0
         self.plotname   = 'WF__' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel) 
 
+        self.ch_to_read = pmt_params['ch_to_read']      if 'ch_to_read' in pmt_params else [1,2,3,4]
+
         self.threshold  = pmt_params['threshold']       if 'threshold' in pmt_params else 0
         self.height_RMS = pmt_params['height_RMS']      if 'height_RMS' in pmt_params else 1
         self.minDist    = pmt_params['minPeakDistance'] if 'minPeakDistance' in pmt_params else 1
@@ -36,8 +38,6 @@ class PMTreco:
         self.pmt_outdir = pmt_params['pmt_outdir']      if 'pmt_outdir' in pmt_params else None
         self.pmt_verb   = pmt_params['pmt_verb']        if 'pmt_verb' in pmt_params else 0
         
-        
-
 
         ## Digitizer samplings
         ## For now we save x_array as the sample array, not converted to ns
@@ -61,9 +61,10 @@ class PMTreco:
         self.baseline   = self.getBaseline()
         
         # Channels: 0 - trigger; [1,4] - PMTs; [5-7] - GEMs; 9 - Weighted average wf
-        # GEMs signals should be added
-        # This condition is redundant now since the reco choose the channels from the banks, but could serve useful later
-        if self.channel in [1,2,3,4,9]:
+        # self.ch_to_read.append(9)
+        if self.channel in self.ch_to_read or [9]: ##this is redundant
+
+            print("Im shaping this waveform...")
 
             self.invert_and_center_WF(self.baseline)
 

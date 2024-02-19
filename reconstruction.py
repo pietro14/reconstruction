@@ -75,17 +75,18 @@ class analysis:
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
-        'threshold': options.threshold,
-        'height_RMS': options.height_RMS, 
-        'minPeakDistance': options.minPeakDistance, 
-        'prominence': options.prominence,
-        'fixed_prom': options.fixed_prom, 
-        'width': options.width,
-        'resample': options.resample,
-        'plotpy': options.pmt_plotpy,
-        'wf_in_tree': options.pmt_wf_in_tree,
-        'pmt_verb':  options.pmt_verbose,
-        'pmt_outdir': options.plotDir
+            'ch_to_read' : options.board_pmt_channels,             
+            'threshold': options.threshold,
+            'height_RMS': options.height_RMS, 
+            'minPeakDistance': options.minPeakDistance, 
+            'prominence': options.prominence,
+            'fixed_prom': options.fixed_prom, 
+            'width': options.width,
+            'resample': options.resample,
+            'plotpy': options.pmt_plotpy,
+            'wf_in_tree': options.pmt_wf_in_tree,
+            'pmt_verb':  options.pmt_verbose,
+            'pmt_outdir': options.plotDir
         }
         if options.debug_mode == 1:
             self.pmt_params['pmt_verb']=3
@@ -630,11 +631,10 @@ class analysis:
                         
          
                 if self.options.pmt_mode:
-                    ## add comment test
                     if pmt == True:
                         print("Processing Run: ",run,"- Event ",event,"PMT...")
                         t00_wave =  time.perf_counter()
-                        chs_to_analyse = 4
+                        chs_to_analyse = len(self.options.board_pmt_channels)
                         fast_sampling = 1024
                         slow_sampling = 4000
 
@@ -646,8 +646,7 @@ class analysis:
                             for trg in range(nTriggers_f):    
 
                                 insideGE = 0
-                                # Method 1 uses a specific signal in ch5 to check if inside GE or not. Now *deprecated*
-                                # Method 2 uses the TTTs to check this condition
+                                # Uses the TTTs to check this condition
                                 if (TTTs_f[trg] * 8.5/1000/1000) >= 180 and (TTTs_f[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
                                     insideGE = 1
 
@@ -656,11 +655,10 @@ class analysis:
                                 fast_wf_weights_snr = [0] * chs_to_analyse
                                 weight_average_wf = [0]* fast_sampling
 
-                                for chs in range(chs_to_analyse):
+                                for ichf,chf in enumerate(self.options.board_pmt_channels):
 
-                                    ch = chs + 1
-                                    indx = trg * nChannels_f + ch
-                                    waveform_info = { 'run' : run, 'event': event, 'channel' : ch, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
+                                    indx = trg * nChannels_f + chf
+                                    waveform_info = { 'run' : run, 'event': event, 'channel' : chf, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
 
                                     t0_waveforms = time.perf_counter()
 
@@ -676,19 +674,22 @@ class analysis:
 
                                     # Weighted averaged waveform (weight = SNR)
                                     snr_ratio = fast_waveform.getSignalToNoise()
-                                    fast_wf_weights_snr[ch-1] = snr_ratio
-                                    sing_weig_avg_fast_wf[ch-1] = waveform_f[indx]
+                                    print('snr: ', snr_ratio)
+                                    fast_wf_weights_snr[ichf] = snr_ratio
+                                    sing_weig_avg_fast_wf[ichf] = waveform_f[indx]
+
+
 
                                     # If one wants to visualize the new weighted waveforms,
                                     # meaning how much they actual weight for the final average, 
                                     # Ask David for the script changes
 
-                                    if ch == 4:
+                                    if len(self.options.board_pmt_channels) > 1 and chf == self.options.board_pmt_channels[-1]:
 
                                         fast_wf_weights_snr = [ (x / max(fast_wf_weights_snr)) for x in fast_wf_weights_snr ]   # Normalization of the weights
-
+                                        print('snrs: ', fast_wf_weights_snr)
                                         for k in range(chs_to_analyse):
-
+                                            print('**making the average')
                                             for j in range(fast_sampling):
 
                                                 weight_average_wf[j] += sing_weig_avg_fast_wf[k][j]*fast_wf_weights_snr[k]/sum(fast_wf_weights_snr)
@@ -727,11 +728,10 @@ class analysis:
                                 slow_wf_weights_snr = [0] * chs_to_analyse
                                 weight_average_wf = [0]* slow_sampling
 
-                                for chs in range(chs_to_analyse):
+                                for ichs,chs in enumerate(self.options.board_pmt_channels):
 
-                                    ch = chs + 1
-                                    indx = trg * nChannels_s + ch
-                                    waveform_info = { 'run' : run, 'event': event, 'channel' : ch, 'trigger' : trg , 'GE' : insideGE , 'sampling' : "slow", 'TTT' : (TTTs_s[trg]*8.5/1000./1000.)}
+                                    indx = trg * nChannels_s + chs
+                                    waveform_info = { 'run' : run, 'event': event, 'channel' : chs, 'trigger' : trg , 'GE' : insideGE , 'sampling' : "slow", 'TTT' : (TTTs_s[trg]*8.5/1000./1000.)}
                                     
                                     t0_waveforms = time.perf_counter()
 
@@ -746,10 +746,10 @@ class analysis:
                                     self.outTree_pmt.fill()
 
                                     snr_ratio = slow_waveform.getSignalToNoise()
-                                    slow_wf_weights_snr[ch-1] = snr_ratio
-                                    sing_weig_avg_slow_wf[ch-1] = waveform_s[indx]
+                                    slow_wf_weights_snr[ichs] = snr_ratio
+                                    sing_weig_avg_slow_wf[ichs] = waveform_s[indx]
 
-                                    if ch == 4:
+                                    if len(self.options.board_pmt_channels) > 1 and chs == self.options.board_pmt_channels[-1]:
 
                                         slow_wf_weights_snr = [ (x / max(slow_wf_weights_snr)) for x in slow_wf_weights_snr ]   # Normalization of the weights
 

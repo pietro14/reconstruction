@@ -1,13 +1,13 @@
 {
 # DATA FORMAT
-'rawdata_tier' : 'root',
+'rawdata_tier' : 'midas',
 
 # DETECTOR
 'geometry'  : 'Mango_full',
 
 # DEBUG plots
 'debug_mode'            : 1,
-'ev'                    : 53,
+'ev'                    : 3,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -58,7 +58,10 @@
 'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 0,
+'pmt_mode'              : 1,
+
+'board_pmt_channels'	: [1],	# Board channels used to save PMT.
+
 'threshold'             : 0,			
 'height_RMS'		: 5,			## 5 * RMS
 'minPeakDistance'       : 1,			
@@ -66,7 +69,7 @@
 'fixed_prom'		: True,			## If True, overrides prominence value with optimized one
 'width'                 : 5,
 'resample'              : 10,			## Number of samples used for moving average
-'pmt_plotpy'            : False,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
+'pmt_plotpy'            : True,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
 'pmt_wf_in_tree'        : False,		## saves full X and Y arrays in tree branches. 
-'pmt_verbose'		: 0	                ## '0' for no output; '3' for full output.
+'pmt_verbose'		: 0	                ## '0' for no output; '3' for full output.			
 }
