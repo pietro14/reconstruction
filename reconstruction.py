@@ -71,7 +71,6 @@ class analysis:
                     self.vignmap = ctools.loadVignettingMap()
                 else:
                     self.vignmap = np.ones((self.xmax, self.xmax))
-                
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
@@ -86,11 +85,16 @@ class analysis:
             'plotpy': options.pmt_plotpy,
             'wf_in_tree': options.pmt_wf_in_tree,
             'pmt_verb':  options.pmt_verbose,
-            'pmt_outdir': options.plotDir
+            'pmt_outdir': options.plotDir,
+            'include_gem':  options.include_gem,
+            'ch_to_read_gem' : options.board_gem_channels,             
         }
         if options.debug_mode == 1:
             self.pmt_params['pmt_verb']=3
             self.pmt_params['plotpy']= True
+        if options.include_gem and not options.pmt_mode:
+            print('\nIt seems you are trying to analyse the GEM signals without the PMT Mode On. This does not work.\n ANALYSIS FAILED')
+            sys.exit()
 
     # the following is needed for multithreading
     def __call__(self,evrange=(-1,-1,-1)):
@@ -124,6 +128,11 @@ class analysis:
             self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
             self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
             self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
+
+            if options.include_gem:
+                self.outputTree_gem = ROOT.TTree("GEM_Events","Tree containing reconstructed GEM quantities")
+                self.outTree_gem = OutputTree(self.outputFile,self.outputTree_gem)
+                self.autotree_gem = AutoFillTreeProducer(self.outTree_gem,self.eventContentParams)
 
         if self.options.camera_mode:
             self.outTree.branch("run", "I", title="run number")
@@ -160,12 +169,18 @@ class analysis:
             self.autotree_pmt.createTimePMTVariables()
             self.autotree_pmt_avg.createTimePMTVariables()
 
+            if options.include_gem:
+                self.autotree_gem.createPMTVariables(self.pmt_params)   ## We base GEM analysis on PMT, for now.
+
+
     def endJob(self):
         if options.camera_mode or options.environment_variables:
             self.outTree.write()
         if self.options.pmt_mode:
             self.outTree_pmt.write()
             self.outTree_pmt_avg.write()
+            if options.include_gem:
+                self.outTree_gem.write()
         self.outputFile.Close()
         
     def getNEvents(self,options):
@@ -708,6 +723,20 @@ class analysis:
 
                                     del waveform_info
                                     del fast_waveform
+                                
+                                for ichf_gem,chf_gem in enumerate(self.options.board_gem_channels):
+
+                                    indx = trg * nChannels_f + chf_gem
+                                    waveform_info = { 'run' : run, 'event': event, 'channel' : chf_gem, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
+
+                                    fast_gem_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
+                                    # fast_waveform.__repr__()
+
+                                    self.autotree_gem.fillPMTVariables(fast_gem_waveform) 
+                                    self.outTree_gem.fill()
+
+                                    del fast_gem_waveform
+
                             del waveform_f
 
                         # Slow waveforms
@@ -773,6 +802,10 @@ class analysis:
 
                                     del waveform_info
                                     del slow_waveform
+
+                                # for ichs_gem,chs_gem in enumerate(self.options.board_gem_channels):
+                                    # ... There is no slow board for GEM signals 
+
                             del waveform_s
 
                         del header

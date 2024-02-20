@@ -22,7 +22,6 @@ class PMTreco:
         self.insideGE   = wf_info['GE']                 if 'GE' in wf_info else 0
         self.digitizer  = wf_info['sampling']           if 'sampling' in wf_info else None
         self.TTT        = wf_info['TTT']                if 'TTT' in wf_info else 0
-        self.plotname   = 'WF__' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel) 
 
         self.ch_to_read = pmt_params['ch_to_read']      if 'ch_to_read' in pmt_params else [1,2,3,4]
 
@@ -37,6 +36,9 @@ class PMTreco:
         self.wf_in_tree = pmt_params['wf_in_tree']      if 'wf_in_tree' in pmt_params else False
         self.pmt_outdir = pmt_params['pmt_outdir']      if 'pmt_outdir' in pmt_params else None
         self.pmt_verb   = pmt_params['pmt_verb']        if 'pmt_verb' in pmt_params else 0
+
+        self.gem        = pmt_params['include_gem']     if 'include_gem' in pmt_params else 0
+        self.gem_chs    = pmt_params['ch_to_read_gem']  if 'ch_to_read_gem' in pmt_params else []
         
 
         ## Digitizer samplings
@@ -60,8 +62,10 @@ class PMTreco:
 
         self.baseline   = self.getBaseline()
         
-        # Channels: 0 - trigger; [1,4] - PMTs; [5-7] - GEMs; 9 - Weighted average wf
-        if self.channel in self.ch_to_read or [9]: 
+        # Channels: 0 - trigger; [1,4] - PMTs; 9 - Weighted average wf
+        if self.channel in self.ch_to_read or self.channel in [9]:
+
+            self.plotname   = 'PMT_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel) #FIX: cahnge this to add pmt or gem in the name
 
             self.invert_and_center_WF(self.baseline)
 
@@ -70,7 +74,28 @@ class PMTreco:
 
             if self.digitizer == "slow":                                   
                 self.moving_average(window_size = self.resample)
-        
+
+        # Channels: 0 - trigger; [5-7] - GEMs
+        ## GEM analysis could/should be different from PMT. The structure is ready.
+        elif self.channel in self.gem_chs:
+
+            self.plotname   = 'GEM_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel) #FIX: cahnge this to add pmt or gem in the name
+
+            #the following part is only valid if the GEM signals are 5,6,7 for GEM1, GEM2, GEM3
+            #The polarity of these signals is not constant thus it's not easy to prepare for all cases.
+            # I leave a different case for each GEM as I believe it might become useful
+            if self.channel == 5:
+                self.invert_and_center_WF(self.baseline, invert = False)
+                self.moving_average(window_size = self.resample)
+
+            elif self.channel == 6:
+                self.invert_and_center_WF(self.baseline, invert = False)
+                self.moving_average(window_size = self.resample)
+
+            elif self.channel == 7:
+                self.invert_and_center_WF(self.baseline, invert = True)
+                self.moving_average(window_size = self.resample)
+
         self.findPeaks(thr = self.threshold, height = self.height_RMS, 
             mindist = self.minDist, prominence = self.prominence, 
             fixed_prom = self.fixed_prom, width = self.width)
@@ -122,13 +147,13 @@ class PMTreco:
     #################  Operations of the waveform  #################  
 
     ## Inverts and centers to zero the waveform
-    def invert_and_center_WF(self, baseline):
+    def invert_and_center_WF(self, baseline, invert = True):
 
         demo_y = list(self.y_array) 
         for i in range(len(demo_y)):
 
             demo_y[i] -= baseline 
-            demo_y[i] *= (-1.)
+            if invert == True: demo_y[i] *= (-1.)
 
         self.y_array = tuple(demo_y)
         self.y_array_original = self.y_array
