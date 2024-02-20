@@ -22,7 +22,6 @@ from cameraChannel import cameraTools, cameraGeometry
 import midas.file_reader
 import h5py
 
-
 from snakes import SnakesProducer
 from output import OutputTree
 from treeVars import AutoFillTreeProducer
@@ -92,9 +91,16 @@ class analysis:
         if options.debug_mode == 1:
             self.pmt_params['pmt_verb']=3
             self.pmt_params['plotpy']= True
+        if options.pmt_mode and not options.board_pmt_channels:
+            print('\nIt seems you are trying to analyse the PMT signals without selecting their channels. Untoggle PMT mode or add channels.\n ANALYSIS FAILED')
+            sys.exit()
         if options.include_gem and not options.pmt_mode:
             print('\nIt seems you are trying to analyse the GEM signals without the PMT Mode On. This does not work.\n ANALYSIS FAILED')
             sys.exit()
+        if options.include_gem and not options.board_gem_channels:
+            print('\nIt seems you are trying to analyse the GEM signals without selecting their channels. Untoggle GEM mode or add channels.\n ANALYSIS FAILED')
+            sys.exit()
+
 
     # the following is needed for multithreading
     def __call__(self,evrange=(-1,-1,-1)):
@@ -125,9 +131,11 @@ class analysis:
             self.autotree_pmt = AutoFillTreeProducer(self.outTree_pmt,self.eventContentParams)
 
             ## Prepare PMT average waveform Tree (1 event = 1 averaged waveform using 4 PMTs)
-            self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
-            self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
-            self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
+            ## Only does average if there are more than one channel
+            if len(self.options.board_pmt_channels) > 1:
+                self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
+                self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
+                self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
 
             if options.include_gem:
                 self.outputTree_gem = ROOT.TTree("GEM_Events","Tree containing reconstructed GEM quantities")
@@ -164,10 +172,11 @@ class analysis:
         if options.environment_variables: self.autotree.createEnvVariables()
         if self.options.pmt_mode:
             self.autotree_pmt.createPMTVariables(self.pmt_params)
-            self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)
-            
             self.autotree_pmt.createTimePMTVariables()
-            self.autotree_pmt_avg.createTimePMTVariables()
+
+            if len(self.options.board_pmt_channels) > 1:
+                self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)            
+                self.autotree_pmt_avg.createTimePMTVariables()
 
             if options.include_gem:
                 self.autotree_gem.createPMTVariables(self.pmt_params)   ## We base GEM analysis on PMT, for now.
@@ -176,11 +185,14 @@ class analysis:
     def endJob(self):
         if options.camera_mode or options.environment_variables:
             self.outTree.write()
+        
         if self.options.pmt_mode:
             self.outTree_pmt.write()
-            self.outTree_pmt_avg.write()
+            if len(self.options.board_pmt_channels) > 1:
+                self.outTree_pmt_avg.write()            
             if options.include_gem:
                 self.outTree_gem.write()
+        
         self.outputFile.Close()
         
     def getNEvents(self,options):
@@ -534,8 +546,6 @@ class analysis:
 
                     event=numev
 
-                # print("    peak memory: {} MB".format(utilities.peak_memory_usage()))
-
                 justSkip = False
                 if event<evrange[1]: justSkip=True
                 if event>evrange[2]: return # avoids seeking up to EOF which with MIDAS is slow
@@ -575,7 +585,6 @@ class analysis:
                             self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
                             self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
 
-             
                         img_fr = obj.T
          
                         # Upper Threshold full image
@@ -724,13 +733,15 @@ class analysis:
                                     del waveform_info
                                     del fast_waveform
                                 
+                                # GEM readout. Only available for fast digitizer
+                                # No computing time properties for GEM for now.
                                 for ichf_gem,chf_gem in enumerate(self.options.board_gem_channels):
 
                                     indx = trg * nChannels_f + chf_gem
                                     waveform_info = { 'run' : run, 'event': event, 'channel' : chf_gem, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
 
                                     fast_gem_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
-                                    # fast_waveform.__repr__()
+                                    # fast_gem_waveform.__repr__()
 
                                     self.autotree_gem.fillPMTVariables(fast_gem_waveform) 
                                     self.outTree_gem.fill()
@@ -803,8 +814,8 @@ class analysis:
                                     del waveform_info
                                     del slow_waveform
 
+                                # ... There is no slow board for GEM signals 
                                 # for ichs_gem,chs_gem in enumerate(self.options.board_gem_channels):
-                                    # ... There is no slow board for GEM signals 
 
                             del waveform_s
 
