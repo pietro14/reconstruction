@@ -735,18 +735,19 @@ class analysis:
                                 
                                 # GEM readout. Only available for fast digitizer
                                 # No computing time properties for GEM for now.
-                                for ichf_gem,chf_gem in enumerate(self.options.board_gem_channels):
+                                if options.include_gem:
+                                    for ichf_gem,chf_gem in enumerate(self.options.board_gem_channels):
 
-                                    indx = trg * nChannels_f + chf_gem
-                                    waveform_info = { 'run' : run, 'event': event, 'channel' : chf_gem, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
+                                        indx = trg * nChannels_f + chf_gem
+                                        waveform_info = { 'run' : run, 'event': event, 'channel' : chf_gem, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
 
-                                    fast_gem_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
-                                    # fast_gem_waveform.__repr__()
+                                        fast_gem_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
+                                        # fast_gem_waveform.__repr__()
 
-                                    self.autotree_gem.fillPMTVariables(fast_gem_waveform) 
-                                    self.outTree_gem.fill()
+                                        self.autotree_gem.fillPMTVariables(fast_gem_waveform) 
+                                        self.outTree_gem.fill()
 
-                                    del fast_gem_waveform
+                                        del fast_gem_waveform
 
                             del waveform_f
 
