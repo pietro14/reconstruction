@@ -7,7 +7,7 @@
 
 # DEBUG plots
 'debug_mode'            : 0,
-'ev'                    : 9,
+'ev'                    : 112,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -67,7 +67,7 @@
 'prominence'            : 0.1,			
 'fixed_prom'			: True,			## If True, overrides prominence value with optimized one
 'width'                 : 5,
-'resample'              : 10,			## Number of samples used for moving average
+'resample'              : 5,			## Number of samples used for moving average. Minimum: 1
 'pmt_plotpy'            : False,		## saves ALL waveforms in '{--pdir}./waveforms'. Careful. 
 'pmt_wf_in_tree'        : False,		## saves full X and Y arrays in tree branches. 
 'pmt_verbose'			: 0,	        ## Choose from 0 to 3. '0' for no output; '3' for full output.	
