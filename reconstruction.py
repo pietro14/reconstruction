@@ -530,17 +530,21 @@ class analysis:
                             ## Care: if tag is MC$blabla, the tag for the digitizer will have to be changed to LNGS or something
                             waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.options.tag)
 
-                            if len(waveform_f):
-                                fast_digitizer = True
-                                nChannels_f  = header.nchannels[0]
-                                nTriggers_f = len(header.TTT[0])
-                                TTTs_f = header.TTT[0]
+                            for idigi,digitizer in enumerate(header.boardNames):
 
-                            if len(waveform_s):
-                                slow_digitizer = True
-                                nChannels_s  = header.nchannels[1]
-                                nTriggers_s = len(header.TTT[1])
-                                TTTs_s = header.TTT[1]
+                                if str(digitizer) == '1742' and len(waveform_f):  
+
+                                    fast_digitizer = True
+                                    nChannels_f  = header.nchannels[idigi]
+                                    nTriggers_f = len(header.TTT[idigi])
+                                    TTTs_f = header.TTT[idigi]
+
+                                elif str(digitizer) == '1720' and len(waveform_s):
+                                    
+                                    slow_digitizer = True
+                                    nChannels_s  = header.nchannels[idigi]
+                                    nTriggers_s = len(header.TTT[idigi])
+                                    TTTs_s = header.TTT[idigi]
 
                             pmt = True
 
