@@ -81,20 +81,14 @@ class PMTreco:
 
             self.plotname   = 'GEM_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel)
 
-            ## The following part is only valid if the GEM signals are 5,6,7 for GEM1, GEM2, GEM3
+            ## The following part the last GEM channel in the list corresponds to the last GEM in the stack. This we invert.
             ## The polarity of these signals is not constant thus it's not easy to prepare for all cases.
-            ## I leave a different case for each GEM as I believe this will be necessary for any future analysis
-            if self.channel == 5:
-                self.invert_and_center_WF(self.baseline, invert = False)
-                self.moving_average(window_size = self.resample)
-
-            elif self.channel == 6:
-                self.invert_and_center_WF(self.baseline, invert = False)
-                self.moving_average(window_size = self.resample)
-
-            elif self.channel == 7:
+            if self.channel == self.gem_chs[-1]:
                 self.invert_and_center_WF(self.baseline, invert = True)
-                self.moving_average(window_size = self.resample)
+            else:
+                self.invert_and_center_WF(self.baseline, invert = False)
+
+            self.moving_average(window_size = self.resample)
 
         self.findPeaks(thr = self.threshold, height = self.height_RMS, 
             mindist = self.minDist, prominence = self.prominence, 
