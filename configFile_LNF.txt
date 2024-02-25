@@ -58,8 +58,9 @@
 'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 1,
+'pmt_mode'              : 0,
 'board_pmt_channels'	: [1,2],	# Board channels used to save PMT.
+									# NB: This assumes the PMTs are connected to the same channels in both digitizers.
 
 'threshold'             : 0,			
 'height_RMS'			: 5,			## 5 * RMS

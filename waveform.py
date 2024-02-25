@@ -65,7 +65,7 @@ class PMTreco:
         # Channels: 0 - trigger; [1,4] - PMTs; 9 - Weighted average wf
         if self.channel in self.ch_to_read or self.channel in [9]:
 
-            self.plotname   = 'PMT_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel) #FIX: cahnge this to add pmt or gem in the name
+            self.plotname   = 'PMT_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel)
 
             self.invert_and_center_WF(self.baseline)
 
@@ -79,7 +79,7 @@ class PMTreco:
         ## GEM analysis could/should be different from PMT. The structure is ready.
         elif self.channel in self.gem_chs:
 
-            self.plotname   = 'GEM_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel) #FIX: cahnge this to add pmt or gem in the name
+            self.plotname   = 'GEM_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel)
 
             ## The following part is only valid if the GEM signals are 5,6,7 for GEM1, GEM2, GEM3
             ## The polarity of these signals is not constant thus it's not easy to prepare for all cases.

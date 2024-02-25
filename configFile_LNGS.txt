@@ -7,7 +7,7 @@
 
 # DEBUG plots
 'debug_mode'            : 0,
-'ev'                    : 112,
+'ev'                    : 10,
 'nclu'                  : -1,        # -1
 
 # Plots that will be made if debug_mode = 1
@@ -59,7 +59,8 @@
 
 ### PMT waveform reconstruction
 'pmt_mode'              : 1,
-'board_pmt_channels'	: [1,2,3,4],	# Board channels used to save PMT.
+'board_pmt_channels'	: [1,2,3,4],	# Board channels used to save PMT. 
+										# NB: This assumes the PMTs are connected to the same channels in both digitizers.
 
 'threshold'             : 0,			
 'height_RMS'			: 5,			## 5 * RMS
