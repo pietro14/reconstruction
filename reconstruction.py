@@ -22,7 +22,6 @@ from cameraChannel import cameraTools, cameraGeometry
 import midas.file_reader
 import h5py
 
-
 from snakes import SnakesProducer
 from output import OutputTree
 from treeVars import AutoFillTreeProducer
@@ -71,25 +70,37 @@ class analysis:
                     self.vignmap = ctools.loadVignettingMap()
                 else:
                     self.vignmap = np.ones((self.xmax, self.xmax))
-                
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
-        'threshold': options.threshold,
-        'height_RMS': options.height_RMS, 
-        'minPeakDistance': options.minPeakDistance, 
-        'prominence': options.prominence,
-        'fixed_prom': options.fixed_prom, 
-        'width': options.width,
-        'resample': options.resample,
-        'plotpy': options.pmt_plotpy,
-        'wf_in_tree': options.pmt_wf_in_tree,
-        'pmt_verb':  options.pmt_verbose,
-        'pmt_outdir': options.plotDir
+            'ch_to_read' : options.board_pmt_channels,             
+            'threshold': options.threshold,
+            'height_RMS': options.height_RMS, 
+            'minPeakDistance': options.minPeakDistance, 
+            'prominence': options.prominence,
+            'fixed_prom': options.fixed_prom, 
+            'width': options.width,
+            'resample': options.resample,
+            'plotpy': options.pmt_plotpy,
+            'wf_in_tree': options.pmt_wf_in_tree,
+            'pmt_verb':  options.pmt_verbose,
+            'pmt_outdir': options.plotDir,
+            'include_gem':  options.include_gem,
+            'ch_to_read_gem' : options.board_gem_channels,             
         }
         if options.debug_mode == 1:
             self.pmt_params['pmt_verb']=3
             self.pmt_params['plotpy']= True
+        if options.pmt_mode and not options.board_pmt_channels:
+            print('\nIt seems you are trying to analyse the PMT signals without selecting their channels. Untoggle PMT mode or add channels.\n ANALYSIS FAILED')
+            sys.exit()
+        if options.include_gem and not options.pmt_mode:
+            print('\nIt seems you are trying to analyse the GEM signals without the PMT Mode On. This does not work.\n ANALYSIS FAILED')
+            sys.exit()
+        if options.include_gem and not options.board_gem_channels:
+            print('\nIt seems you are trying to analyse the GEM signals without selecting their channels. Untoggle GEM mode or add channels.\n ANALYSIS FAILED')
+            sys.exit()
+
 
     # the following is needed for multithreading
     def __call__(self,evrange=(-1,-1,-1)):
@@ -120,9 +131,16 @@ class analysis:
             self.autotree_pmt = AutoFillTreeProducer(self.outTree_pmt,self.eventContentParams)
 
             ## Prepare PMT average waveform Tree (1 event = 1 averaged waveform using 4 PMTs)
-            self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
-            self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
-            self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
+            ## Only does average if there are more than one channel
+            if len(self.options.board_pmt_channels) > 1:
+                self.outputTree_pmt_avg = ROOT.TTree("PMT_Avg_Events","Tree containing the average PMT waveforms of 4 channels")
+                self.outTree_pmt_avg = OutputTree(self.outputFile,self.outputTree_pmt_avg)
+                self.autotree_pmt_avg = AutoFillTreeProducer(self.outTree_pmt_avg,self.eventContentParams)
+
+            if options.include_gem:
+                self.outputTree_gem = ROOT.TTree("GEM_Events","Tree containing reconstructed GEM quantities")
+                self.outTree_gem = OutputTree(self.outputFile,self.outputTree_gem)
+                self.autotree_gem = AutoFillTreeProducer(self.outTree_gem,self.eventContentParams)
 
         if self.options.camera_mode:
             self.outTree.branch("run", "I", title="run number")
@@ -154,17 +172,27 @@ class analysis:
         if options.environment_variables: self.autotree.createEnvVariables()
         if self.options.pmt_mode:
             self.autotree_pmt.createPMTVariables(self.pmt_params)
-            self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)
-            
             self.autotree_pmt.createTimePMTVariables()
-            self.autotree_pmt_avg.createTimePMTVariables()
+
+            if len(self.options.board_pmt_channels) > 1:
+                self.autotree_pmt_avg.createPMTVariables_average(self.pmt_params)            
+                self.autotree_pmt_avg.createTimePMTVariables()
+
+            if options.include_gem:
+                self.autotree_gem.createPMTVariables(self.pmt_params)   ## We base GEM analysis on PMT, for now.
+
 
     def endJob(self):
         if options.camera_mode or options.environment_variables:
             self.outTree.write()
+        
         if self.options.pmt_mode:
             self.outTree_pmt.write()
-            self.outTree_pmt_avg.write()
+            if len(self.options.board_pmt_channels) > 1:
+                self.outTree_pmt_avg.write()            
+            if options.include_gem:
+                self.outTree_gem.write()
+        
         self.outputFile.Close()
         
     def getNEvents(self,options):
@@ -493,26 +521,34 @@ class analysis:
                     elif name.startswith('DGH0'):
                         pmt_read = True
                         exist_pmt = True
+                        fast_digitizer = False
+                        slow_digitizer = False
                         if self.options.pmt_mode:
                             header=cy.daq_dgz_full2header(mevent.banks[key], verbose=False)
-                            sample_rate = header.sampling_rate
-
-                            nChannels_f  = header.nchannels[0]
-                            nTriggers_f = len(header.TTT[0])
-                            TTTs_f = header.TTT[0]
-
-                            nChannels_s  = header.nchannels[1]
-                            nTriggers_s = len(header.TTT[1])
-                            TTTs_s = header.TTT[1]
+                            # sample_rate = header.sampling_rate
 
                             ## Care: if tag is MC$blabla, the tag for the digitizer will have to be changed to LNGS or something
                             waveform_f, waveform_s = cy.daq_dgz_full2array(mevent.banks['DIG0'], header, verbose=False, corrected=corrected, ch_offset=channels_offsets,tag=self.options.tag)
 
+                            for idigi,digitizer in enumerate(header.boardNames):
+
+                                if str(digitizer) == '1742' and len(waveform_f):  
+
+                                    fast_digitizer = True
+                                    nChannels_f  = header.nchannels[idigi]
+                                    nTriggers_f = len(header.TTT[idigi])
+                                    TTTs_f = header.TTT[idigi]
+
+                                elif str(digitizer) == '1720' and len(waveform_s):
+                                    
+                                    slow_digitizer = True
+                                    nChannels_s  = header.nchannels[idigi]
+                                    nTriggers_s = len(header.TTT[idigi])
+                                    TTTs_s = header.TTT[idigi]
+
                             pmt = True
 
                     event=numev
-
-                # print("    peak memory: {} MB".format(utilities.peak_memory_usage()))
 
                 justSkip = False
                 if event<evrange[1]: justSkip=True
@@ -553,7 +589,6 @@ class analysis:
                             self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
                             self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
 
-             
                         img_fr = obj.T
          
                         # Upper Threshold full image
@@ -627,146 +662,169 @@ class analysis:
                     if pmt == True:
                         print("Processing Run: ",run,"- Event ",event,"PMT...")
                         t00_wave =  time.perf_counter()
-                        chs_to_analyse = 4
+                        chs_to_analyse = len(self.options.board_pmt_channels)
                         fast_sampling = 1024
                         slow_sampling = 4000
 
                         ## Fast waveforms
-                        if self.options.debug_mode == 1:
-                            print("Number of fast triggers: {}".format(nTriggers_f))
+                        if fast_digitizer:
+                            if self.options.debug_mode == 1:
+                                print("Number of fast triggers: {}".format(nTriggers_f))
 
-                        for trg in range(nTriggers_f):    
+                            for trg in range(nTriggers_f):    
 
-                            insideGE = 0
-                            # Method 1 uses a specific signal in ch5 to check if inside GE or not. Now *deprecated*
-                            # Method 2 uses the TTTs to check this condition
-                            if (TTTs_f[trg] * 8.5/1000/1000) >= 180 and (TTTs_f[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
-                                insideGE = 1
+                                insideGE = 0
+                                # Uses the TTTs to check this condition
+                                if (TTTs_f[trg] * 8.5/1000/1000) >= 180 and (TTTs_f[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
+                                    insideGE = 1
 
-                            # Prepare the weighted average waveform 
-                            sing_weig_avg_fast_wf = [ [0]*fast_sampling for _ in range(chs_to_analyse)]  
-                            fast_wf_weights_snr = [0] * chs_to_analyse
-                            weight_average_wf = [0]* fast_sampling
+                                # Prepare the weighted average waveform 
+                                sing_weig_avg_fast_wf = [ [0]*fast_sampling for _ in range(chs_to_analyse)]  
+                                fast_wf_weights_snr = [0] * chs_to_analyse
+                                weight_average_wf = [0]* fast_sampling
 
-                            for chs in range(chs_to_analyse):
+                                for ichf,chf in enumerate(self.options.board_pmt_channels):
 
-                                ch = chs + 1
-                                indx = trg * nChannels_f + ch
-                                waveform_info = { 'run' : run, 'event': event, 'channel' : ch, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
-
-                                t0_waveforms = time.perf_counter()
-
-                                fast_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
-                                fast_waveform.__repr__()
-
-                                t1_waveforms = time.perf_counter()
-                                t_waveforms = t1_waveforms - t0_waveforms
-
-                                self.autotree_pmt.fillPMTVariables(fast_waveform) 
-                                self.autotree_pmt.fillTimePMTVariables(t_waveforms)
-                                self.outTree_pmt.fill()
-
-                                # Weighted averaged waveform (weight = SNR)
-                                snr_ratio = fast_waveform.getSignalToNoise()
-                                fast_wf_weights_snr[ch-1] = snr_ratio
-                                sing_weig_avg_fast_wf[ch-1] = waveform_f[indx]
-
-                                # If one wants to visualize the new weighted waveforms,
-                                # meaning how much they actual weight for the final average, 
-                                # Ask David for the script changes
-
-                                if ch == 4:
-
-                                    fast_wf_weights_snr = [ (x / max(fast_wf_weights_snr)) for x in fast_wf_weights_snr ]   # Normalization of the weights
-
-                                    for k in range(chs_to_analyse):
-
-                                        for j in range(fast_sampling):
-
-                                            weight_average_wf[j] += sing_weig_avg_fast_wf[k][j]*fast_wf_weights_snr[k]/sum(fast_wf_weights_snr)
-
-                                    waveform_info_fast_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "fast"}
+                                    indx = trg * nChannels_f + chf
+                                    waveform_info = { 'run' : run, 'event': event, 'channel' : chf, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
 
                                     t0_waveforms = time.perf_counter()
-                                    fast_waveform_wei_avg = PMTreco(waveform_info_fast_wei_avg, weight_average_wf, self.pmt_params)
+
+                                    fast_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
+                                    fast_waveform.__repr__()
+
                                     t1_waveforms = time.perf_counter()
                                     t_waveforms = t1_waveforms - t0_waveforms
 
-                                    self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_wei_avg)
-                                    self.autotree_pmt_avg.fillTimePMTVariables(t_waveforms)
-                                    #fast_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
-                                    self.outTree_pmt_avg.fill()
+                                    self.autotree_pmt.fillPMTVariables(fast_waveform) 
+                                    self.autotree_pmt.fillTimePMTVariables(t_waveforms)
+                                    self.outTree_pmt.fill()
 
-                                    del waveform_info_fast_wei_avg
-                                    del fast_waveform_wei_avg
+                                    # Weighted averaged waveform (weight = SNR)
+                                    snr_ratio = fast_waveform.getSignalToNoise()
+                                    fast_wf_weights_snr[ichf] = snr_ratio
+                                    sing_weig_avg_fast_wf[ichf] = waveform_f[indx]
 
-                                del waveform_info
-                                del fast_waveform
-                        # Slow waveforms
-                        if self.options.debug_mode == 1:
-                            print("Number of slow triggers: {}".format(nTriggers_s))
+                                    # If one wants to visualize the new weighted waveforms,
+                                    # meaning how much they actual weight for the final average, 
+                                    # Ask David for the script changes
 
-                        for trg in range(nTriggers_s):    
+                                    if len(self.options.board_pmt_channels) > 1 and chf == self.options.board_pmt_channels[-1]:
 
-                            insideGE = 0
-                            if (TTTs_s[trg] * 8.5/1000/1000) >= 180 and (TTTs_s[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
-                                insideGE = 1
+                                        fast_wf_weights_snr = [ (x / max(fast_wf_weights_snr)) for x in fast_wf_weights_snr ]   # Normalization of the weights
+                                        
+                                        for k in range(chs_to_analyse):
+                                        
+                                            for j in range(fast_sampling):
 
-                            sing_weig_avg_slow_wf = [ [0]* slow_sampling for _ in range(chs_to_analyse)]  
-                            slow_wf_weights_snr = [0] * chs_to_analyse
-                            weight_average_wf = [0]* slow_sampling
+                                                weight_average_wf[j] += sing_weig_avg_fast_wf[k][j]*fast_wf_weights_snr[k]/sum(fast_wf_weights_snr)
 
-                            for chs in range(chs_to_analyse):
+                                        waveform_info_fast_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "fast"}
 
-                                ch = chs + 1
-                                indx = trg * nChannels_s + ch
-                                waveform_info = { 'run' : run, 'event': event, 'channel' : ch, 'trigger' : trg , 'GE' : insideGE , 'sampling' : "slow", 'TTT' : (TTTs_s[trg]*8.5/1000./1000.)}
+                                        t0_waveforms = time.perf_counter()
+                                        fast_waveform_wei_avg = PMTreco(waveform_info_fast_wei_avg, weight_average_wf, self.pmt_params)
+                                        t1_waveforms = time.perf_counter()
+                                        t_waveforms = t1_waveforms - t0_waveforms
+
+                                        self.autotree_pmt_avg.fillPMTVariables_average(fast_waveform_wei_avg)
+                                        self.autotree_pmt_avg.fillTimePMTVariables(t_waveforms)
+                                        #fast_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
+                                        self.outTree_pmt_avg.fill()
+
+                                        del waveform_info_fast_wei_avg
+                                        del fast_waveform_wei_avg
+
+                                    del waveform_info
+                                    del fast_waveform
                                 
-                                t0_waveforms = time.perf_counter()
+                                # GEM readout. Only available for fast digitizer
+                                # No computing time properties for GEM for now.
+                                if options.include_gem:
+                                    for ichf_gem,chf_gem in enumerate(self.options.board_gem_channels):
 
-                                slow_waveform = PMTreco(waveform_info, waveform_s[indx], self.pmt_params)
-                                slow_waveform.__repr__()
+                                        indx = trg * nChannels_f + chf_gem
+                                        waveform_info = { 'run' : run, 'event': event, 'channel' : chf_gem, 'trigger' : trg , 'GE' : insideGE, 'sampling' : "fast", 'TTT' : (TTTs_f[trg]*8.5/1000./1000.)}
 
-                                t1_waveforms = time.perf_counter()
-                                t_waveforms = t1_waveforms - t0_waveforms
+                                        fast_gem_waveform = PMTreco(waveform_info, waveform_f[indx], self.pmt_params)
+                                        # fast_gem_waveform.__repr__()
 
-                                self.autotree_pmt.fillPMTVariables(slow_waveform) 
-                                self.autotree_pmt.fillTimePMTVariables(t_waveforms)
-                                self.outTree_pmt.fill()
+                                        self.autotree_gem.fillPMTVariables(fast_gem_waveform) 
+                                        self.outTree_gem.fill()
 
-                                snr_ratio = slow_waveform.getSignalToNoise()
-                                slow_wf_weights_snr[ch-1] = snr_ratio
-                                sing_weig_avg_slow_wf[ch-1] = waveform_s[indx]
+                                        del fast_gem_waveform
 
-                                if ch == 4:
+                            del waveform_f
 
-                                    slow_wf_weights_snr = [ (x / max(slow_wf_weights_snr)) for x in slow_wf_weights_snr ]   # Normalization of the weights
+                        # Slow waveforms
+                        if slow_digitizer:
+                            if self.options.debug_mode == 1:
+                                print("Number of slow triggers: {}".format(nTriggers_s))
 
-                                    for k in range(chs_to_analyse):
+                            for trg in range(nTriggers_s):    
 
-                                        for j in range(slow_sampling):
+                                insideGE = 0
+                                if (TTTs_s[trg] * 8.5/1000/1000) >= 180 and (TTTs_s[trg] * 8.5/1000/1000) <= (camera_exposure*1000):
+                                    insideGE = 1
 
-                                            weight_average_wf[j] += sing_weig_avg_slow_wf[k][j]*slow_wf_weights_snr[k]/sum(slow_wf_weights_snr)
+                                sing_weig_avg_slow_wf = [ [0]* slow_sampling for _ in range(chs_to_analyse)]  
+                                slow_wf_weights_snr = [0] * chs_to_analyse
+                                weight_average_wf = [0]* slow_sampling
 
-                                    waveform_info_slow_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "slow"}
+                                for ichs,chs in enumerate(self.options.board_pmt_channels):
 
+                                    indx = trg * nChannels_s + chs
+                                    waveform_info = { 'run' : run, 'event': event, 'channel' : chs, 'trigger' : trg , 'GE' : insideGE , 'sampling' : "slow", 'TTT' : (TTTs_s[trg]*8.5/1000./1000.)}
+                                    
                                     t0_waveforms = time.perf_counter()
-                                    slow_waveform_wei_avg = PMTreco(waveform_info_slow_wei_avg, weight_average_wf, self.pmt_params)
+
+                                    slow_waveform = PMTreco(waveform_info, waveform_s[indx], self.pmt_params)
+                                    slow_waveform.__repr__()
+
                                     t1_waveforms = time.perf_counter()
                                     t_waveforms = t1_waveforms - t0_waveforms
 
-                                    self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_wei_avg)
-                                    self.autotree_pmt_avg.fillTimePMTVariables(t_waveforms)
-                                    #slow_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
-                                    self.outTree_pmt_avg.fill()
+                                    self.autotree_pmt.fillPMTVariables(slow_waveform) 
+                                    self.autotree_pmt.fillTimePMTVariables(t_waveforms)
+                                    self.outTree_pmt.fill()
 
-                                    del waveform_info_slow_wei_avg
-                                    del slow_waveform_wei_avg
+                                    snr_ratio = slow_waveform.getSignalToNoise()
+                                    slow_wf_weights_snr[ichs] = snr_ratio
+                                    sing_weig_avg_slow_wf[ichs] = waveform_s[indx]
 
-                                del waveform_info
-                                del slow_waveform
+                                    if len(self.options.board_pmt_channels) > 1 and chs == self.options.board_pmt_channels[-1]:
 
-                        del waveform_f, waveform_s, header
+                                        slow_wf_weights_snr = [ (x / max(slow_wf_weights_snr)) for x in slow_wf_weights_snr ]   # Normalization of the weights
+
+                                        for k in range(chs_to_analyse):
+
+                                            for j in range(slow_sampling):
+
+                                                weight_average_wf[j] += sing_weig_avg_slow_wf[k][j]*slow_wf_weights_snr[k]/sum(slow_wf_weights_snr)
+
+                                        waveform_info_slow_wei_avg = { 'run' : run, 'event': event, 'channel' : 9, 'trigger' : trg, 'GE' : 9, 'sampling' : "slow"}
+
+                                        t0_waveforms = time.perf_counter()
+                                        slow_waveform_wei_avg = PMTreco(waveform_info_slow_wei_avg, weight_average_wf, self.pmt_params)
+                                        t1_waveforms = time.perf_counter()
+                                        t_waveforms = t1_waveforms - t0_waveforms
+
+                                        self.autotree_pmt_avg.fillPMTVariables_average(slow_waveform_wei_avg)
+                                        self.autotree_pmt_avg.fillTimePMTVariables(t_waveforms)
+                                        #slow_waveform_wei_avg.__repr__()           ## Verbose of averaged waveform
+                                        self.outTree_pmt_avg.fill()
+
+                                        del waveform_info_slow_wei_avg
+                                        del slow_waveform_wei_avg
+
+                                    del waveform_info
+                                    del slow_waveform
+
+                                # ... There is no slow board for GEM signals 
+                                # for ichs_gem,chs_gem in enumerate(self.options.board_gem_channels):
+
+                            del waveform_s
+
+                        del header
                         
                         t01_wave =  time.perf_counter()
                         if self.options.debug_mode == 1:

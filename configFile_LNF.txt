@@ -6,7 +6,7 @@
 'geometry'  : 'gin',
 
 # DEBUG plots
-'debug_mode'            : 1,
+'debug_mode'            : 0,
 'ev'                    : 5,
 'nclu'                  : -1,        # -1
 
@@ -58,15 +58,21 @@
 'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
-'pmt_mode'              : 1,
+'pmt_mode'              : 0,
+'board_pmt_channels'	: [1,2],	# Board channels used to save PMT.
+									# NB: This assumes the PMTs are connected to the same channels in both digitizers.
+
 'threshold'             : 0,			
-'height_RMS'		: 5,			## 5 * RMS
+'height_RMS'			: 5,			## 5 * RMS
 'minPeakDistance'       : 1,			
 'prominence'            : 0.1,			
-'fixed_prom'		: True,			## If True, overrides prominence value with optimized one
+'fixed_prom'			: True,			## If True, overrides prominence value with optimized one
 'width'                 : 5,
-'resample'              : 10,			## Number of samples used for moving average
-'pmt_plotpy'            : False,		## saves plots in a folder called './waveforms'. The user must create this folder manually.
-'pmt_wf_in_tree'        : False,		## saves full X and Y arrays in tree branches. 
-'pmt_verbose'		: 0	                ## '0' for no output; '3' for full output.
+'resample'              : 5,			## Number of samples used for moving average. Minimum: 1
+'pmt_plotpy'            : False,		## saves ALL waveforms in '{--pdir}./waveforms'. Careful. 
+'pmt_wf_in_tree'        : False,		## saves full Y array in tree branches. 
+'pmt_verbose'			: 0,	        ## Choose from 0 to 3. '0' for no output; '3' for full output.		
+
+'include_gem'			: 0,			## Also performs very basic GEM signal analysis
+'board_gem_channels'	: []		
 }
