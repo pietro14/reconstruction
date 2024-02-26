@@ -363,49 +363,49 @@ class utils:
         if i == env_var['humidity']:
             try:
                 conversion = odb.data['History']['Display']['GasSystem']['humidity']['Formula'][1]
-                dslow[i][j_env] = eval(conversion.replace('x',str(dslow[i][j_env])))
+                dslow.loc[j_env,i] = eval(conversion.replace('x',str(dslow[i][j_env])))
             except:
-                dslow[i][j_env] = -99
+                dslow.loc[j_env,i] = -99
                 #print('Warning: no humidity')
                 
         if i == env_var['atm_temperature']:
             try:
                 conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][0]
-                dslow[i][j_env] = eval(conversion.replace('x',str(dslow[i][j_env])))
+                dslow.loc[j_env,i] = eval(conversion.replace('x',str(dslow[i][j_env])))
             except:
-                dslow[i][j_env] = -99
+                dslow.loc[j_env,i] = -99
                 #print('Warning: no atm temperature')
                 
         if i == env_var['lime_temperature']:
             try:
                 conversion = odb.data['History']['Display']['Environment']['Temperature']['Formula'][1]
-                dslow[i][j_env] = eval(conversion.replace('x',str(dslow[i][j_env])))
+                dslow.loc[j_env,i] = eval(conversion.replace('x',str(dslow[i][j_env])))
             except:
-                dslow[i][j_env] = -99
+                dslow.loc[j_env,i] = -99
                 #print('Warning: no lime temperature')
                     
         if i == env_var['lime_pressure']:
             try:
                 conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
-                dslow[i][j_env] = eval(conversion.replace('x',str(dslow[i][j_env])))
+                dslow.loc[j_env,i] = eval(conversion.replace('x',str(dslow[i][j_env])))
             except:
-                dslow[i][j_env] = -99
+                dslow.loc[j_env,i] = -99
                 #print('Warning: no lime pressure')
                 
         if i == env_var['atm_pressure']:
             try:
                 conversion = odb.data['History']['Display']['Environment']['Pressure']['Formula'][0]
-                dslow[i][j_env] = eval(conversion.replace('x',str(dslow[i][j_env])))
+                dslow.loc[j_env,i] = eval(conversion.replace('x',str(dslow[i][j_env])))
             except:
-                dslow[i][j_env] = -99
+                dslow.loc[j_env,i] = -99
                 #print('Warning: no atm pressure')
         
         if i == env_var['mixture_density']:
             try:
                 conversion = odb.data['History']['Display']['GasSystem']['Mixture Density']['Formula'][1]
-                dslow[i][j_env] = eval(conversion.replace('x',str(dslow[i][j_env])))
+                dslow.loc[j_env,i] = eval(conversion.replace('x',str(dslow[i][j_env])))
             except:
-                dslow[i][j_env] = -99
+                dslow.loc[j_env,i] = -99
                 #print('Warning: no mixture density')
         
         return dslow
