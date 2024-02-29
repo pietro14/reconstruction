@@ -184,7 +184,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         la_aux = np.copy(labels)
         labels = np.zeros([la_aux.shape[0],2], dtype=np.intp)
         labels[:,0] = la_aux
-        print("Clustering ends at DBSCAN seeding")
+        #print("Clustering ends at DBSCAN seeding")
         return labels
     else:
         #If any cluster has a good fit model, it'll be marked from the worst fitted cluster to the best, each of them respecting the accuracy threshold
