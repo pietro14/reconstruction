@@ -331,13 +331,13 @@ class Cluster:
         from profiling import PeakFinder,simplePeak
 
         # find first the length/width with intersection of the base of the large peak
-        threshold = 3
-        min_distance_peaks = 5 # number of bins of the profile, to be converted in mm later... TO DO
-        prominence = 2 # noise seems <1
-        width = 10  # find only 1 big peak
-        pf = PeakFinder(self.profiles[name])        
-        pf.findPeaks(threshold,min_distance_peaks,prominence,width)
-        self.widths[name] = pf.getFWHMs()[0] if len(pf.getFWHMs()) else 0 # first should be the only big peak
+        #threshold = 3
+        #min_distance_peaks = 5 # number of bins of the profile, to be converted in mm later... TO DO
+        #prominence = 2 # noise seems <1
+        #width = 10  # find only 1 big peak
+        #pf = PeakFinder(self.profiles[name])        
+        #pf.findPeaks(threshold,min_distance_peaks,prominence,width)
+        #self.widths[name] = pf.getFWHMs()[0] if len(pf.getFWHMs()) else 0 # first should be the only big peak
         self.shapes['%s_width' % name] = self.widths[name]
         
         # find the peaks and store their properties
