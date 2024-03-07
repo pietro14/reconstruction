@@ -78,7 +78,7 @@ Then, reconstruct digitized (simulated) images:
 
 Read [here](https://github.com/CYGNUS-RD/reconstruction/blob/winter23/ReadMe_PMT.md)
 
-## Example
+# Useful Example
 
 **Download the code from github:**
 
