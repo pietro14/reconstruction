@@ -68,15 +68,16 @@ class PMTreco:
             self.plotname   = 'PMT_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel)
 
             self.invert_and_center_WF(self.baseline)
+            self.moving_average(window_size = self.resample)
 
-            if self.digitizer == "fast":                                   
-                self.moving_average(window_size = self.resample)
+            # At this moment we apply the same moving average to both digitizers. Could be changed later
+            # if self.digitizer == "fast":                                   
+            #     self.moving_average(window_size = self.resample)
 
-            if self.digitizer == "slow":                                   
-                self.moving_average(window_size = self.resample)
+            # if self.digitizer == "slow":                                   
+            #     self.moving_average(window_size = self.resample)
 
         # Channels: 0 - trigger; [5-7] - GEMs
-        ## GEM analysis could/should be different from PMT. The structure is ready.
         elif self.channel in self.gem_chs:
 
             self.plotname   = 'GEM_' + self.digitizer + '_run_' + str(self.run) + '_ev_' + str(self.event) + '_tr_' + str(self.trigger) + '_ch_' + str(self.channel)
@@ -88,7 +89,9 @@ class PMTreco:
             else:
                 self.invert_and_center_WF(self.baseline, invert = False)
 
-            self.moving_average(window_size = self.resample)
+            # GEMs signals present a much higher HF noise. I'm fixing the resample to 10 since it makes the signals easier to analyse
+            # self.moving_average(window_size = self.resample)
+            self.moving_average(window_size = 10)
 
         self.findPeaks(thr = self.threshold, height = self.height_RMS, 
             mindist = self.minDist, prominence = self.prominence, 
@@ -189,7 +192,7 @@ class PMTreco:
     ## Get Time Over Threshold
     def getTOT(self, mod):
 
-        threshold_tot = self.getRMS() * 3
+        threshold_tot = self.getRMS() * 5
         tot_limits = 2*[0]
 
         tot_time = 0
@@ -204,7 +207,7 @@ class PMTreco:
         # Defines how many consectuive samples must be above (below) the threshold to start (end) the signal
         density_start = 10      ## normal runs          
         # density_start = 30      ## cosmics only runs         
-        density_finish = 10     ## normal runs
+        density_finish = 5     ## normal runs
         # density_finish = 30     ## cosmics only runs
 
         c_up = 0
