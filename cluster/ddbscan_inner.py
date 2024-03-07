@@ -391,7 +391,7 @@ def ddbscaninner(data, is_core, neighborhoods, neighborhoods2, labels, dir_radiu
         noise_indexes = np.where(labels==-1)[0]
         clustered_data = data[poly_indexes]
         neigh = NearestNeighbors(n_neighbors=1, radius=isolation_radius)
-        if len(clustered_data > 0):
+        if len(clustered_data > 0) and len(noise_indexes) > 0:
             neigh.fit(clustered_data)
             distances, isol_neigh_indices = neigh.kneighbors(data[noise_indexes], 1, return_distance=True)
         else:
