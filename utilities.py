@@ -317,7 +317,7 @@ class utils:
                runlog='runlog_%s_auto.csv' % (options.tag)
                df = pd.read_csv('pedestals/%s'%runlog)
                
-            dffilter = ((df["number_of_events"] >= 100) & (df["pedestal_run"] == 1) & (df["run_number"] <= int(options.run)) & (df["HV_STATE"] == 0))
+            dffilter = ((df["number_of_events"] >= 100) & (df["pedestal_run"] == 1) & (df["run_number"] <= run) & (df["HV_STATE"] == 0))
             runkey = df.run_number[dffilter].values.tolist()[-1]
             comment = df.run_description[dffilter].values.tolist()[-1]
             nevents = df.number_of_events[dffilter].values.tolist()[-1]
