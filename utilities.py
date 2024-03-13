@@ -307,13 +307,17 @@ class utils:
 
     def setPedestalRun_v2(self,options):
         import pandas as pd
+        import cygno as cy
+        
         if not hasattr(options,"pedrun"):
-            runlog='runlog_%s_auto.csv' % (options.tag)
-
- 
-
-            df = pd.read_csv('pedestals/%s'%runlog)
-            dffilter = ((df["number_of_events"] >= 100) & (df["pedestal_run"] == 1) & (df["run_number"] <= int(options.run)) & (df["HV_STATE"] == 0))
+            run = int(options.run)
+            if options.offline==False:
+               df = cy.read_cygno_logbook(tag=options.tag,start_run=run-2000,end_run=run+1)
+            else:
+               runlog='runlog_%s_auto.csv' % (options.tag)
+               df = pd.read_csv('pedestals/%s'%runlog)
+               
+            dffilter = ((df["number_of_events"] >= 100) & (df["pedestal_run"] == 1) & (df["run_number"] <= run) & (df["HV_STATE"] == 0))
             runkey = df.run_number[dffilter].values.tolist()[-1]
             comment = df.run_description[dffilter].values.tolist()[-1]
             nevents = df.number_of_events[dffilter].values.tolist()[-1]
@@ -327,7 +331,7 @@ class utils:
         
     def setPedestalRun(self,options):
         run = int(options.run)
-        if (options.tag=='LNF' and run>10093) or (options.tag=='LNGS' and run>16798) or (options.tag=='MAN' and run>11166):
+        if (options.tag=='LNF' and run>10093) or (options.tag=='LNGS') or (options.tag=='MAN' and run>11166):
            self.setPedestalRun_v2(options)
         #elif (options.tag=='LNGS' and run>936 and run<16798):
         #   self.setPedestalRun_v1(options)
