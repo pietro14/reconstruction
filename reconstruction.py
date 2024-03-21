@@ -208,8 +208,11 @@ class analysis:
             
         run,tmpdir,tag = self.tmpname
         mf = sw.swift_download_midas_file(run,tmpdir,tag)     #you download the file here so that in multithread does not confuse if it downloaded or not
-        runlog='runlog_%s_auto.csv' % (options.tag)
-        df = pd.read_csv('pedestals/%s'%runlog)
+        if options.offline==False:
+            df = cy.read_cygno_logbook(tag=options.tag,start_run=run-2000,end_run=run+1)
+        else:
+            runlog='runlog_%s_auto.csv' % (options.tag)
+            df = pd.read_csv('pedestals/%s'%runlog)
         if df.run_number.isin({int(options.run)}).any():
            dffilter = df["run_number"] == int(options.run)
            try:
