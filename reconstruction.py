@@ -475,6 +475,7 @@ class analysis:
                 name=key
                 camera = False
                 pmt = False
+                #print(name)
 
 
                 if self.options.rawdata_tier == 'root':
