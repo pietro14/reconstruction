@@ -922,7 +922,7 @@ if __name__ == '__main__':
     nev = ana.getNEvents(options)
     print("\nThis run has ",nev," events.")
     if options.debug_mode == 1: print('DEBUG mode activated. Only event',options.ev,'will be analysed')
-    # FIX: the option for saving plots should only be ON only fi camera mode is ON
+    # FIX: the option for saving plots should only be ON only if camera mode is ON
     print("I Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     os.system('mkdir -p {pdir}'.format(pdir=options.plotDir))
@@ -945,6 +945,10 @@ if __name__ == '__main__':
         print ("RUNNING USING ",nThreads," THREADS.")
         nj = int(nev/nThreads) if options.maxEntries==-1 else max(int((lastEvent-firstEvent)/nThreads),1)
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(firstEvent,lastEvent,nj))]
+        if len(chunks)>nThreads:
+            chunks[-2] = (chunks[-2][0],chunks[-2][1],chunks[-1][2])
+            del chunks[-1]
+
         print("Chunks = ",chunks)
         with futures.ProcessPoolExecutor(nThreads) as executor:
             futures_list = [executor.submit(ana,c) for c in chunks]

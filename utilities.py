@@ -331,7 +331,7 @@ class utils:
         
     def setPedestalRun(self,options):
         run = int(options.run)
-        if (options.tag=='LNF' and run>10093) or (options.tag=='LNGS') or (options.tag=='MAN' and run>11166):
+        if (options.tag=='LNF' and run>10093) or (options.tag=='LNGS') or (options.tag=='MAN' and run>=11166):
            self.setPedestalRun_v2(options)
         #elif (options.tag=='LNGS' and run>936 and run<16798):
         #   self.setPedestalRun_v1(options)
