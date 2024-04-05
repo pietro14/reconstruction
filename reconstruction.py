@@ -35,6 +35,7 @@ utilities = utilities.utils()
 
 from waveform import PMTreco
 
+
 class analysis:
 
     def __init__(self,options):
@@ -47,6 +48,7 @@ class analysis:
         geometryParams = eval(geometryPSet.read())
         self.cg = cameraGeometry(geometryParams)
         self.xmax = self.cg.npixx
+        self.ymax = self.cg.npixy
 
         eventContentPSet = open('modules_config/reco_eventcontent.txt')
         self.eventContentParams = eval(eventContentPSet.read())
@@ -66,10 +68,12 @@ class analysis:
                 pedrf_fr = uproot.open(self.pedfile_fullres_name)
                 self.pedarr_fr   = pedrf_fr['pedmap'].values().T
                 self.noisearr_fr = pedrf_fr['pedmap'].errors().T
-                if options.vignetteCorr:
+                if options.vignetteCorr and self.cg.cameratype != 'Quest':
                     self.vignmap = ctools.loadVignettingMap()
                 else:
-                    self.vignmap = np.ones((self.xmax, self.xmax))
+                    if self.cg.cameratype == 'Quest':
+                        print('There is no vigntting map for QUEST camera')
+                    self.vignmap = np.ones((self.xmax, self.ymax))
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
@@ -235,14 +239,15 @@ class analysis:
 
     def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
-        nx=ny=self.xmax
+        nx=self.xmax
+        ny=self.ymax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
         pedfilename = 'pedestals/pedmap_run%s_rebin%d.root' % (options.pedrun,rebin)
         
         pedfile = ROOT.TFile.Open(pedfilename,'recreate')
-        pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax)
-        pedmapS = ROOT.TH2D('pedmapsigma','pedmapsigma',nx,0,self.xmax,ny,0,self.xmax)
+        pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.ymax)
+        pedmapS = ROOT.TH2D('pedmapsigma','pedmapsigma',nx,0,self.xmax,ny,0,self.ymax)
 
         pedsum = np.zeros((nx,ny))
 
@@ -598,36 +603,24 @@ class analysis:
                         # Upper Threshold full image
                         img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
                         
-                        # zs on full image + saturation correction on full image
+                        # zs on full image + saturation correction on full image or skip it
+                        t_pre0 = time.perf_counter()
+                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                        t_pre1 = time.perf_counter()
                         if self.options.saturation_corr:
                             #print("you are in saturation correction mode")
-                            t_pre0 = time.perf_counter()
-                            img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                            t_pre1 = time.perf_counter()
                             img_fr_satcor = ctools.satur_corr(img_fr_sub) 
-                            t_pre2 = time.perf_counter()
-                            img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                            t_pre3 = time.perf_counter()
-                            img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
-                            t_pre4 = time.perf_counter()
-                            img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
-                            t_pre5 = time.perf_counter()
-                            
-                        # skip saturation and set satcor =img_fr_sub 
                         else:
                             #print("you are in poor mode")
-                            t_pre0 = time.perf_counter()
-                            img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                            t_pre1 = time.perf_counter()
-                            img_fr_satcor = img_fr_sub  
-                            t_pre2 = time.perf_counter()
-                            img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                            t_pre3 = time.perf_counter()
-                            img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
-                            t_pre4 = time.perf_counter()
-                            img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
-                            t_pre5 = time.perf_counter()
-
+                            img_fr_satcor = img_fr_sub
+                        t_pre2 = time.perf_counter()
+                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                        t_pre3 = time.perf_counter()
+                        img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
+                        t_pre4 = time.perf_counter()
+                        img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
+                        t_pre5 = time.perf_counter()
+                            
                         t_pedsub = t_pre1 - t_pre0
                         t_saturation = t_pre2 - t_pre1
                         t_zerosup = t_pre3 - t_pre2

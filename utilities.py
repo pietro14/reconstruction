@@ -125,12 +125,13 @@ class utils:
         outname_base = os.path.basename(outfile).split('.')[0]
         tf_out = ROOT.TFile.Open(outname_base+'.root','recreate')
 
-        N = cg.npixx
-        nx=int(N/rebin); ny=int(N/rebin);
-        normmap = ROOT.TH2D('normmap_{det}'.format(det=det),'normmap',nx,0,N,nx,0,N)
+        Nx = cg.npixx
+        Ny = cg.npixy
+        nx=int(Nx/rebin); ny=int(Ny/rebin);
+        normmap = ROOT.TH2D('normmap_{det}'.format(det=det),'normmap',nx,0,Nx,ny,0,Ny)
         summap = normmap.Clone('summap_{det}'.format(det=det))
         
-        mapsum = np.zeros((nx,nx))
+        mapsum = np.zeros((nx,ny))
 
         USER = os.environ['USER']
         if sw.checkfiletmp(int(run),'root'):
@@ -175,7 +176,7 @@ class utils:
      
         # calc the normalized map wrt the center area
         CA = 16
-        central_square = mapsum[int((N-CA)/rebin/2):int((N+CA)/rebin/2),int((N-CA)/rebin/2):int((N+CA)/rebin/2)]
+        central_square = mapsum[int((Nx-CA)/rebin/2):int((Nx+CA)/rebin/2),int((Ny-CA)/rebin/2):int((Ny+CA)/rebin/2)]
         print (central_square)
         norm = np.mean(central_square)
         print ("Now normalizing to the central area value = ",norm)
@@ -189,7 +190,7 @@ class utils:
         
         # now save in a persistent ROOT object. Threshold to 1
         for ix in range(nx):
-            for iy in range(nx):
+            for iy in range(ny):
                 normmap.SetBinContent(ix+1,iy+1,min(mapnorm[ix,iy],1.));
                 summap.SetBinContent(ix+1,iy+1,mapsum[ix,iy]);
      
@@ -520,7 +521,13 @@ class utils:
         resample = np.array(options.resample, dtype='intc')
         treeparam.Branch('resample', resample, 'resample/I')
         
-        npixx = np.array(params['npixx'], dtype='intc')
+        if params['cameratype'] == 'Flash':
+            npixx= 2048
+        if params['cameratype'] == 'Fusion':
+            npixx= 2304
+        if params['cameratype'] == 'Quest':
+            npixx= 4096
+        npixx = np.array(npixx, dtype='intc')
         treeparam.Branch('npixx',npixx,'npixx/I')
         xmin = np.array(params['xmin'], dtype='intc')
         treeparam.Branch('xmin',xmin,'xmin/I')
