@@ -74,7 +74,11 @@ Then, reconstruct digitized (simulated) images:
 
 ...so proceed in order)
 
-## Example
+# Small guide to PMT parameters
+
+Read [here](https://github.com/CYGNUS-RD/reconstruction/blob/winter23/ReadMe_PMT.md)
+
+# Useful Example
 
 **Download the code from github:**
 

@@ -28,8 +28,7 @@
 
 # Setting environments parameters
 
-'numPedEvents'          : -1,
-'pedExclRegion'         : None,
+'offline'               : False,		#if False it reads the logbook from online, if true it reads the runlog_tag_auto.csv locally
 'rebin'                 : 4,
 'nsigma'                : 0.6,
 'min_neighbors_average' : 1.2,                   # cut on the minimum average energy around a pixel (remove isolated macro-pixels)
