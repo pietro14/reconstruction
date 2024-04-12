@@ -65,4 +65,45 @@
     - `'board_gem_channels'	: [5,6,7]`
 
 
+## Digitizers relevant information:
 
+The CYGNO DAQ system uses two digitizers, typically designated *fast* and *slow* board/digitizer.
+
+The intent is to be able to save signals with both small time extensions (fast ones) and with large time extension (slow ones). 
+
+- Examples of *short/fast* signals are the Fe X-rays at 6 keV or basically anything below around 20 keV energy deposition.
+
+- Examples of *long/slow* signals would be higher energy cosmics or electron recoils, typically at energies above 100 keV.
+
+### Models and settings currently used:
+
+- **Fast digitizer:** CAEN V1742 
+    - https://www.caen.it/products/v1742/
+    - 12 bits
+        - ADC counts are within [0,4096]
+    - Dynamic range: 1Vpp
+    - Sampling: 750Mhz
+        - X-sample duration: 1/750MS = 1.33(3) ns, for 1024 samples, thus covering 1365.3(3) ns.
+
+- **Slow digitizer:** CAEN V1720 
+    - https://www.caen.it/products/v1720/
+    - 12 bits
+        - ADC counts are within [0,4096]
+    - Dynamic range: 2Vpp
+        - (meaning it observed half the intensity in the same signal seen by the fast digitizer)
+    - Sampling: 250Mhz
+        - X-sample duration: 1/250MS = 4 ns, for 4000 samples,  thus covering 16000 ns.
+            - NB: 4000 is not a typical power of 2 due to old issue with the DAQ. 
+            - 4000 has been chosen to cover the longest event in the detector, which assuming an electron drift velocity of 5cm/us, is about 10 us.
+
+#### Example:
+
+![plot](./fast_vs_slow.png)
+
+
+#### Notes:
+
+gem amplification
+inversion of signals
+scale on x and y axis
+check brazilian email
