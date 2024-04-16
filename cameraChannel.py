@@ -59,14 +59,14 @@ class cameraTools:
     def arrrebin(self,img,rebin):
         newshapex = int(self.geometry.npixx/rebin)
         newshapey = int(self.geometry.npixy/rebin)
-        img_rebin = tl.rebin(img,(newshapex,newshapey))
+        img_rebin = tl.rebin(img,(newshapey,newshapex))
         return img_rebin
 
-    def acceptance(self,img,xmin,xmax,ymin,ymax):
-        img[:xmin,:]=0
-        img[xmax:,:]=0
-        img[:,:ymin]=0
-        img[:,ymax:]=0
+    def acceptance(self,img,rowmin,rowmax,colmin,colmax):
+        img[:rowmin,:]=0
+        img[rowmax:,:]=0
+        img[:,:colmin]=0
+        img[:,colmax:]=0
         return img
         
     # this returns x,y,z before the zero suppression

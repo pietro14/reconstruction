@@ -35,6 +35,19 @@ utilities = utilities.utils()
 
 from waveform import PMTreco
 
+def daq_cam2array(bank):
+    test_size=bank.size_bytes/10616832      #10616832=2*5308416   5308416=2304*2304 and 8/16=1/2 (banksize in bytes*8 returns the bits and divided by the 16 bit adc gives the total amount of pixels)
+    if test_size<1.1:
+
+        #Fusion,Flash
+        shapex = shapey = int(np.sqrt(bank.size_bytes/2))
+    else:
+        #Quest
+        shapex=4096
+        shapey=2304
+
+    image = np.reshape(bank.data, (shapey, shapex))
+    return image, shapex, shapey
 
 class analysis:
 
@@ -68,11 +81,12 @@ class analysis:
                 pedrf_fr = uproot.open(self.pedfile_fullres_name)
                 self.pedarr_fr   = pedrf_fr['pedmap'].values().T
                 self.noisearr_fr = pedrf_fr['pedmap'].errors().T
+                
                 if options.vignetteCorr and self.cg.cameratype != 'Quest':
                     self.vignmap = ctools.loadVignettingMap()
                 else:
                     if self.cg.cameratype == 'Quest':
-                        print('There is no vigntting map for QUEST camera')
+                        print('There is no vignetting map for QUEST camera')
                     self.vignmap = np.ones((self.xmax, self.ymax))
 
         ## Dictionary with the PMT parameters found in config_file
@@ -249,7 +263,7 @@ class analysis:
         pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.ymax)
         pedmapS = ROOT.TH2D('pedmapsigma','pedmapsigma',nx,0,self.xmax,ny,0,self.ymax)
 
-        pedsum = np.zeros((nx,ny))
+        pedsum = np.zeros((ny,nx))
 
         if options.rawdata_tier == 'root' or options.rawdata_tier == 'h5':
             tmpdir = '{tmpdir}'.format(tmpdir=options.tmpdir if options.tmpdir else "/tmp/")
@@ -278,8 +292,7 @@ class analysis:
                 for iobj,key in enumerate(keys):
                     name=key
                     if name.startswith('CAM'):
-                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                        arr = np.rot90(arr)
+                        arr,_,_ = daq_cam2array(mevent.banks[key])
                         justSkip=False
                         if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                         if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
@@ -317,7 +330,7 @@ class analysis:
 
         # now compute the rms (two separate loops is faster than one, yes)
         numev=0
-        pedsqdiff = np.zeros((nx,ny))
+        pedsqdiff = np.zeros((ny,nx))
         numev = 0
         if  options.rawdata_tier == 'midas':
             mf.jump_to_start()
@@ -329,8 +342,7 @@ class analysis:
                 for iobj,key in enumerate(keys):
                     name=key
                     if name.startswith('CAM'):
-                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                        arr = np.rot90(arr)
+                        arr,_,_ = daq_cam2array(mevent.banks[key])
                         justSkip=False
                         if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                         if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
@@ -367,11 +379,12 @@ class analysis:
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
 
         # now save in a persistent ROOT object
-        for ix in range(nx):
-            for iy in range(ny):
-                pedmap.SetBinContent(ix+1,iy+1,pedmean[ix,iy]);
-                pedmap.SetBinError(ix+1,iy+1,pedrms[ix,iy]);
-                pedmapS.SetBinContent(ix+1,iy+1,pedrms[ix,iy]);
+        # the inversion of x and y from array to histogram is correct: [row][columns] to x,y
+        for iy in range(ny):
+            for ix in range(nx):
+                pedmap.SetBinContent(ix+1,iy+1,pedmean[iy,ix]);
+                pedmap.SetBinError(ix+1,iy+1,pedrms[iy,ix]);
+                pedmapS.SetBinContent(ix+1,iy+1,pedrms[iy,ix]);
 
         pedfile.cd()
         pedmap.Write()
@@ -489,8 +502,7 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        obj = tf[key].values()
-                        #obj = np.rot90(obj)
+                        img_fr = tf[key].values()
                         camera=True
 
                 elif self.options.rawdata_tier == 'h5':
@@ -499,8 +511,7 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        obj = np.array(tf[key])
-                        #obj = np.rot90(obj)
+                        img_fr = np.array(tf[key])
                         camera=True
 
                 elif self.options.rawdata_tier == 'midas':
@@ -509,8 +520,7 @@ class analysis:
                         camera_read = True
                         exist_cam = True
                         if options.camera_mode:
-                            obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
-                            obj = np.rot90(obj)
+                            img_fr,_,_ = daq_cam2array(mevent.banks[key])
                             camera=True
                     
                     elif name.startswith('INPT') and self.options.environment_variables: # SLOW channels array
@@ -574,8 +584,8 @@ class analysis:
                         self.outTree.fillBranch("event",event)
                         self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
                     
-                        testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
-                        if np.sum(obj)>testspark:
+                        testspark=2*100*self.cg.npixx*self.cg.npixy+9000000		
+                        if np.sum(img_fr)>testspark:
                             print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
                             continue
 
@@ -598,7 +608,8 @@ class analysis:
                             self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
                             self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
 
-                        img_fr = obj.T
+                        if self.options.rawdata_tier == 'h5':   #H5 files were not tested so the transposition is kept just in case it was needed there
+                            img_fr = img_fr.T
          
                         # Upper Threshold full image
                         img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
@@ -652,7 +663,7 @@ class analysis:
                             print()
                         del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
                         self.outTree.fill()
-                        del obj
+                        del img_fr
                         
          
                 if self.options.pmt_mode:
