@@ -8,8 +8,9 @@ DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
 
-def nred_cython(np.ndarray[DTYPE_t, ndim=2] edges, int escala, float meancut=0.35):
-    cdef int rescale = escala 
+def nred_cython(np.ndarray[DTYPE_t, ndim=2] edges, int escalax, int escalay, float meancut=0.35):
+    cdef int rescalex = escalax 
+    cdef int rescaley = escalay 
     cdef int tpx = 10
     cdef float mpx
     cdef float a,b,c,d,spx,f,g,h,i
@@ -17,15 +18,18 @@ def nred_cython(np.ndarray[DTYPE_t, ndim=2] edges, int escala, float meancut=0.3
     
     cdef int k, j
 
-    for k in range(rescale):
+    for k in range(rescaley):
+        for j in range(2):
+            edges[k,j]=0
+            edges[k,rescalex-1-j]=0
+
+    for k in range(rescalex):
         for j in range(2):
             edges[j,k]=0
-            edges[k,j]=0
-            edges[rescale-1-j,k]=0
-            edges[k,rescale-1-j]=0
+            edges[rescaley-1-j,k]=0
 
-    for k in range(1,rescale-2):
-        for j in range(1,rescale-2):
+    for k in range(1,rescaley-2):
+        for j in range(1,rescalex-2):
             a = edges[k-1,j-1]
             b = edges[k,j-1]
             c = edges[k+1,j-1]

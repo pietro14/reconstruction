@@ -63,7 +63,8 @@ class SnakesFactory:
         tip = self.options.tip
         
         #-----Pre-Processing----------------#
-        rescale=int(self.geometry.npixx/self.rebin)
+        rescalex=int(self.geometry.npixx/self.rebin)
+        rescaley=int(self.geometry.npixy/self.rebin)
 
         t0 = time.perf_counter()
         filtimage = median_filter(self.image_fr_zs, size=2)
@@ -71,7 +72,7 @@ class SnakesFactory:
         edges = self.ct.arrrebin(filtimage,self.rebin)
         edcopy = edges.copy()
         t0_noise = time.perf_counter()
-        edcopyTight = nred_cython(edcopy, rescale, self.options.min_neighbors_average)
+        edcopyTight = nred_cython(edcopy, rescalex, rescaley, self.options.min_neighbors_average)
         t1_noise = time.perf_counter()
 
         t_medianfilter = t1_med - t0
@@ -137,7 +138,7 @@ class SnakesFactory:
                     fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                     plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                     plt.title("Clusters found in the DBSCAN seeding")
-                    colorpix = np.zeros([rescale,rescale,3])
+                    colorpix = np.zeros([rescaley,rescalex,3])
                     for j in range(0,len(clu)):
 
                         a = np.random.rand(3)
@@ -256,7 +257,7 @@ class SnakesFactory:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Polynomial + general clusters found in iteration 0")
-                colorpix = np.ones([rescale,rescale,3]) * [255,255,255]
+                colorpix = np.ones([rescaley,rescalex,3]) * [255,255,255]
                 for j in range(0,len(clu)):
                     a = np.random.rand(3)
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
