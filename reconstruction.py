@@ -87,7 +87,7 @@ class analysis:
                 else:
                     if self.cg.cameratype == 'Quest':
                         print('There is no vignetting map for QUEST camera')
-                    self.vignmap = np.ones((self.xmax, self.ymax))
+                    self.vignmap = np.ones((self.ymax, self.xmax))
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
