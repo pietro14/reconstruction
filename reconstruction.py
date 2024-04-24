@@ -35,20 +35,6 @@ utilities = utilities.utils()
 
 from waveform import PMTreco
 
-def daq_cam2array(bank):
-    test_size=bank.size_bytes/10616832      #10616832=2*5308416   5308416=2304*2304 and 8/16=1/2 (banksize in bytes*8 returns the bits and divided by the 16 bit adc gives the total amount of pixels)
-    if test_size<1.1:
-
-        #Fusion,Flash
-        shapex = shapey = int(np.sqrt(bank.size_bytes/2))
-    else:
-        #Quest
-        shapex=4096
-        shapey=2304
-
-    image = np.reshape(bank.data, (shapey, shapex))
-    return image, shapex, shapey
-
 class analysis:
 
     def __init__(self,options):
@@ -291,7 +277,7 @@ class analysis:
                 for iobj,key in enumerate(keys):
                     name=key
                     if name.startswith('CAM'):
-                        arr,_,_ = daq_cam2array(mevent.banks[key])
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
                         justSkip=False
                         if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                         if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
@@ -342,7 +328,7 @@ class analysis:
                 for iobj,key in enumerate(keys):
                     name=key
                     if name.startswith('CAM'):
-                        arr,_,_ = daq_cam2array(mevent.banks[key])
+                        arr,_,_ = cy.daq_cam2array(mevent.banks[key])
                         justSkip=False
                         if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                         if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
@@ -523,7 +509,7 @@ class analysis:
                         camera_read = True
                         exist_cam = True
                         if options.camera_mode:
-                            img_fr,_,_ = daq_cam2array(mevent.banks[key])
+                            img_fr,_,_ = cy.daq_cam2array(mevent.banks[key])
                             camera=True
                     
                     elif name.startswith('INPT') and self.options.environment_variables: # SLOW channels array
