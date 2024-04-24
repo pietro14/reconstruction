@@ -81,7 +81,6 @@ class analysis:
                 pedrf_fr = uproot.open(self.pedfile_fullres_name)
                 self.pedarr_fr   = pedrf_fr['pedmap'].values().T
                 self.noisearr_fr = pedrf_fr['pedmap'].errors().T
-                
                 if options.vignetteCorr and self.cg.cameratype != 'Quest':
                     self.vignmap = ctools.loadVignettingMap()
                 else:
@@ -317,13 +316,14 @@ class analysis:
                 justSkip=False
                 if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                 if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                if numev>100: break # no need to compute pedestals with >100 evts (uproot issue)
+                if numev>100: break # impossible to compute pedestals with >100 evts (uproot issue)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                     continue
                 if event%20 == 0:
                     print("Calc pedestal mean with event: ",event)
-                arr = tf[name].values()
+                arr = tf[name].values().T           #necessary because uproot inverts column and rows with x and y
+                arr = arr[::-1]                     #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
                 pedsum = np.add(pedsum,arr)
                 numev += 1
         pedmean = pedsum / float(numev)
@@ -366,14 +366,15 @@ class analysis:
                 justSkip=False
                 if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                 if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                if numev>100: break # no need to compute pedestals with >100 evts (uproot issue)
+                if numev>100: break # impossible to compute pedestals with >100 evts (uproot issue)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                      continue
 
                 if event%20 == 0:
                     print("Calc pedestal rms with event: ",event)
-                arr = tf[name].values()
+                arr = tf[name].values().T           #see cycle above on pedmean
+                arr = arr[::-1]                     #see cycle above on pedmean
                 pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
                 numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
@@ -502,7 +503,8 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        img_fr = tf[key].values()
+                        img_fr = tf[key].values().T            #necessary because uproot inverts column and rows with x and y
+                        img_fr = img_fr[::-1]                  #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
                         camera=True
 
                 elif self.options.rawdata_tier == 'h5':
@@ -511,7 +513,8 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        img_fr = np.array(tf[key])
+                        img_fr = np.array(tf[key]).T
+                        img_fr = img_fr[::-1]                   #structure for h5 copied from ROOT as it was in the past. Unsure if it is correct
                         camera=True
 
                 elif self.options.rawdata_tier == 'midas':
@@ -607,9 +610,6 @@ class analysis:
                             self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
                             self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
                             self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
-
-                        if self.options.rawdata_tier == 'h5':   #H5 files were not tested so the transposition is kept just in case it was needed there
-                            img_fr = img_fr.T
          
                         # Upper Threshold full image
                         img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
