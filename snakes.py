@@ -388,7 +388,6 @@ class SnakesProducer:
             t3 = time.perf_counter()
             if self.options.debug_mode: print(f"cosmic killer in {t3 - t2:0.4f} seconds")
 
-        # snfac.calcProfiles(snakes) # this is for BTF
         
         # sort snakes by light integral
         snakes = sorted(snakes, key = lambda x: x.integral(), reverse=True)
