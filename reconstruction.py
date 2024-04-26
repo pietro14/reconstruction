@@ -503,7 +503,7 @@ class analysis:
                         camera_read = True
                         exist_cam = True
                         if options.camera_mode:
-                            obj,_,_ = cy.daq_cam2array(mevent.banks[key], dslow)
+                            obj,_,_ = cy.daq_cam2array(mevent.banks[key])
                             obj = np.rot90(obj)
                             camera=True
                     
@@ -944,6 +944,9 @@ if __name__ == '__main__':
         print ("RUNNING USING ",nThreads," THREADS.")
         nj = int(nev/nThreads) if options.maxEntries==-1 else max(int((lastEvent-firstEvent)/nThreads),1)
         chunks = [(ichunk,i,min(i+nj-1,nev)) for ichunk,i in enumerate(range(firstEvent,lastEvent,nj))]
+        if len(chunks)>nThreads:
+            chunks[-2] = (chunks[-2][0],chunks[-2][1],chunks[-1][2])
+            del chunks[-1]
         print("Chunks = ",chunks)
         with futures.ProcessPoolExecutor(nThreads) as executor:
             futures_list = [executor.submit(ana,c) for c in chunks]
