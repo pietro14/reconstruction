@@ -20,7 +20,7 @@ class Cluster:
         else:
             print("WARNING! Cluster created without underlying image... Are you using it standalone?")
 
-        if fullinfo:			#savin he pixel for the scfullinfo 
+        if fullinfo:			#saving the pixel for the scfullinfo 
 
             self.nclu = clID
             self.ID=[]

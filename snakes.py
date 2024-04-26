@@ -30,10 +30,6 @@ class SnakesFactory:
         self.ct = cameraTools(geometry)
         self.image = img
         self.img_ori = img_ori
-        self.imagelog = np.zeros((self.image.shape[0],self.image.shape[1]))
-        for (x,y),value in np.ndenumerate(self.image):
-            if value > 3.0/math.sqrt(self.rebin): # tresholding needed for tracking
-                self.imagelog[x,y] = math.log(value)
         self.image_fr    = img_fr
         self.image_fr_zs = img_fr_zs
         self.vignette = vignette
@@ -279,67 +275,6 @@ class SnakesFactory:
 
         return superclusters,lp, t_medianfilter, t_noisered, t_DBSCAN
         
-    def getTracks(self,plot=True):
-        from skimage.transform import (hough_line, hough_line_peaks)
-        # Classic straight-line Hough transform
-        image = self.imagelog
-        h, theta, d = hough_line(image)
-        print("tracks found")
-        
-        tracks = []
-        thr = 0.8 * np.amax(h)
-        #######################   IMPLEMENT HERE THE SAVING OF THE TRACKS ############
-        # loop over prominent tracks
-        itrk = 0
-        for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
-            print("Track # ",itrk)
-            #points_along_trk = np.zeros((self.image.shape[1],self.image.shape[0]))
-            points_along_trk = []
-            for x in range(self.image.shape[1]):
-                y = min(self.image.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
-                #points_along_trk[x,y] = self.image[y,x]
-                #print "adding point: %d,%d,%f" % (x,y,self.image[y,x])
-                # add a halo fo +/- 20 pixels to calculate the lateral profile
-                for iy in range(int(y)-5,int(y)+5):
-                    if iy<0 or iy>=self.image.shape[0]: continue
-                    points_along_trk.append((x,iy,self.image[iy,x]))
-            xy = np.array(points_along_trk)
-            trk = Cluster(xy,self.rebin)
-            tracks.append(trk)
-            itrk += 1
-        ###################################
-            
-        if plot:
-            # Generating figure
-            from matplotlib import cm
-            fig, ax = plt.subplots(2, 1, figsize=(18, 6))
-            #ax = axes.ravel()
-
-            ax[0].imshow(image, cmap=cm.gray)
-            ax[0].set_title('Camera image')
-            #ax[0].set_axis_off()            
-
-            ax[1].imshow(image, cmap=cm.gray)
-            for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
-                y0 = (dist - 0 * np.cos(angle)) / np.sin(angle)
-                y1 = (dist - image.shape[1] * np.cos(angle)) / np.sin(angle)
-                ax[1].plot((0, image.shape[1]), (y0, y1), '-r')
-            ax[1].set_xlim((0, image.shape[1]))
-            ax[1].set_ylim((image.shape[0], 0))
-            #ax[1].set_axis_off()
-            ax[1].set_title('Fitted tracks')
-
-            plt.tight_layout()
-            #plt.show()
-            outname = self.options.plotDir
-            if outname and not os.path.exists(outname):
-                os.system("mkdir -p "+outname)
-                os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
-            for ext in ['pdf']:
-                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
-            plt.gcf().clear()
-
-        return tracks
         
     def plotClusterFullResolution(self,clusters):
         outname = self.options.plotDir
@@ -427,9 +362,9 @@ class SnakesProducer:
                 sclu.centers = centers
                 sclu.pathlength = -1 if self.options.calibrate_clusters==False else calibrator.clusterLength()    
             
-        elif self.algo=='HOUGH':
-            clusters = []
-            snakes = snfac.getTracks(plot=self.plotpy)            
+        else:
+            print('\nIt seems that the DBSCAN algorithm is not selected in SnakeProducer. ERROR.\n ANALYSIS FAILED')
+            sys.exit()
         t1 = time.perf_counter()
         if self.options.debug_mode: print(f"FULL RECO in {t1 - t0:0.4f} seconds")
 
