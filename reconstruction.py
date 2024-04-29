@@ -152,8 +152,6 @@ class analysis:
             self.autotree.createCameraVariables()
             self.autotree.createTimeCameraVariables()
             self.autotree.createClusterVariables('sc')
-            if self.options.cosmic_killer:
-                self.autotree.addCosmicKillerVariables('sc')
         if self.options.save_MC_data:
 #           self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")

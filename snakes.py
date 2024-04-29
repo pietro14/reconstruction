@@ -320,16 +320,7 @@ class SnakesProducer:
         self.geometry = geometry
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
         geometryParams = eval(geometryPSet.read())
-
-        self.run_cosmic_killer = self.options.cosmic_killer
-        if self.run_cosmic_killer:
-            from clusterMatcher import ClusterMatcher
-            # cosmic killer parameters
-            cosmicKillerPars = open('modules_config/clusterMatcher.txt','r')
-            killer_params = eval(cosmicKillerPars.read())
-            killer_params.update(geometryParams)
-            self.cosmic_killer = ClusterMatcher(killer_params)
-
+        
         
     def run(self):
         ret = []
@@ -381,15 +372,6 @@ class SnakesProducer:
         if self.options.debug_mode:
             print(f"  1.2 variable calculation in {t2 - t1:0.4f} seconds")
         t_variables = t2 - t1
-        
-        # run the cosmic killer: it makes sense only on superclusters
-        if self.run_cosmic_killer:
-            for ik,killerCand in enumerate(snakes):
-                targets = [snakes[it] for it in range(len(snakes)) if it!=ik]
-                self.cosmic_killer.matchClusters(killerCand,targets)
-            t3 = time.perf_counter()
-            if self.options.debug_mode: print(f"cosmic killer in {t3 - t2:0.4f} seconds")
-
         
         # sort snakes by light integral
         snakes = sorted(snakes, key = lambda x: x.integral(), reverse=True)

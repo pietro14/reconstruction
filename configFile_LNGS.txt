@@ -54,9 +54,6 @@
 # Superclusters parameters are hardcoded
 'calibrate_clusters'    : False,
 
-# Run the cosmic killer (linear track extrapolation)
-'cosmic_killer'         : False,
-
 ### PMT waveform reconstruction
 'pmt_mode'              : 1,
 'board_pmt_channels'	: [1,2,3,4],	# Board channels used to save PMT. 
