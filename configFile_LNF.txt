@@ -18,6 +18,7 @@
 'flag_polycluster'      : 1,
 'flag_dbscan_seeds'     : 1,
 'flag_stats'            : 0,
+'pkl_ext'		: 0,
 
 'camera_mode'            : 1,
 

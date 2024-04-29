@@ -626,6 +626,8 @@ class analysis:
                             
                         # Cluster reconstruction on 2D picture
                         algo = 'DBSCAN'
+                        if self.options.rawdata_tier == 'midas':
+                            name = name + '_run' + str(run)+ '_' + str(event)
                         snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
                         plotpy = self.options.jobs < 2 # for some reason on macOS this crashes in multicore
                         snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}

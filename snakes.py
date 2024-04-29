@@ -132,7 +132,7 @@ class SnakesFactory:
                 clu = [X[clusters_seeds.labels_ == i] for i in range(len(set(clusters_seeds.labels_)) - (1 if -1 in clusters_seeds.labels_ else 0))]
                 if True:
                     fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                    plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                    plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='upper' )
                     plt.title("Clusters found in the DBSCAN seeding")
                     colorpix = np.zeros([rescaley,rescalex,3])
                     for j in range(0,len(clu)):
@@ -140,7 +140,7 @@ class SnakesFactory:
                         a = np.random.rand(3)
                         colorpix[clu[j][:,0],clu[j][:,1]] = a
 
-                    plt.imshow(colorpix,cmap='gray',origin='lower' )
+                    plt.imshow(colorpix,cmap='gray',origin='upper' )
                     for ext in ['png']:
                         plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='seeding', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
 
@@ -149,7 +149,7 @@ class SnakesFactory:
                     plt.close('all')
                 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin,vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin,vmax=vmax,origin='upper' )
                 plt.title("Clusters found DDBSCAN")             
                 for j in range(0,len(clu)):
                     ybox = clu[j][:,0]
@@ -160,7 +160,7 @@ class SnakesFactory:
                             plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
      
      
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                     
 
@@ -213,27 +213,28 @@ class SnakesFactory:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(np.flipud(self.image_fr_zs),cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='upper' )
                 plt.title("Original Image")
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
-                with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), "wb") as fp:
-                    pickle.dump(fig, fp, protocol=4)
+                if self.options.pkl_ext == 1:
+                    with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), "wb") as fp:
+                        pickle.dump(fig, fp, protocol=4)
                 plt.gcf().clear()
                 plt.close('all')
                 
             if self.options.flag_rebin_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1, vmax=vmax, origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1, vmax=vmax, origin='upper' )
                 plt.title("Rebin Image")
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='rebinIma',ext=ext), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
                 plt.close('all')
                 
             if self.options.flag_edges_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(edcopyTight, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
+                plt.imshow(edcopyTight, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='upper' )
                 plt.title('Edges after Filtering')
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='edgesIma',ext=ext), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
                 plt.close('all')
@@ -251,13 +252,13 @@ class SnakesFactory:
                 polyclu = [X[ddb.labels_[:,1] == i] for i in np.unique(ddb.labels_[:,1]) if i != 0]
                 #clu = [X[ddb.labels_ == i] for i in np.unique(ddb.labels_) if i != -1]
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='upper' )
                 plt.title("Polynomial + general clusters found in iteration 0")
                 colorpix = np.ones([rescaley,rescalex,3]) * [255,255,255]
                 for j in range(0,len(clu)):
                     a = np.random.rand(3)
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
-                plt.imshow(colorpix,cmap='binary',origin='lower' )
+                plt.imshow(colorpix,cmap='binary',origin='upper' )
                 
                 #for j in range(0,len(polyclu)):
                 #    print ("covering with dark grey the polynomial cluster # ",j)
@@ -265,10 +266,11 @@ class SnakesFactory:
                 #    colorpix[polyclu[j][:,0],polyclu[j][:,1]] = black
                 #plt.imshow(colorpix,cmap='binary',origin='lower') 
 
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
-                with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='0th'), "wb") as fp:
-                    pickle.dump(fig, fp, protocol=4)
+                if self.options.pkl_ext == 1:
+                    with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='0th'), "wb") as fp:
+                        pickle.dump(fig, fp, protocol=4)
 
                 plt.gcf().clear()
                 plt.close('all')
