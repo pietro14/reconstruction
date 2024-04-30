@@ -47,6 +47,7 @@ class analysis:
         geometryParams = eval(geometryPSet.read())
         self.cg = cameraGeometry(geometryParams)
         self.xmax = self.cg.npixx
+        self.ymax = self.cg.npixy
 
         eventContentPSet = open('modules_config/reco_eventcontent.txt')
         self.eventContentParams = eval(eventContentPSet.read())
@@ -66,10 +67,12 @@ class analysis:
                 pedrf_fr = uproot.open(self.pedfile_fullres_name)
                 self.pedarr_fr   = pedrf_fr['pedmap'].values().T
                 self.noisearr_fr = pedrf_fr['pedmap'].errors().T
-                if options.vignetteCorr:
+                if options.vignetteCorr and self.cg.cameratype != 'Quest':
                     self.vignmap = ctools.loadVignettingMap()
                 else:
-                    self.vignmap = np.ones((self.xmax, self.xmax))
+                    if self.cg.cameratype == 'Quest':
+                        print('There is no vignetting map for QUEST camera')
+                    self.vignmap = np.ones((self.ymax, self.xmax))
 
         ## Dictionary with the PMT parameters found in config_file
         self.pmt_params = {
@@ -149,8 +152,6 @@ class analysis:
             self.autotree.createCameraVariables()
             self.autotree.createTimeCameraVariables()
             self.autotree.createClusterVariables('sc')
-            if self.options.cosmic_killer:
-                self.autotree.addCosmicKillerVariables('sc')
         if self.options.save_MC_data:
 #           self.outTree.branch("MC_track_len","F")
             self.outTree.branch("eventnumber","I")
@@ -235,16 +236,17 @@ class analysis:
 
     def calcPedestal(self,options,alternativeRebin=-1):
         maxImages=options.maxEntries
-        nx=ny=self.xmax
+        nx=self.xmax
+        ny=self.ymax
         rebin = self.rebin if alternativeRebin<0 else alternativeRebin
         nx=int(nx/rebin); ny=int(ny/rebin); 
         pedfilename = 'pedestals/pedmap_run%s_rebin%d.root' % (options.pedrun,rebin)
         
         pedfile = ROOT.TFile.Open(pedfilename,'recreate')
-        pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.xmax)
-        pedmapS = ROOT.TH2D('pedmapsigma','pedmapsigma',nx,0,self.xmax,ny,0,self.xmax)
+        pedmap = ROOT.TH2D('pedmap','pedmap',nx,0,self.xmax,ny,0,self.ymax)
+        pedmapS = ROOT.TH2D('pedmapsigma','pedmapsigma',nx,0,self.xmax,ny,0,self.ymax)
 
-        pedsum = np.zeros((nx,ny))
+        pedsum = np.zeros((ny,nx))
 
         if options.rawdata_tier == 'root' or options.rawdata_tier == 'h5':
             tmpdir = '{tmpdir}'.format(tmpdir=options.tmpdir if options.tmpdir else "/tmp/")
@@ -274,7 +276,6 @@ class analysis:
                     name=key
                     if name.startswith('CAM'):
                         arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                        arr = np.rot90(arr)
                         justSkip=False
                         if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                         if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
@@ -299,20 +300,21 @@ class analysis:
                 justSkip=False
                 if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                 if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                if numev>100: break # no need to compute pedestals with >100 evts (uproot issue)
+                if numev>100: break # impossible to compute pedestals with >100 evts (uproot issue)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                     continue
                 if event%20 == 0:
                     print("Calc pedestal mean with event: ",event)
-                arr = tf[name].values()
+                arr = tf[name].values().T           #necessary because uproot inverts column and rows with x and y
+                arr = arr[::-1]                     #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
                 pedsum = np.add(pedsum,arr)
                 numev += 1
         pedmean = pedsum / float(numev)
 
         # now compute the rms (two separate loops is faster than one, yes)
         numev=0
-        pedsqdiff = np.zeros((nx,ny))
+        pedsqdiff = np.zeros((ny,nx))
         numev = 0
         if  options.rawdata_tier == 'midas':
             mf.jump_to_start()
@@ -325,7 +327,6 @@ class analysis:
                     name=key
                     if name.startswith('CAM'):
                         arr,_,_ = cy.daq_cam2array(mevent.banks[key])
-                        arr = np.rot90(arr)
                         justSkip=False
                         if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                         if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
@@ -349,24 +350,26 @@ class analysis:
                 justSkip=False
                 if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                 if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                if numev>100: break # no need to compute pedestals with >100 evts (uproot issue)
+                if numev>100: break # impossible to compute pedestals with >100 evts (uproot issue)
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                      continue
 
                 if event%20 == 0:
                     print("Calc pedestal rms with event: ",event)
-                arr = tf[name].values()
+                arr = tf[name].values().T           #see cycle above on pedmean
+                arr = arr[::-1]                     #see cycle above on pedmean
                 pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
                 numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
 
         # now save in a persistent ROOT object
-        for ix in range(nx):
-            for iy in range(ny):
-                pedmap.SetBinContent(ix+1,iy+1,pedmean[ix,iy]);
-                pedmap.SetBinError(ix+1,iy+1,pedrms[ix,iy]);
-                pedmapS.SetBinContent(ix+1,iy+1,pedrms[ix,iy]);
+        # the inversion of x and y from array to histogram is correct: [row][columns] to x,y
+        for iy in range(ny):
+            for ix in range(nx):
+                pedmap.SetBinContent(ix+1,iy+1,pedmean[iy,ix]);
+                pedmap.SetBinError(ix+1,iy+1,pedrms[iy,ix]);
+                pedmapS.SetBinContent(ix+1,iy+1,pedrms[iy,ix]);
 
         pedfile.cd()
         pedmap.Write()
@@ -475,6 +478,7 @@ class analysis:
                 name=key
                 camera = False
                 pmt = False
+                #print(name)
 
 
                 if self.options.rawdata_tier == 'root':
@@ -483,8 +487,8 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        obj = tf[key].values()
-                        #obj = np.rot90(obj)
+                        img_fr = tf[key].values().T            #necessary because uproot inverts column and rows with x and y
+                        img_fr = img_fr[::-1]                  #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
                         camera=True
 
                 elif self.options.rawdata_tier == 'h5':
@@ -493,8 +497,8 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        obj = np.array(tf[key])
-                        #obj = np.rot90(obj)
+                        img_fr = np.array(tf[key]).T
+                        img_fr = img_fr[::-1]                   #structure for h5 copied from ROOT as it was in the past. Unsure if it is correct
                         camera=True
 
                 elif self.options.rawdata_tier == 'midas':
@@ -503,8 +507,7 @@ class analysis:
                         camera_read = True
                         exist_cam = True
                         if options.camera_mode:
-                            obj,_,_ = cy.daq_cam2array(mevent.banks[key])
-                            obj = np.rot90(obj)
+                            img_fr,_,_ = cy.daq_cam2array(mevent.banks[key])
                             camera=True
                     
                     elif name.startswith('INPT') and self.options.environment_variables: # SLOW channels array
@@ -568,8 +571,8 @@ class analysis:
                         self.outTree.fillBranch("event",event)
                         self.outTree.fillBranch("pedestal_run", int(self.options.pedrun))
                     
-                        testspark=2*100*self.cg.npixx*self.cg.npixx+9000000		#for ORCA QUEST data multiply also by 2: 2*100*....
-                        if np.sum(obj)>testspark:
+                        testspark=2*100*self.cg.npixx*self.cg.npixy+9000000		
+                        if np.sum(img_fr)>testspark:
                             print("Run ",run,"- Event ",event," has spark, will not be analyzed!")
                             continue
 
@@ -591,42 +594,28 @@ class analysis:
                             self.outTree.fillBranch("MC_z_vertex_end",mc_tree.z_vertex_end)
                             self.outTree.fillBranch("MC_2D_pathlength",mc_tree.proj_track_2D)
                             self.outTree.fillBranch("MC_3D_pathlength",mc_tree.track_length_3D)
-
-                        img_fr = obj.T
          
                         # Upper Threshold full image
                         img_cimax = np.where(img_fr < self.options.cimax, img_fr, 0)
                         
-                        # zs on full image + saturation correction on full image
+                        # zs on full image + saturation correction on full image or skip it
+                        t_pre0 = time.perf_counter()
+                        img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
+                        t_pre1 = time.perf_counter()
                         if self.options.saturation_corr:
                             #print("you are in saturation correction mode")
-                            t_pre0 = time.perf_counter()
-                            img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                            t_pre1 = time.perf_counter()
                             img_fr_satcor = ctools.satur_corr(img_fr_sub) 
-                            t_pre2 = time.perf_counter()
-                            img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                            t_pre3 = time.perf_counter()
-                            img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
-                            t_pre4 = time.perf_counter()
-                            img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
-                            t_pre5 = time.perf_counter()
-                            
-                        # skip saturation and set satcor =img_fr_sub 
                         else:
                             #print("you are in poor mode")
-                            t_pre0 = time.perf_counter()
-                            img_fr_sub = ctools.pedsub(img_cimax,self.pedarr_fr)
-                            t_pre1 = time.perf_counter()
-                            img_fr_satcor = img_fr_sub  
-                            t_pre2 = time.perf_counter()
-                            img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
-                            t_pre3 = time.perf_counter()
-                            img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
-                            t_pre4 = time.perf_counter()
-                            img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
-                            t_pre5 = time.perf_counter()
-
+                            img_fr_satcor = img_fr_sub
+                        t_pre2 = time.perf_counter()
+                        img_fr_zs  = ctools.zsfullres(img_fr_satcor,self.noisearr_fr,nsigma=self.options.nsigma)
+                        t_pre3 = time.perf_counter()
+                        img_fr_zs_acc = ctools.acceptance(img_fr_zs,self.cg.ymin,self.cg.ymax,self.cg.xmin,self.cg.xmax)
+                        t_pre4 = time.perf_counter()
+                        img_rb_zs  = ctools.arrrebin(img_fr_zs_acc,self.rebin)
+                        t_pre5 = time.perf_counter()
+                            
                         t_pedsub = t_pre1 - t_pre0
                         t_saturation = t_pre2 - t_pre1
                         t_zerosup = t_pre3 - t_pre2
@@ -635,7 +624,8 @@ class analysis:
                             
                         # Cluster reconstruction on 2D picture
                         algo = 'DBSCAN'
-                        if self.options.type in ['beam','cosmics']: algo = 'HOUGH'
+                        if self.options.rawdata_tier == 'midas':
+                            name = name + '_run' + str(run)+ '_' + str(event)
                         snprod_inputs = {'picture': img_rb_zs, 'pictureHD': img_fr_satcor, 'picturezsHD': img_fr_zs, 'pictureOri': img_fr, 'vignette': self.vignmap, 'name': name, 'algo': algo}
                         plotpy = self.options.jobs < 2 # for some reason on macOS this crashes in multicore
                         snprod_params = {'snake_qual': 3, 'plot2D': False, 'plotpy': False, 'plotprofiles': False}
@@ -658,7 +648,7 @@ class analysis:
                             print()
                         del img_fr_sub,img_fr_satcor,img_fr_zs,img_fr_zs_acc,img_rb_zs
                         self.outTree.fill()
-                        del obj
+                        del img_fr
                         
          
                 if self.options.pmt_mode:
@@ -921,7 +911,7 @@ if __name__ == '__main__':
     nev = ana.getNEvents(options)
     print("\nThis run has ",nev," events.")
     if options.debug_mode == 1: print('DEBUG mode activated. Only event',options.ev,'will be analysed')
-    # FIX: the option for saving plots should only be ON only fi camera mode is ON
+    # FIX: the option for saving plots should only be ON only if camera mode is ON
     print("I Will save plots to ",options.plotDir)
     os.system('cp utils/index.php {od}'.format(od=options.plotDir))
     os.system('mkdir -p {pdir}'.format(pdir=options.plotDir))
@@ -947,6 +937,10 @@ if __name__ == '__main__':
         if len(chunks)>nThreads:
             chunks[-2] = (chunks[-2][0],chunks[-2][1],chunks[-1][2])
             del chunks[-1]
+<<<<<<< HEAD
+=======
+
+>>>>>>> Add_quest
         print("Chunks = ",chunks)
         with futures.ProcessPoolExecutor(nThreads) as executor:
             futures_list = [executor.submit(ana,c) for c in chunks]

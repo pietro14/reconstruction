@@ -2,6 +2,6 @@
 # LEMON
 'name'        : 'lemon',
 'pixelwidth'  : 0.125,  # mm
-'npixx'       : 2048,
+'cameratype'       : 'Flash',
 'vignette'    : 'data/vignette_runs03930to03932.root',
 }

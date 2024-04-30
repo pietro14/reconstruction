@@ -30,10 +30,6 @@ class SnakesFactory:
         self.ct = cameraTools(geometry)
         self.image = img
         self.img_ori = img_ori
-        self.imagelog = np.zeros((self.image.shape[0],self.image.shape[1]))
-        for (x,y),value in np.ndenumerate(self.image):
-            if value > 3.0/math.sqrt(self.rebin): # tresholding needed for tracking
-                self.imagelog[x,y] = math.log(value)
         self.image_fr    = img_fr
         self.image_fr_zs = img_fr_zs
         self.vignette = vignette
@@ -63,7 +59,8 @@ class SnakesFactory:
         tip = self.options.tip
         
         #-----Pre-Processing----------------#
-        rescale=int(self.geometry.npixx/self.rebin)
+        rescalex=int(self.geometry.npixx/self.rebin)
+        rescaley=int(self.geometry.npixy/self.rebin)
 
         t0 = time.perf_counter()
         filtimage = median_filter(self.image_fr_zs, size=2)
@@ -71,7 +68,7 @@ class SnakesFactory:
         edges = self.ct.arrrebin(filtimage,self.rebin)
         edcopy = edges.copy()
         t0_noise = time.perf_counter()
-        edcopyTight = nred_cython(edcopy, rescale, self.options.min_neighbors_average)
+        edcopyTight = nred_cython(edcopy, rescalex, rescaley, self.options.min_neighbors_average)
         t1_noise = time.perf_counter()
 
         t_medianfilter = t1_med - t0
@@ -135,15 +132,15 @@ class SnakesFactory:
                 clu = [X[clusters_seeds.labels_ == i] for i in range(len(set(clusters_seeds.labels_)) - (1 if -1 in clusters_seeds.labels_ else 0))]
                 if True:
                     fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                    plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                    plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='upper' )
                     plt.title("Clusters found in the DBSCAN seeding")
-                    colorpix = np.zeros([rescale,rescale,3])
+                    colorpix = np.zeros([rescaley,rescalex,3])
                     for j in range(0,len(clu)):
 
                         a = np.random.rand(3)
                         colorpix[clu[j][:,0],clu[j][:,1]] = a
 
-                    plt.imshow(colorpix,cmap='gray',origin='lower' )
+                    plt.imshow(colorpix,cmap='gray',origin='upper' )
                     for ext in ['png']:
                         plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='seeding', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
 
@@ -152,7 +149,7 @@ class SnakesFactory:
                     plt.close('all')
                 
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin,vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=vmin,vmax=vmax,origin='upper' )
                 plt.title("Clusters found DDBSCAN")             
                 for j in range(0,len(clu)):
                     ybox = clu[j][:,0]
@@ -163,7 +160,7 @@ class SnakesFactory:
                             plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
      
      
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
                     
 
@@ -216,27 +213,28 @@ class SnakesFactory:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(np.flipud(self.image_fr_zs),cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='upper' )
                 plt.title("Original Image")
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)
-                with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), "wb") as fp:
-                    pickle.dump(fig, fp, protocol=4)
+                if self.options.pkl_ext == 1:
+                    with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), "wb") as fp:
+                        pickle.dump(fig, fp, protocol=4)
                 plt.gcf().clear()
                 plt.close('all')
                 
             if self.options.flag_rebin_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1, vmax=vmax, origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor, vmin=1, vmax=vmax, origin='upper' )
                 plt.title("Rebin Image")
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='rebinIma',ext=ext), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
                 plt.close('all')
                 
             if self.options.flag_edges_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(edcopyTight, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='lower' )
+                plt.imshow(edcopyTight, cmap=self.options.cmapcolor, vmin=0, vmax=1, origin='upper' )
                 plt.title('Edges after Filtering')
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='edgesIma',ext=ext), bbox_inches='tight', pad_inches=0)
                 plt.gcf().clear()
                 plt.close('all')
@@ -254,13 +252,13 @@ class SnakesFactory:
                 polyclu = [X[ddb.labels_[:,1] == i] for i in np.unique(ddb.labels_[:,1]) if i != 0]
                 #clu = [X[ddb.labels_ == i] for i in np.unique(ddb.labels_) if i != -1]
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
+                plt.imshow(self.image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='upper' )
                 plt.title("Polynomial + general clusters found in iteration 0")
-                colorpix = np.ones([rescale,rescale,3]) * [255,255,255]
+                colorpix = np.ones([rescaley,rescalex,3]) * [255,255,255]
                 for j in range(0,len(clu)):
                     a = np.random.rand(3)
                     colorpix[clu[j][:,0],clu[j][:,1]] = a
-                plt.imshow(colorpix,cmap='binary',origin='lower' )
+                plt.imshow(colorpix,cmap='binary',origin='upper' )
                 
                 #for j in range(0,len(polyclu)):
                 #    print ("covering with dark grey the polynomial cluster # ",j)
@@ -268,77 +266,17 @@ class SnakesFactory:
                 #    colorpix[polyclu[j][:,0],polyclu[j][:,1]] = black
                 #plt.imshow(colorpix,cmap='binary',origin='lower') 
 
-                for ext in ['png','pdf']:
+                for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='0th', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
-                with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='0th'), "wb") as fp:
-                    pickle.dump(fig, fp, protocol=4)
+                if self.options.pkl_ext == 1:
+                    with open('{pdir}/{name}_{esp}.pkl'.format(pdir=outname,name=self.name,esp='0th'), "wb") as fp:
+                        pickle.dump(fig, fp, protocol=4)
 
                 plt.gcf().clear()
                 plt.close('all')
 
         return superclusters,lp, t_medianfilter, t_noisered, t_DBSCAN
         
-    def getTracks(self,plot=True):
-        from skimage.transform import (hough_line, hough_line_peaks)
-        # Classic straight-line Hough transform
-        image = self.imagelog
-        h, theta, d = hough_line(image)
-        print("tracks found")
-        
-        tracks = []
-        thr = 0.8 * np.amax(h)
-        #######################   IMPLEMENT HERE THE SAVING OF THE TRACKS ############
-        # loop over prominent tracks
-        itrk = 0
-        for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
-            print("Track # ",itrk)
-            #points_along_trk = np.zeros((self.image.shape[1],self.image.shape[0]))
-            points_along_trk = []
-            for x in range(self.image.shape[1]):
-                y = min(self.image.shape[0],max(0,int((dist - x * np.cos(angle)) / np.sin(angle))))
-                #points_along_trk[x,y] = self.image[y,x]
-                #print "adding point: %d,%d,%f" % (x,y,self.image[y,x])
-                # add a halo fo +/- 20 pixels to calculate the lateral profile
-                for iy in range(int(y)-5,int(y)+5):
-                    if iy<0 or iy>=self.image.shape[0]: continue
-                    points_along_trk.append((x,iy,self.image[iy,x]))
-            xy = np.array(points_along_trk)
-            trk = Cluster(xy,self.rebin)
-            tracks.append(trk)
-            itrk += 1
-        ###################################
-            
-        if plot:
-            # Generating figure
-            from matplotlib import cm
-            fig, ax = plt.subplots(2, 1, figsize=(18, 6))
-            #ax = axes.ravel()
-
-            ax[0].imshow(image, cmap=cm.gray)
-            ax[0].set_title('Camera image')
-            #ax[0].set_axis_off()            
-
-            ax[1].imshow(image, cmap=cm.gray)
-            for _, angle, dist in zip(*hough_line_peaks(h, theta, d,threshold=thr)):
-                y0 = (dist - 0 * np.cos(angle)) / np.sin(angle)
-                y1 = (dist - image.shape[1] * np.cos(angle)) / np.sin(angle)
-                ax[1].plot((0, image.shape[1]), (y0, y1), '-r')
-            ax[1].set_xlim((0, image.shape[1]))
-            ax[1].set_ylim((image.shape[0], 0))
-            #ax[1].set_axis_off()
-            ax[1].set_title('Fitted tracks')
-
-            plt.tight_layout()
-            #plt.show()
-            outname = self.options.plotDir
-            if outname and not os.path.exists(outname):
-                os.system("mkdir -p "+outname)
-                os.system("cp ~/cernbox/www/Cygnus/index.php "+outname)
-            for ext in ['pdf']:
-                plt.savefig('{pdir}/{name}.{ext}'.format(pdir=outname,name=self.name,ext=ext))
-            plt.gcf().clear()
-
-        return tracks
         
     def plotClusterFullResolution(self,clusters):
         outname = self.options.plotDir
@@ -382,16 +320,7 @@ class SnakesProducer:
         self.geometry = geometry
         geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=options.geometry),'r')
         geometryParams = eval(geometryPSet.read())
-
-        self.run_cosmic_killer = self.options.cosmic_killer
-        if self.run_cosmic_killer:
-            from clusterMatcher import ClusterMatcher
-            # cosmic killer parameters
-            cosmicKillerPars = open('modules_config/clusterMatcher.txt','r')
-            killer_params = eval(cosmicKillerPars.read())
-            killer_params.update(geometryParams)
-            self.cosmic_killer = ClusterMatcher(killer_params)
-
+        
         
     def run(self):
         ret = []
@@ -426,9 +355,9 @@ class SnakesProducer:
                 sclu.centers = centers
                 sclu.pathlength = -1 if self.options.calibrate_clusters==False else calibrator.clusterLength()    
             
-        elif self.algo=='HOUGH':
-            clusters = []
-            snakes = snfac.getTracks(plot=self.plotpy)            
+        else:
+            print('\nIt seems that the DBSCAN algorithm is not selected in SnakeProducer. ERROR.\n ANALYSIS FAILED')
+            sys.exit()
         t1 = time.perf_counter()
         if self.options.debug_mode: print(f"FULL RECO in {t1 - t0:0.4f} seconds")
 
@@ -443,16 +372,6 @@ class SnakesProducer:
         if self.options.debug_mode:
             print(f"  1.2 variable calculation in {t2 - t1:0.4f} seconds")
         t_variables = t2 - t1
-        
-        # run the cosmic killer: it makes sense only on superclusters
-        if self.run_cosmic_killer:
-            for ik,killerCand in enumerate(snakes):
-                targets = [snakes[it] for it in range(len(snakes)) if it!=ik]
-                self.cosmic_killer.matchClusters(killerCand,targets)
-            t3 = time.perf_counter()
-            if self.options.debug_mode: print(f"cosmic killer in {t3 - t2:0.4f} seconds")
-
-        # snfac.calcProfiles(snakes) # this is for BTF
         
         # sort snakes by light integral
         snakes = sorted(snakes, key = lambda x: x.integral(), reverse=True)
