@@ -211,7 +211,7 @@ class SnakesFactory:
 
             if self.options.flag_full_image == 1:
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
-                plt.imshow(np.flipud(self.image_fr_zs),cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='upper' )
+                plt.imshow(self.image_fr_zs,cmap=self.options.cmapcolor, vmin=vmin, vmax=vmax,origin='upper' )
                 plt.title("Original Image")
                 for ext in ['png']:       #,'pdf'
                     plt.savefig('{pdir}/{name}_{esp}.{ext}'.format(pdir=outname,name=self.name,esp='oriIma',ext=ext), bbox_inches='tight', pad_inches=0)

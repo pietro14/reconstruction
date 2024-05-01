@@ -937,10 +937,6 @@ if __name__ == '__main__':
         if len(chunks)>nThreads:
             chunks[-2] = (chunks[-2][0],chunks[-2][1],chunks[-1][2])
             del chunks[-1]
-<<<<<<< HEAD
-=======
-
->>>>>>> Add_quest
         print("Chunks = ",chunks)
         with futures.ProcessPoolExecutor(nThreads) as executor:
             futures_list = [executor.submit(ana,c) for c in chunks]
