@@ -9,6 +9,8 @@ from cameraChannel import cameraGeometry
 import utilities
 utilities = utilities.utils()
 
+#In this class initiator and later there is a formal mistake: hits is a matrix with 3 columns: [row,column,intensity]. This means they should be referred to as [y,x,z]
+#However it is used [x,y,z]. The calculation of eigenvalues and profiles should be invariant (maybe it will be checked in the future), but when saving the x and y are swapped in order to have the correct information
 class Cluster:
     def __init__(self,hits,rebin,img_fr,img_fr_zs,geometry,debug=False,fullinfo=False,clID=0):
         self.hits = hits
@@ -20,53 +22,29 @@ class Cluster:
         else:
             print("WARNING! Cluster created without underlying image... Are you using it standalone?")
 
-        if fullinfo:			#savin he pixel for the scfullinfo 
+        if fullinfo:			#saving the pixel for the scfullinfo 
 
             self.nclu = clID
-            self.ID=[]
             self.IDall=[]
 
             if self.integral()>0 and self.sizeActive()>0  and self.size()<1000000:		#tries to avoid to save cluster with zero integral or too big (like with afterglow of pixels)
-                  self.nintpixels = self.sizeActive()
                   self.nallintpixels = self.size()
-                  for k in range(self.nintpixels):
-                      self.ID.append(clID)
                   for k in range(self.nallintpixels):
                       self.IDall.append(clID)
-                  self.xpixelcoord= self.hits_fr_zs[:,0]
-                  self.ypixelcoord= self.hits_fr_zs[:,1]
-                  self.zpixel= self.hits_fr_zs[:,2]
-                  self.xallpixelcoord= self.hits_fr[:,0]
-                  self.yallpixelcoord= self.hits_fr[:,1]
+                  self.xallpixelcoord= self.hits_fr[:,1]
+                  self.yallpixelcoord= self.hits_fr[:,0]
                   self.zallpixel= self.hits_fr[:,2]
             else:								#clusters with ID =-1 can be avoided during analysis of the pixels
-                  self.ID.append(-1)
-                  self.nintpixels = 1
                   self.IDall.append(-1)
                   self.nallintpixels = 1
-                  if self.sizeActive()>0:
-                      self.xpixelcoord= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,0]
-                      self.ypixelcoord= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,1]
-                      self.zpixel= self.hits_fr_zs[int(self.sizeActive()/2):int(self.sizeActive()/2)+1,2]
-                  else:
-                      self.xpixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,0]
-                      self.ypixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,1]
-                      self.zpixel= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,2]
- 
-                  self.xallpixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,0]
-                  self.yallpixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,1]   
+                  self.xallpixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,1]
+                  self.yallpixelcoord= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,0]   
                   self.zallpixel= self.hits_fr[int(self.size()/2):int(self.size()/2)+1,2]
         self.mean_point = np.array([np.mean(self.x),np.mean(self.y)])
         self.EVs,self.theta = self.eigenvectors()
         self.widths = {}
         self.profiles = {}
         self.shapes = {}
-        geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=geometry),'r')
-        geometryParams = eval(geometryPSet.read())
-        self.cg = cameraGeometry(geometryParams)
-        self.minDistKiller = self.cg.npixx
-        self.nMatchKiller = 0
-        self.nMatchKillerWeak = 0
         
     def integral(self):
         if hasattr(self,'hits_fr'):
@@ -297,12 +275,12 @@ class Cluster:
               self.shapes['xmax'] = 0
               self.shapes['ymax'] = 0
         else:
-              self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
-              self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
-              self.shapes['xmin'] = np.min(np.array(self.hits_fr[:,0]))
-              self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,1]))
-              self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,0]))
-              self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,1]))
+              self.shapes['xmean'] = np.average(np.array(self.hits_fr[:,1]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+              self.shapes['ymean'] = np.average(np.array(self.hits_fr[:,0]),weights=np.array([max(0,z) for z in self.hits_fr[:,2]]) )
+              self.shapes['xmin'] = np.min(np.array(self.hits_fr[:,1]))
+              self.shapes['ymin'] = np.min(np.array(self.hits_fr[:,0]))
+              self.shapes['xmax'] = np.max(np.array(self.hits_fr[:,1]))
+              self.shapes['ymax'] = np.max(np.array(self.hits_fr[:,0]))
         for direction in titles:
             self.shapes['{direction}gaussamp'.format(direction=direction[0])] = (fitResults[direction])['amp']
             self.shapes['{direction}gaussmean'.format(direction=direction[0])] = (fitResults[direction])['mean']

@@ -5,17 +5,32 @@ import uproot
 import numpy as np
 import math
 import debug_code.tools_lib as tl
+import sys
 
 class cameraGeometry:
     def __init__(self,params):
         self.pixelwidth = params['pixelwidth']
-        self.npixx = params['npixx']
+        self.cameratype = params['cameratype']
+        self.npixx = 0
+        self.npixy = 0
+        if self.cameratype == 'Flash':
+            self.npixx = 2048
+            self.npixy = 2048
+        if self.cameratype == 'Fusion':
+            self.npixx = 2304
+            self.npixy = 2304
+        if self.cameratype == 'Quest':
+            self.npixx = 4096
+            self.npixy = 2304
+        if self.npixx==0:
+            print('\nIt seems you are trying to use a camera which is not supported. Correct this in modules_config/geometry_<detector>.txt.\n ANALYSIS FAILED')
+            sys.exit()
         self.name = params['name']
         self.vignette = params['vignette']
         self.xmin = params['xmin'] if 'xmin' in params else 0
         self.xmax = params['xmax'] if 'xmax' in params else self.npixx
         self.ymin = params['ymin'] if 'ymin' in params else 0
-        self.ymax = params['ymax'] if 'ymax' in params else self.npixx
+        self.ymax = params['ymax'] if 'ymax' in params else self.npixy
         
         
 class cameraTools:
@@ -23,7 +38,7 @@ class cameraTools:
         self.geometry = geometry
         # attach to a dict to make it persistent
         # the matrix is the max size possible, still ok if rebinned (because it is redone from the TH2D when it is readout)
-        self.vignetteMap = { self.geometry.name : np.zeros((int(self.geometry.npixx),int(self.geometry.npixx))) }
+        self.vignetteMap = { self.geometry.name : np.zeros((int(self.geometry.npixx),int(self.geometry.npixy))) }
 
     def pedsub(self,img,pedarr):
         return img - pedarr
@@ -48,15 +63,16 @@ class cameraTools:
         return img_zs
         
     def arrrebin(self,img,rebin):
-        newshape = int(self.geometry.npixx/rebin)
-        img_rebin = tl.rebin(img,(newshape,newshape))
+        newshapex = int(self.geometry.npixx/rebin)
+        newshapey = int(self.geometry.npixy/rebin)
+        img_rebin = tl.rebin(img,(newshapey,newshapex))
         return img_rebin
 
-    def acceptance(self,img,xmin,xmax,ymin,ymax):
-        img[:xmin,:]=0
-        img[xmax:,:]=0
-        img[:,:ymin]=0
-        img[:,ymax:]=0
+    def acceptance(self,img,rowmin,rowmax,colmin,colmax):
+        img[:rowmin,:]=0
+        img[rowmax:,:]=0
+        img[:,:colmin]=0
+        img[:,colmax:]=0
         return img
         
     # this returns x,y,z before the zero suppression
@@ -98,7 +114,7 @@ class cameraTools:
                 vignetteMapRebinned = tf[namehmap].values()
                 print("py ndim = ",vignetteMapRebinned.ndim)
                 rebinx = int(self.geometry.npixx/vignetteMapRebinned.shape[0])
-                rebiny = int(self.geometry.npixx/vignetteMapRebinned.shape[1])
+                rebiny = int(self.geometry.npixy/vignetteMapRebinned.shape[1])
                 macroPixel = np.zeros((rebinx,rebiny))
                 print ("Macro-pixel of the vignetting map has size = ",macroPixel.shape)
                 for ibx in range(vignetteMapRebinned.shape[0]):

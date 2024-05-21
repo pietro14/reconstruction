@@ -6,7 +6,6 @@ import ROOT
 class AutoFillTreeProducer:
     def __init__(self,tree,eventContent):
         self.outTree = tree
-        self.saveKillerVars = False
         self.eventContent = eventContent
 
     def createEnvVariables(self):
@@ -231,14 +230,6 @@ class AutoFillTreeProducer:
         self.outTree.branch('{name}_lchi2'.format(name=name),        'F', lenVar=sizeStr, title="chi-squared of the Gaussian fit to the longitudinal profile")
         self.outTree.branch('{name}_lstatus'.format(name=name),      'F', lenVar=sizeStr, title="status of the Gaussian fit to the longitudinal profile")
 
-    def addCosmicKillerVariables(self,name='track'):
-        self.saveKillerVars = True
-        if name=='sc':
-            self.outTree.branch('{name}_mindist'.format(name=name),       'F', lenVar=sizeStr, title="minimal distance of the cluster to a long track")
-            self.outTree.branch('{name}_nmatchweak'.format(name=name),    'F', lenVar=sizeStr, title="number of pixels of the cluster matching a long track extrapolation (tight selection)")
-            self.outTree.branch('{name}_nmatchrobust'.format(name=name),  'F', lenVar=sizeStr, title="number of pixels of the cluster matching a long track extrapolation (loose selection)")
-
-
     def fillCameraVariables(self,pic):
         self.outTree.fillBranch('cmos_integral',np.sum(pic))
         self.outTree.fillBranch('cmos_mean',np.mean(pic))
@@ -274,10 +265,6 @@ class AutoFillTreeProducer:
         if name=='sc':
             self.outTree.fillBranch('{name}_energy'.format(name=name), [cl.calibratedEnergy for cl in clusters])
             self.outTree.fillBranch('{name}_pathlength'.format(name=name),    [cl.pathlength for cl in clusters])
-            if self.saveKillerVars == True:
-                self.outTree.fillBranch('{name}_mindist'.format(name=name), [cl.minDistKiller for cl in clusters])
-                self.outTree.fillBranch('{name}_nmatchweak'.format(name=name), [cl.nMatchKillerWeak for cl in clusters])
-                self.outTree.fillBranch('{name}_nmatchrobust'.format(name=name), [cl.nMatchKiller for cl in clusters])
             if self.eventContent["scfullinfo"] == True:
                 selection = self.eventContent["scpixels_sel"]
                 redPixIdxs = []

@@ -18,6 +18,7 @@
 'flag_polycluster'      : 1,
 'flag_dbscan_seeds'     : 1,
 'flag_stats'            : 0,
+'pkl_ext'		: 0,
 
 'camera_mode'            : 1,
 
@@ -52,9 +53,6 @@
 
 # Superclusters parameters are hardcoded
 'calibrate_clusters'    : False,
-
-# Run the cosmic killer (linear track extrapolation)
-'cosmic_killer'         : False,
 
 ### PMT waveform reconstruction
 'pmt_mode'              : 0,
