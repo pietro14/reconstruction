@@ -5,11 +5,14 @@ import uproot
 import numpy as np
 import math
 import debug_code.tools_lib as tl
+import sys
 
 class cameraGeometry:
     def __init__(self,params):
         self.pixelwidth = params['pixelwidth']
         self.cameratype = params['cameratype']
+        self.npixx = 0
+        self.npixy = 0
         if self.cameratype == 'Flash':
             self.npixx = 2048
             self.npixy = 2048
@@ -19,6 +22,9 @@ class cameraGeometry:
         if self.cameratype == 'Quest':
             self.npixx = 4096
             self.npixy = 2304
+        if self.npixx==0:
+            print('\nIt seems you are trying to use a camera which is not supported. Correct this in modules_config/geometry_<detector>.txt.\n ANALYSIS FAILED')
+            sys.exit()
         self.name = params['name']
         self.vignette = params['vignette']
         self.xmin = params['xmin'] if 'xmin' in params else 0

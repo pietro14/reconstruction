@@ -45,12 +45,6 @@ class Cluster:
         self.widths = {}
         self.profiles = {}
         self.shapes = {}
-        geometryPSet   = open('modules_config/geometry_{det}.txt'.format(det=geometry),'r')
-        geometryParams = eval(geometryPSet.read())
-        self.cg = cameraGeometry(geometryParams)
-        self.minDistKiller = self.cg.npixx
-        self.nMatchKiller = 0
-        self.nMatchKillerWeak = 0
         
     def integral(self):
         if hasattr(self,'hits_fr'):
