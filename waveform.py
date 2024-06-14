@@ -85,7 +85,7 @@ class PMTreco:
             ## The following part the last GEM channel in the list corresponds to the last GEM in the stack. This we invert.
             ## The polarity of these signals is not constant thus it's not easy to prepare for all cases.
             if self.channel == self.gem_chs[-1]:
-                self.invert_and_center_WF(self.baseline, invert = True)
+                self.invert_and_center_WF(self.baseline, invert = False)
             else:
                 self.invert_and_center_WF(self.baseline, invert = False)
 
