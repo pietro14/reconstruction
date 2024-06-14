@@ -99,7 +99,7 @@ class PMTreco:
     
         if self.plotpy == True:
             # Add function to create folder if not existing already
-            self.plot_and_save( pdir =self.pmt_outdir, xlabel = None, ylabel = None, save = True, plot = False)
+            self.plot_and_save( pdir =self.pmt_outdir, save = True, plot = False)
 
 
     #################  Display waveform information  ################# 
@@ -389,7 +389,7 @@ class PMTreco:
         return charge
 
     ## Plot the waveforms with the peaks founds and respective widths. Saves them into a folder called 'waveforms'
-    def plot_and_save(self, pdir='./', xlabel='Time (ns)', ylabel='amplitude (mV)', save = True, plot = False):
+    def plot_and_save(self, pdir='./', xlabel='Samples (#)', ylabel='ADC counts (#)', save = True, plot = False):
         import matplotlib.pyplot as plt
 
         # plot data and the found peaks
