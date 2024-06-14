@@ -300,7 +300,7 @@ class PMTreco:
         return self.TTT
 
     ## Retrieves baseline of waveform with X samples starting from sample "n_offset". Can be tuned
-    def getBaseline(self, n_offset = 0):
+    def getBaseline(self, n_offset = 5):
 
         if   self.digitizer == "fast": n_samples = 100
         elif self.digitizer == "slow": n_samples = 400
@@ -310,7 +310,7 @@ class PMTreco:
         return bl
 
     ## Retrieves RMS of waveform with 100 samples starting from sample 0. Can be tuned
-    def getRMS(self, n_offset = 0):
+    def getRMS(self, n_offset = 5):     #because MANGO corrections sometimes have a wrong first point
 
         if   self.digitizer == "fast": n_samples = 100
         elif self.digitizer == "slow": n_samples = 400
