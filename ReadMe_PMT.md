@@ -83,7 +83,11 @@ The intent is to be able to save signals with both small and large time extensio
     - 12 bits
         - ADC counts are within [0,4096]
     - Dynamic range: 1Vpp
-    - Sampling: 750Mhz
+    - DC offset: Variable [-1 to +1] V
+        - Chosen value for all detectors: -0.3V
+            - Note: When using values different from 0, a new set of corrections should be implemented.
+    - Sampling: Variable - [5 GS/s , 2.5 GS/s, 1 GS/s, 750 MS/s]
+        - Chosen sampling frequency for all detectors: 750Mhz
         - X-sample duration: 1/750MS = 1.33(3) ns, for 1024 samples, thus covering 1365.3(3) ns.
 
 - **Slow digitizer:** CAEN V1720 
@@ -92,6 +96,8 @@ The intent is to be able to save signals with both small and large time extensio
         - ADC counts are within [0,4096]
     - Dynamic range: 2Vpp
         - (meaning it observes half the intensity in the same signal seen by the fast digitizer)
+    - DC offset: [-1 to +1] V
+        - No offset nor corrections are applied to this digitizer.
     - Sampling: 250Mhz
         - X-sample duration: 1/250MS = 4 ns, for 4000 samples,  thus covering 16000 ns.
             - NB: 4000 is not a typical power of 2 due to old issue with the DAQ. 
