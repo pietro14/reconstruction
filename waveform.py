@@ -85,7 +85,7 @@ class PMTreco:
             ## The following part the last GEM channel in the list corresponds to the last GEM in the stack. This we invert.
             ## The polarity of these signals is not constant thus it's not easy to prepare for all cases.
             if self.channel == self.gem_chs[-1]:
-                self.invert_and_center_WF(self.baseline, invert = True)
+                self.invert_and_center_WF(self.baseline, invert = False)
             else:
                 self.invert_and_center_WF(self.baseline, invert = False)
 
@@ -99,7 +99,7 @@ class PMTreco:
     
         if self.plotpy == True:
             # Add function to create folder if not existing already
-            self.plot_and_save( pdir =self.pmt_outdir, xlabel = None, ylabel = None, save = True, plot = False)
+            self.plot_and_save( pdir =self.pmt_outdir, save = True, plot = False)
 
 
     #################  Display waveform information  ################# 
@@ -299,8 +299,8 @@ class PMTreco:
     def getTTT(self):
         return self.TTT
 
-    ## Retrieves baseline of waveform with X samples starting from sample "n_offset". Can be tuned
-    def getBaseline(self, n_offset = 0):
+    ## Retrieves baseline of waveform with X samples starting from "n_offset" sample 5 to avoid first point issues.
+    def getBaseline(self, n_offset = 5):
 
         if   self.digitizer == "fast": n_samples = 100
         elif self.digitizer == "slow": n_samples = 400
@@ -309,8 +309,8 @@ class PMTreco:
 
         return bl
 
-    ## Retrieves RMS of waveform with 100 samples starting from sample 0. Can be tuned
-    def getRMS(self, n_offset = 0):
+    ## Retrieves RMS of waveform with X samples starting from "n_offset" sample 5 to avoid first point issues.
+    def getRMS(self, n_offset = 5): 
 
         if   self.digitizer == "fast": n_samples = 100
         elif self.digitizer == "slow": n_samples = 400
@@ -389,7 +389,7 @@ class PMTreco:
         return charge
 
     ## Plot the waveforms with the peaks founds and respective widths. Saves them into a folder called 'waveforms'
-    def plot_and_save(self, pdir='./', xlabel='Time (ns)', ylabel='amplitude (mV)', save = True, plot = False):
+    def plot_and_save(self, pdir='./', xlabel='Samples (#)', ylabel='ADC counts (#)', save = True, plot = False):
         import matplotlib.pyplot as plt
 
         # plot data and the found peaks
