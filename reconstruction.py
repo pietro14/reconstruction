@@ -915,9 +915,9 @@ if __name__ == '__main__':
     nThreads = 1
     if options.jobs==-1:
         import multiprocessing
-        nThreads = multiprocessing.cpu_count()
+        nThreads = min(multiprocessing.cpu_count(),nev)
     else:
-        nThreads = options.jobs
+        nThreads = min(options.jobs,nev)
 
     t1 = time.perf_counter()
     firstEvent = 0 if options.firstEvent<0 else options.firstEvent
