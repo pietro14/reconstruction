@@ -507,18 +507,15 @@ class analysis:
                             camera=True
                     
                     elif name.startswith('INPT') and self.options.environment_variables: # SLOW channels array
-                        #try:
-                        dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j_env=j_env)
-                        self.autotree.fillEnvVariables(dslow.take([j_env]))
-                        j_env = j_env+1
-                        if not self.options.camera_mode:
-                            if self.options.jobs != 1:
-                                if numev>=evrange[1]: self.outTree.fill()
-                            else:
-                                self.outTree.fill()
-                           #print(dslow)
-                        #except:
-                        #   print("WARNING: INPT bank is not as expected.")
+                        if mevent.header.event_id==5:
+                            dslow = utilities.read_env_variables(mevent.banks[key], dslow, odb, j_env=j_env)
+                            self.autotree.fillEnvVariables(dslow.take([j_env]))
+                            j_env = j_env+1
+                            if not self.options.camera_mode:
+                                if self.options.jobs != 1:
+                                    if numev>=evrange[1]: self.outTree.fill()
+                                else:
+                                    self.outTree.fill()
                     
                     elif name.startswith('DGH0'):
                         pmt_read = True
