@@ -279,7 +279,7 @@ class analysis:
                         justSkip=False
                         if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                         if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                        if numev>200: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
+                        if numev>250: break # no need to compute pedestals with >250 evts
                             
                         if numev%20 == 0:
                             print("Calc pedestal mean with event: ",numev)
@@ -300,7 +300,7 @@ class analysis:
                 justSkip=False
                 if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                 if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                if numev>100: break # impossible to compute pedestals with >100 evts (uproot issue)
+                if numev>250: break # no need to compute pedestals with >250 evts
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                     continue
@@ -329,7 +329,7 @@ class analysis:
                         justSkip=False
                         if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                         if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                        if numev>200: break # no need to compute pedestals with >200 evts (avoid large RAM usage)
+                        if numev>250: break # no need to compute pedestals with >250 evts 
              
                         if numev%20 == 0:
                             print("Calc pedestal rms with event: ",numev)
@@ -349,7 +349,7 @@ class analysis:
                 justSkip=False
                 if (numev in self.options.excImages) and self.options.justPedestal: justSkip=True
                 if (maxImages>-1 and numev>min(len(keys),maxImages)) and self.options.justPedestal: break
-                if numev>100: break # impossible to compute pedestals with >100 evts (uproot issue)
+                if numev>250: break # no need to compute pedestals with >250 evts
                 if 'pic' not in name: justSkip=True
                 if justSkip:
                      continue
