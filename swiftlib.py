@@ -70,7 +70,7 @@ def swift_download_root_file(url,run,tmp=None,justName=False):
     return tmpname 
 
 def swift_read_root_file(tmpname):
-    f  = uproot.open(tmpname)
+    f  = uproot.open(tmpname,object_cache=None, array_cache=None)
     return f
 
 def swift_read_h5_file(tmpname):
