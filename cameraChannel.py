@@ -86,20 +86,6 @@ class cameraTools:
                 noisearr[ix][iy] = th2.GetBinError(ix+1,iy+1)
         return noisearr
 
-    def getRestrictedImage(self,th2,xmin,xmax,ymin,ymax):
-        nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
-        nxp = xmax-xmin
-        nyp = ymax-ymin
-        th2_rs = ROOT.TH2D(th2.GetName()+'_rs',th2.GetName()+'_rs',nxp,xmin,xmax,nyp,ymin,ymax)
-        th2_rs.SetDirectory(None)
-        for ix,x in enumerate(range(xmin,xmax)):
-            for iy,y in enumerate(range(ymin,ymax)):
-                orig_ixb = th2.GetXaxis().FindBin(x)
-                orig_iyb = th2.GetYaxis().FindBin(y)
-                z = th2.GetBinContent(orig_ixb,orig_iyb)
-                th2_rs.SetBinContent(ix+1,iy+1,z)
-        return th2_rs
-
     def loadVignettingMap(self):
         print ("Loading vignette map from: {vf}...".format(vf=self.geometry.vignette))
         det = self.geometry.name
