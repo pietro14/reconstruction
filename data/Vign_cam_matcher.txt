@@ -1,0 +1,8 @@
+{
+'vignette_run03806.root'            : 'Fusion',
+'vignette_run04117.root'            : 'Fusion',
+'vignette_runs03930to03932.root'    : 'Fusion',
+'vignette_QX_095.root'              : 'Quest',
+'vignette_QEHD_085.root'            : 'Quest',
+'vignette_QEHD_095.root'            : 'Quest',
+}

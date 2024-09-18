@@ -67,11 +67,9 @@ class analysis:
                 pedrf_fr = uproot.open(self.pedfile_fullres_name)
                 self.pedarr_fr   = pedrf_fr['pedmap'].values().T
                 self.noisearr_fr = pedrf_fr['pedmap'].errors().T
-                if options.vignetteCorr and self.cg.cameratype != 'Quest':
+                if options.vignetteCorr:
                     self.vignmap = ctools.loadVignettingMap()
                 else:
-                    if self.cg.cameratype == 'Quest':
-                        print('There is no vignetting map for QUEST camera')
                     self.vignmap = np.ones((self.ymax, self.xmax))
 
         ## Dictionary with the PMT parameters found in config_file
