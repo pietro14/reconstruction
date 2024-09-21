@@ -352,10 +352,11 @@ class utils:
            setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
         return 
     
-    def rootflip(self,rootfile,key):
+    def rootflip(self,rootfile,key,tag):
         #Necessary conversion from root format to numpy matrix oriented exactly as the output of midas files
         img_fr = rootfile[key].values().T            #necessary because uproot inverts column and rows with x and y
-        img_fr = img_fr[::-1]                  #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
+        if tag=='MAN':
+            img_fr = img_fr[::-1]                  #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
         return img_fr
 
     def peak_memory_usage(self):
