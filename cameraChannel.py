@@ -94,7 +94,7 @@ class cameraTools:
        	        maptocameraParams = eval(maptocamera.read())
 
                 if self.geometry.cameratype != maptocameraParams[(self.geometry.vignette).split('/')[1]]: #check that the vignetting map is made with the camera you set for the analysis
-                       print ('ERROR! The camera and the vignetting map do not match. Check what you wrote in the configFile or in modules_config/geometry_xxx.txt.\nYou can aso check the vignetting readme in data folder.\nAnalysis FAILED')
+                       print ('ERROR! The camera and the vignetting map do not match. Check what you wrote in the configFile or in modules_config/geometry_xxx.txt.\nYou can also check the vignetting readme in data folder.\nAnalysis FAILED')
                        sys.exit()
                 tf = uproot.open(self.geometry.vignette)
                 namehmap = 'normmap'
