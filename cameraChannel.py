@@ -38,7 +38,7 @@ class cameraTools:
         self.geometry = geometry
         # attach to a dict to make it persistent
         # the matrix is the max size possible, still ok if rebinned (because it is redone from the TH2D when it is readout)
-        self.vignetteMap = { self.geometry.name : np.zeros((int(self.geometry.npixx),int(self.geometry.npixy))) }
+        self.vignetteMap = { self.geometry.name : np.ones((int(self.geometry.npixy),int(self.geometry.npixx))) }
 
     def pedsub(self,img,pedarr):
         return img - pedarr
@@ -86,49 +86,35 @@ class cameraTools:
                 noisearr[ix][iy] = th2.GetBinError(ix+1,iy+1)
         return noisearr
 
-    def getRestrictedImage(self,th2,xmin,xmax,ymin,ymax):
-        nx = th2.GetNbinsX(); ny = th2.GetNbinsY();
-        nxp = xmax-xmin
-        nyp = ymax-ymin
-        th2_rs = ROOT.TH2D(th2.GetName()+'_rs',th2.GetName()+'_rs',nxp,xmin,xmax,nyp,ymin,ymax)
-        th2_rs.SetDirectory(None)
-        for ix,x in enumerate(range(xmin,xmax)):
-            for iy,y in enumerate(range(ymin,ymax)):
-                orig_ixb = th2.GetXaxis().FindBin(x)
-                orig_iyb = th2.GetYaxis().FindBin(y)
-                z = th2.GetBinContent(orig_ixb,orig_iyb)
-                th2_rs.SetBinContent(ix+1,iy+1,z)
-        return th2_rs
-
     def loadVignettingMap(self):
         print ("Loading vignette map from: {vf}...".format(vf=self.geometry.vignette))
         det = self.geometry.name
-        if det == 'lemon': # not implemented (we were taking the efficienct region within the FC)
-            return self.vignetteMap[det]
-        elif det == 'lime' or 'Mango_full':
-            if not self.vignetteMap[det].any():
+        if self.geometry.cameratype == 'Fusion' or self.geometry.cameratype == 'Quest':
+                maptocamera = open('data/Vign_cam_matcher.txt')
+       	        maptocameraParams = eval(maptocamera.read())
+
+                if self.geometry.cameratype != maptocameraParams[(self.geometry.vignette).split('/')[1]]: #check that the vignetting map is made with the camera you set for the analysis
+                       print ('ERROR! The camera and the vignetting map do not match. Check what you wrote in the configFile or in modules_config/geometry_xxx.txt.\nYou can also check the vignetting readme in data folder.\nAnalysis FAILED')
+                       sys.exit()
                 tf = uproot.open(self.geometry.vignette)
-                namehmap = 'normmap_'+self.geometry.name
-                if det == 'Mango_full' or 'gin':
-                       namehmap = 'normmap_lime'		#in vignette_runs... there is no mango_full, so lime is used
-                vignetteMapRebinned = tf[namehmap].values()
+                namehmap = 'normmap'
+                
+                vignetteMapRebinned = tf[namehmap].values().T
                 print("py ndim = ",vignetteMapRebinned.ndim)
-                rebinx = int(self.geometry.npixx/vignetteMapRebinned.shape[0])
-                rebiny = int(self.geometry.npixy/vignetteMapRebinned.shape[1])
-                macroPixel = np.zeros((rebinx,rebiny))
+                rebiny = int(self.geometry.npixy/vignetteMapRebinned.shape[0])
+                rebinx = int(self.geometry.npixx/vignetteMapRebinned.shape[1])
+                macroPixel = np.zeros((rebiny,rebinx))
                 print ("Macro-pixel of the vignetting map has size = ",macroPixel.shape)
-                for ibx in range(vignetteMapRebinned.shape[0]):
-                    for iby in range(vignetteMapRebinned.shape[1]):
+                
+                for iby in range(vignetteMapRebinned.shape[0]):
+                    for ibx in range(vignetteMapRebinned.shape[1]):
                         macroPixel[:,:] = 1./vignetteMapRebinned[iby,ibx]
-                        (self.vignetteMap[det])[int(ibx*rebinx):int((ibx+1)*rebinx),int(iby*rebiny):int((iby+1)*rebiny)] = macroPixel
+                        (self.vignetteMap[det])[int(iby*rebiny):int((iby+1)*rebiny),int(ibx*rebinx):int((ibx+1)*rebinx)] = macroPixel
                 return self.vignetteMap[det]
-            else:
-                return self.vignetteMap[det]
+                
         else:
-            print ('WARNING! Geometry ',det,' not foreseen. Return correction 1')
+            print ('\nWARNING! There is no ',self.geometry.cameratype,' vignetting map. Flat mask of 1 will be used\n')
             return self.vignetteMap[det]
 
     def vignette_corr(self,img,vignette):
         return np.multiply(img,vignette)
-
-
