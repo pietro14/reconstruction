@@ -496,7 +496,7 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        img_fr = utilities.rootflip(tf,key,self.options.tag)                   #structure for h5 copied from ROOT as it was in the past. Unsure if it is correct
+                        img_fr = utilities.rootflip(tf,key,self.options.tag,options.rawdata_tier)                    #structure for h5 copied from ROOT as it was in the past. Unsure if it is correct
                         camera=True
 
                 elif self.options.rawdata_tier == 'midas':
