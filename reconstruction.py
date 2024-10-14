@@ -892,7 +892,7 @@ if __name__ == '__main__':
             postfix = 'mid.gz'
         options.tmpname = "%s/%s%05d.%s" % (tmpdir,prefix,int(options.run),postfix)
     else:
-        if options.rawdata_tier == 'root':
+        if options.rawdata_tier == 'root' or options.rawdata_tier == 'h5':
             file_url = sw.swift_root_file(options.tag, int(options.run))
             print ('Downloading file: ' + file_url)
             options.tmpname = sw.swift_download_root_file(file_url,int(options.run),tmpdir)
