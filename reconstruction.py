@@ -304,7 +304,7 @@ class analysis:
                     continue
                 if event%20 == 0:
                     print("Calc pedestal mean with event: ",event)
-                arr = utilities.rootflip(tf,name,options.tag)                    #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
+                arr = utilities.rootflip(tf,name,options.tag,options.rawdata_tier)                    #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
                 pedsum = np.add(pedsum,arr)
                 numev += 1
         pedmean = pedsum / float(numev)
@@ -354,7 +354,7 @@ class analysis:
 
                 if event%20 == 0:
                     print("Calc pedestal rms with event: ",event)
-                arr = utilities.rootflip(tf,name,options.tag)                     #see cycle above on pedmean
+                arr = utilities.rootflip(tf,name,options.tag,options.rawdata_tier)                     #see cycle above on pedmean
                 pedsqdiff = np.add(pedsqdiff, np.square(np.add(arr,-1*pedmean)))
                 numev += 1
         pedrms = np.sqrt(pedsqdiff/float(numev-1))
@@ -487,7 +487,7 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        img_fr = utilities.rootflip(tf,key,self.options.tag)     #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
+                        img_fr = utilities.rootflip(tf,key,self.options.tag,self.options.rawdata_tier)     #necessary to uniform root raw data to midas. This is a vertical flip (raw data differ between ROOT and MIDAS formats)
                         camera=True
 
                 elif self.options.rawdata_tier == 'h5':
@@ -496,7 +496,7 @@ class analysis:
                         m = patt.match(name)
                         run = int(m.group(1))
                         event = int(m.group(2))
-                        img_fr = utilities.rootflip(tf,key,self.options.tag,options.rawdata_tier)                    #structure for h5 copied from ROOT as it was in the past. Unsure if it is correct
+                        img_fr = utilities.rootflip(tf,key,self.options.tag,self.options.rawdata_tier)                    #structure for h5 copied from ROOT as it was in the past. Unsure if it is correct
                         camera=True
 
                 elif self.options.rawdata_tier == 'midas':
